@@ -42,35 +42,18 @@
 - **Secure Defaults**: Use secure configurations by default
 - **Audit Trail**: Maintain logs of security-relevant events
 
-## Testing Requirements
+## Development Quality Verification
 
-### Test-Driven Development
-- **Unit Testing**: Write comprehensive unit tests with high coverage (>80%)
-    - integration and user input/scenarios mocking permitted
-    - Goal: validate business logic
-- **Integration Testing**: Test component interactions and system workflows
-    - user input and scenarios mocking permitted
-    - Goal: verify component interoperability
-- **End-to-End Testing**: Validate complete user scenarios
-    - user UI mocking permitted
-    - Goal: verify workflows without ui/us layer
-- **Journey Testing**: Validate complete user ui/ux scenarios
-    - simulated user response permitted
-    - Goal: User UI experience funcitonal
-    - When testing a journey test file, **EXIT 0 with NO OUTPUT is a sign that the ui hung and expected user interaction** Requiring user input is not permitted for Journey testing. User input must be automated.
-- **Test Automation**: Automate test execution and reporting
-- **Test Data Management**: Use appropriate test data and mock objects. Minimized MOCKING as much as possible
+### Code Compilation and Quality
+- **Compilation**: Ensure code compiles without errors
+- **Code Quality**: Verify adherence to KISS, DRY, SOLID, and YAGNI principles
+- **Static Analysis**: Use linting tools and static code analyzers for code quality verification
+- **Code Reviews**: Implement peer review processes for quality assurance
 
-**When running test suites**
-- Run from most fundamental to most complex. 
-- Do not run a test or test file that is dependent on implementations that have not been tested.
-
-### Quality Assurance
-- **Code Reviews**: Implement peer review processes
-- **Static Analysis**: Use linting tools and static code analyzers
-- **Continuous Integration**: Automate build, test, and deployment processes
-- **Performance Testing**: Validate system performance under expected loads
-- **Security Testing**: Include security validation in testing processes
+### Testing Policy
+- **Testing Requirements**: Tests are NOT to be created unless explicitly directed by the user
+- **User-Directed Testing**: When testing is required, the user will provide specific testing commands and requirements
+- **Focus on Functionality**: During development, prioritize working, compilable code over test coverage
 
 ## Documentation Standards
 

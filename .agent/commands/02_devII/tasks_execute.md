@@ -24,7 +24,7 @@ codebase_search("task-related functionality patterns")
 
 # Then gather project context
 - Read {{FILE}} completely for ALL pre-defined tasks
-- Review {{FILE_DIRECTORY}}/outcome.md for current progress
+- Review task completion status directly in {{FILE}}
 - Identify established patterns in src/services/, src/components/, src/hooks/
 - Map tasks to existing implementations and dependencies
 ```
@@ -58,13 +58,14 @@ Patterns: [Code examples and established approaches]
 Validation: [How to verify completion]')
 ```
 
-### 5. Outcome Documentation
-Update `{{FILE_DIRECTORY}}/outcome.md` for each completed group:
-- Task group description and approach used
-- Files modified/created with specific changes
-- Patterns leveraged and any adaptations made
-- Issues encountered and resolutions applied
-- Validation results and success confirmation
+### 5. Task File Updates
+Update {{FILE}} directly for each completed group by marking tasks as completed:
+- Mark completed tasks with `[x]` checkbox syntax in task descriptions
+- Add completion notes inline with task descriptions using `**Status:** COMPLETE` format
+- Update task status indicators (⏳ PENDING → 🔄 IN PROGRESS → ✅ COMPLETE)
+- Document any blockers or issues directly in task descriptions with `**Blocked:** reason` format
+- Add completion details using `**Implementation:** brief description` format
+- Maintain task grouping and dependencies in the file structure
 
 ---
 
@@ -154,14 +155,24 @@ Provide subagents with:
 ## PROGRESS TRACKING
 
 ### Task Group Milestones
-For each group, verify:
+For each group, verify and update in {{FILE}}:
 - [ ] Context gathered and patterns identified
 - [ ] Implementation approach validated against existing code
 - [ ] Core functionality implemented using established patterns
 - [ ] Error handling added following project conventions
 - [ ] Integration tested with real backend/data
-- [ ] Documentation updated in outcome.md
+- [ ] Task status updated in {{FILE}} with completion details
 - [ ] Success criteria met and validated
+
+### Task File Update Format
+When updating {{FILE}}, use this format for completed tasks:
+```markdown
+### Task X.Y: Task Name ✅
+- **Status:** COMPLETE
+- **Implementation:** Brief description of what was implemented
+- **Files:** List of key files created/modified
+- **Notes:** Any important details or follow-ups
+```
 
 ### Overall Progress Indicators
 - Task groups completed: X/Y
@@ -185,8 +196,9 @@ update_todo_list                  # Track progress milestones
 - [ ] ALL tasks from {{FILE}} identified and grouped logically
 - [ ] Each group has complete context and established patterns
 - [ ] All groups delegated with comprehensive instructions
-- [ ] Outcomes documented in {{FILE_DIRECTORY}}/outcome.md
+- [ ] Task completion status updated directly in {{FILE}}
 - [ ] No tasks left unaddressed or incomplete
+- [ ] All completed tasks marked with ✅ and implementation details
 
 ### Red Flags ⚠️
 - Creating new tasks instead of implementing existing ones
@@ -209,15 +221,15 @@ update_todo_list                  # Track progress milestones
 - Processing **EVERY SINGLE TASK** through organized, logical groups
 - Using **ESTABLISHED PATTERNS** and existing codebase implementations
 - **NOT STOPPING** until all task groups are completed or documented as blocked
-- **DOCUMENTING OUTCOMES** comprehensively for each task group
+- **UPDATING TASK STATUS** directly in {{FILE}} for each completed group
 - **VALIDATING SUCCESS** against defined criteria before proceeding
 
 **EXECUTION PROTOCOL:**
 1. Read {{FILE}} completely → Identify ALL pre-defined tasks
-2. Group tasks logically → Use established patterns and dependencies  
+2. Group tasks logically → Use established patterns and dependencies
 3. Switch to orchestrator → Delegate with comprehensive context
-4. Process ALL groups → Document outcomes systematically
-5. Verify completion → Ensure no tasks remain unaddressed
+4. Process ALL groups → Update task status in {{FILE}} systematically
+5. Verify completion → Ensure no tasks remain unaddressed and all statuses updated
 
 ---
 
