@@ -70,14 +70,30 @@ Host <shortname>
 
 	5.	Harden SSH (optional but recommended):
 
-nano /etc/ssh/sshd_config
-# Ensure/modify:
-#   PermitRootLogin no
-#   PasswordAuthentication no
-#   PubkeyAuthentication yes
-#   MaxAuthTries 3
-#   AllowUsers deploy
-systemctl restart ssh
+# Fix or add SSH hardening settings
+  # PermitRootLogin no
+  # PasswordAuthentication no
+  # PubkeyAuthentication yes
+  # MaxAuthTries 3
+  # AllowUsers deploy
+  # Reload and restart sshd safely
+grep -q "^PermitRootLogin" /etc/ssh/sshd_config \
+  && sed -i 's/^.*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config \
+  || echo "PermitRootLogin no" >> /etc/ssh/sshd_config
+grep -q "^PasswordAuthentication" /etc/ssh/sshd_config \
+  && sed -i 's/^.*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config \
+  || echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+grep -q "^PubkeyAuthentication" /etc/ssh/sshd_config \
+  && sed -i 's/^.*PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
+  || echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+grep -q "^MaxAuthTries" /etc/ssh/sshd_config \
+  && sed -i 's/^.*MaxAuthTries.*/MaxAuthTries 3/' /etc/ssh/sshd_config \
+  || echo "MaxAuthTries 3" >> /etc/ssh/sshd_config
+grep -q "^AllowUsers" /etc/ssh/sshd_config \
+  && sed -i 's/^.*AllowUsers.*/AllowUsers deploy/' /etc/ssh/sshd_config \
+  || echo "AllowUsers deploy" >> /etc/ssh/sshd_config
+sudo systemctl reload sshd
+sudo systemctl restart sshd
 
 	6.	Reconnect as deploy:
 
