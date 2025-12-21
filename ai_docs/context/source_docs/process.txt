@@ -1,0 +1,413 @@
+Life Story Capture → Book Formation
+
+Process & Flow Document
+
+Core Design Commitments (Non‑Negotiables)
+	1.	Context before meaning
+Memory retrieval precedes narrative interpretation.
+	2.	Scope before structure
+Users choose what they are telling before how much.
+	3.	Archetypes are structural, not prescriptive
+They guide synthesis internally and are shown only on request.
+	4.	User remains the author at every step
+The system proposes, reflects, verifies, and pivots.
+	5.	The system builds an outline first, not a book
+Book formation is incremental and reversible.
+
+⸻
+
+High-Level Flow (Canonical)
+
+Trust → Scope → Context → Capture → Synthesis → Verification → Book
+
+⸻
+TRUST BUILDING AND PERMISSION
+⸻
+
+Phase 1: Introduction & Trust Setup
+
+Purpose
+	•	Reduce anxiety
+	•	Set expectations
+	•	Prevent over‑disclosure or paralysis
+
+What the user is told
+	•	“We’ll build an outline first, not the book.”
+	•	“You can skip anything.”
+	•	“You decide how much of your life we focus on.”
+	•	“Nothing is locked in.”
+
+Outcome
+	•	Psychological safety
+	•	Willingness to proceed
+
+⸻
+
+Phase 2: Scope Selection (Critical Fork)
+
+Purpose
+
+Ensure the user is never locked into “my whole life”.
+
+User-facing choice
+
+What would you like to focus on right now?
+
+	•	☐ My whole life story
+	•	☐ One major chapter of my life
+	•	☐ A specific life event or period
+	•	☐ I’m not sure yet (help me choose)
+
+Internal effect
+
+Scope determines:
+	•	How much context is required
+	•	Which sections are enabled
+	•	How synthesis is performed
+	•	What “completion” looks like
+
+⸻
+
+Phase 3: Gentle Profile (Context + Boundaries)
+
+Purpose
+	•	Eliminate irrelevant prompts
+	•	Earn trust
+	•	Prevent awkward or harmful questioning
+
+Format
+
+Checkboxes / pickers only (no essays)
+
+Domains
+
+Life structure
+	•	Relationships (partnered / previously / never)
+	•	Children (yes/no)
+	•	Family structure (parents, guardians)
+	•	Major careers (one / multiple)
+	•	Lived in multiple places (yes/no)
+	•	Military or service roles (yes/no)
+	•	Faith/spirituality important (yes/no)
+
+Comfort boundaries
+	•	Comfortable discussing romance (yes/no)
+	•	Comfortable discussing loss/trauma (yes/no)
+	•	Prefer to keep some material private (yes/no)
+
+Output
+
+An internal eligibility map that controls:
+	•	Which sections appear
+	•	Which prompts are tiered or suppressed
+
+⸻
+HISTORY AND FACT BUILDING
+⸻
+
+Phase 4: Contextual Grounding (Facts Before Story)
+
+Purpose
+
+Enable memory retrieval by loading time/place/role cues.
+
+Rules
+	•	Factual
+	•	Chronological
+	•	No interpretation
+	•	No emotional language unless volunteered
+
+Depending on scope:
+
+Whole life
+	•	Birth year (or approximate)
+	•	Where you grew up
+	•	Schools attended (optional)
+	•	Major moves (cities only)
+	•	Work phases
+	•	Relationship anchors (optional)
+	•	Children birth years (optional)
+
+Major section
+	•	When this chapter began/ended
+	•	Where you were living
+	•	Primary roles at the time
+
+Single event / period
+	•	What immediately preceded the event
+	•	Who was involved
+	•	Where you were in life at the start
+
+Output
+
+A chronological scaffold used to organize prompts.
+
+⸻
+
+Phase 5: Section Selection (Narrative Lanes)
+
+Purpose
+
+Avoid “tell me everything” paralysis.
+
+Structure
+	•	Core sections enabled by default
+	•	Conditional sections toggled by profile and scope
+	•	User sees lanes, not obligations
+
+Core sections (examples)
+	•	Origins (if whole life)
+	•	Childhood
+	•	Teen Years
+	•	Early Adulthood
+	•	Work & Purpose
+	•	Values & Beliefs
+	•	Milestones & Turning Points
+	•	Lessons & Legacy
+
+Conditional sections
+	•	Love & Partnership
+	•	Parenthood
+	•	Service & Sacrifice
+	•	Major Adventures
+	•	Caregiving / Illness / Loss
+
+⸻
+
+Phase 6: Guided Story Capture (The Engine)
+
+Purpose
+
+Generate rich, book‑grade material without asking users to “write.”
+
+Key Principle
+
+Scene-based, one prompt at a time.
+
+Prompt Pack Template (used everywhere)
+	1.	Scene – “Take me to a specific moment…”
+	2.	People – “Who was there? What were they like?”
+	3.	Tension – “What was uncertain, hard, or unresolved?”
+	4.	Change – “Did anything shift for you?” (optional)
+	5.	Meaning – “Looking back, what do you notice now?” (tri‑valent)
+
+Guardrails
+	•	Short answers encouraged
+	•	Voice optional
+	•	Users may skip or stay at headline level
+	•	Before deepening: consent check
+(“Want to zoom in, or stay broad?”)
+
+⸻
+
+Phase 7: Progressive Unlocking
+
+Purpose
+
+Reduce overwhelm and build momentum.
+
+Flow
+	1.	Origins / Context (if applicable)
+	2.	Early sections unlocked first
+	3.	Later sections unlock once sufficient material exists
+	4.	Branching paths offered based on profile and scope
+
+⸻
+
+Phase 8: Sensitive Topic Handling
+
+Purpose
+
+Preserve dignity, safety, and choice.
+
+Tiered model
+	•	Tier 1 (safe): general relationships, friendships
+	•	Tier 2 (optional): romance, intimacy, grief specifics
+	•	Tier 3 (private): material captured but not published
+
+User controls:
+	•	What is written
+	•	What is included
+	•	What remains private notes
+
+⸻
+STORY FORMATION
+⸻
+
+Phase 9: Synthesis Checkpoints (Provisional)
+
+Purpose
+
+Create visible progress without fixing meaning prematurely.
+
+What happens
+	•	System assembles a read‑only chapter draft
+	•	Draft is explicitly labeled provisional
+	•	Raw story inputs remain accessible
+
+Follow-up prompts (2–3 max)
+	•	"One more specific moment would strengthen this."
+	•	"Anything here feel off or missing?"
+	•	"Would you like to leave this as is?"
+
+⸻
+
+Phase 10: Archetype Organization & Selection
+
+Purpose
+
+Organize captured material into narrative structures with chapters, scenes, themes, and characters.
+Allow multiple archetypes to emerge and compete, with the best fit becoming clear over time.
+
+How it works
+	•	System analyzes material for:
+	•	Threat vs endurance vs transformation
+	•	Identity before/after
+	•	Relationship to loss, agency, meaning
+	•	Selects multiple candidate archetype(s) that fit the material at:
+	•	Whole work level
+	•	Section level (if relevant)
+	•	Maps material to potential narrative structures:
+	•	Chapters (major thematic divisions)
+	•	Scenes (specific moments and events)
+	•	Themes (recurring patterns and meanings)
+	•	Characters (people and their roles in the story)
+
+Archetype evolution
+	•	Multiple archetypes may be selected initially
+	•	As more material is captured, best-fit archetype(s) emerge naturally
+	•	System tracks which archetype provides strongest coherence
+	•	Archetypes remain flexible until composition phase
+
+User visibility
+	•	Hidden by default
+	•	Revealed only if the user asks for:
+	•	"story map"
+	•	"narrative shape"
+	•	help structuring the book
+
+Verification language
+
+"This currently reads like a journey through loss toward connection. Does that feel accurate, or would you frame it differently?"
+
+Immediate pivot if misaligned.
+
+⸻
+
+Phase 11: ANALYSIS (Gap Identification & Requirements)
+
+Purpose
+
+Based on selected archetype(s) and organized material, identify what needs to be explored further to inform strong story formation.
+
+Analyst Agent responsibilities
+	•	Evaluates current material against archetype requirements
+	•	Identifies gaps in:
+	•	Character development and relationships
+	•	Scene depth and sensory detail
+	•	Thematic continuity
+	•	Emotional arc progression
+	•	Timeline and chronological coherence
+	•	Lodges specific needs in Requirements Table
+
+Requirements Table structure
+	•	Requirement ID
+	•	Type (scene detail, character insight, thematic exploration, etc.)
+	•	Priority (critical, important, optional)
+	•	Related archetype lane
+	•	Suggested prompts or exploration angles
+	•	Status (pending, addressed, resolved)
+
+Session Agent integration
+	•	Requirements Table feeds into next session planning
+	•	Sessions Agent selects appropriate requirements based on:
+	•	User's current engagement state
+	•	Section they're working in
+	•	Natural conversation flow
+	•	Presents requirements as organic follow-up questions
+	•	Updates table as requirements are addressed
+
+Sufficiency gates
+	•	Minimum material thresholds per archetype
+	•	Character presence and development benchmarks
+	•	Scene density and distribution
+	•	Thematic coherence indicators
+	•	Once gates are passed, system enables composition phase
+
+⸻
+
+Phase 12: COMPOSITION (Story Writing)
+
+Purpose
+
+Once sufficiency gates are passed, begin assembling material into book-grade narrative.
+
+Composition process
+	•	Chapters assembled from verified drafts
+	•	Material organized according to best-fit archetype
+	•	Scenes arranged for narrative flow and impact
+	•	Tone calibrated from "book type" choice
+	•	Themes woven through structure
+	•	Character development tracked across chapters
+	•	Optional closing section: Lessons / Legacy
+
+Editor Agent responsibilities
+	•	Reviews composed chapters for:
+	•	Narrative coherence and flow
+	•	Tonal consistency
+	•	Pacing and scene balance
+	•	Character consistency
+	•	Thematic clarity
+	•	Structural alignment with archetype
+	•	Lodges edit requirements in Edit Requirements Table
+
+Edit Requirements Table structure
+	•	Edit ID
+	•	Chapter/section affected
+	•	Issue type (flow, pacing, clarity, consistency, etc.)
+	•	Severity (blocking, important, polish)
+	•	Specific concern or opportunity
+	•	Suggested approach
+	•	Status (pending, in review, resolved)
+
+Iterative refinement
+	•	Editor Agent flags issues without auto-fixing
+	•	Edit requirements presented to composition process
+	•	User maintains final authority on all edits
+	•	System proposes, user decides
+	•	Material refined through cycles until quality gates pass
+
+Outputs
+
+Depending on scope:
+	•	Full memoir
+	•	Section-focused book
+	•	Single-event memorial narrative
+
+⸻
+BOOK CREATION
+⸻
+- process of approval
+- printing
+- audio book variation
+- delivery
+
+
+⸻
+Final Design Principle (Anchor This)
+⸻
+
+Scope determines context.
+Archetype determines structure.
+Meaning always belongs to the user.
+
+This process:
+	•	Respects how memory works
+	•	Aligns with narrative therapy ethics
+	•	Avoids forced redemption
+	•	Produces real books, not just reflection
+
+If you want, next steps could be:
+	•	turning this into a formal spec
+	•	pressure‑testing single‑event mode end‑to‑end
+	•	or defining exact “completion criteria” per scope
