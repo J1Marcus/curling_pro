@@ -8,8 +8,14 @@ from sqlalchemy import pool
 from database.database_utils import DatabaseUtils
 from database.session import Base
 
-# This import is required for autogenerate support
+# These imports are required for autogenerate support
 from database.event import *
+from database.models.process import *
+from database.models.storyteller import *
+from database.models.session_models import *
+from database.models.collection import *
+from database.models.story import *
+from database.models.operations import *
 
 """
 Alembic Environment Module
