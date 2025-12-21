@@ -90,9 +90,10 @@ target/
 # Virtual environment
 .venv/
 
-# Alembic migrations
+# Alembic migrations (keep .py files for version control)
 app/alembic/versions/*
 !app/alembic/versions/.gitkeep
+!app/alembic/versions/*.py
 
 # Launchpad playground
 playground/*.png
