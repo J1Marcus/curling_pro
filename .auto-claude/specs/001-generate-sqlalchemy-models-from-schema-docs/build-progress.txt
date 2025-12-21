@@ -32,24 +32,24 @@ Model Domains (63 total models):
 - process.py: ProcessVersion, ProcessCommitment, ProcessNodeType, ProcessNode,
               ProcessFlowEdge, ProcessPrompt, PromptPackTemplate, PromptPackPrompt,
               ProcessSection, SectionPrompt (10 models)
-- storyteller.py: Storyteller, LifeEvent, LifeEventTimespan, LifeEventLocation,
-                  LifeEventParticipant, LifeEventDetail, LifeEventTrauma,
-                  StorytellerBoundary, LifeEventBoundary, LifeEventMedia,
-                  StorytellerPreference (11 models)
-- session_models.py: StorySession, SessionLifeEvent, SessionInteraction, SessionArtifact,
-                     SessionTemplate, SessionNote, SessionScope, SessionProfile,
-                     SessionProgress, SessionSectionStatus, SessionSynthesis,
-                     SessionArchetype (12 models)
+- storyteller.py: Storyteller, StorytellerBoundary, StorytellerPreference, LifeEvent,
+                  LifeEventTimespan, LifeEventLocation, LifeEventParticipant,
+                  LifeEventDetail, LifeEventTrauma, LifeEventBoundary, LifeEventMedia,
+                  LifeEventPreference (12 models)
+- session_models.py: StorytellerSession, SessionScope, SessionProfile, SessionProgress,
+                     SessionSectionStatus, SessionSynthesis, SessionArchetype,
+                     SessionLifeEvent, SessionInteraction, SessionArtifact,
+                     SessionTemplate, SessionNote (12 models)
 - collection.py: Collection, CollectionLifeEvent, CollectionGrouping,
                  CollectionGroupingMember, CollectionRelationship, CollectionTag,
                  CollectionSynthesis (7 models)
 - story.py: Story, StoryChapter, ChapterSection, StoryCollection, StoryCharacter,
             CharacterRelationship, CharacterAppearance, StoryTheme, ChapterTheme,
             StoryScene, StoryDraft (11 models)
-- system_operations.py: StorytellerProgress, StorytellerSectionSelection,
-                        StorytellerSectionStatus, ScopeType, ArchetypeAnalysis,
-                        UserFeedback, Agent, AgentInstance, Requirement,
-                        EditRequirement, BookExport, BookExportDelivery (12 models)
+- operations.py: StorytellerProgress, StorytellerSectionSelection,
+                 StorytellerSectionStatus, ScopeType, ArchetypeAnalysis,
+                 UserFeedback, Agent, AgentInstance, Requirement,
+                 EditRequirement, BookExport, BookExportDelivery (12 models)
 
 Parallelism Analysis:
 - Max parallel phases: 2
@@ -60,7 +60,7 @@ Parallelism Analysis:
 - Speedup estimate: 1.4x faster than sequential
 
 Key Patterns to Follow:
-- UUID: Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+- UUID: Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid1)
 - Timestamps: datetime.now (not utcnow)
 - JSONB: Use JSONB instead of JSON for PostgreSQL optimization
 - Arrays: ARRAY(Text) for text arrays, ARRAY(UUID(as_uuid=True)) for UUID arrays

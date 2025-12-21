@@ -13,7 +13,7 @@
     "app/database/models/session_models.py",
     "app/database/models/collection.py",
     "app/database/models/story.py",
-    "app/database/models/system_operations.py"
+    "app/database/models/operations.py"
   ],
   "files_to_reference": [
     "app/database/event.py",
@@ -28,7 +28,7 @@
   ],
   "patterns": {
     "model_structure": "Use Column() syntax with docstrings, import Base from database.session",
-    "uuid_handling": "UUID(as_uuid=True) with default=uuid.uuid4 for primary keys",
+    "uuid_handling": "UUID(as_uuid=True) with default=uuid.uuid1 for primary keys (per existing event.py pattern)",
     "timestamps": "Use datetime.now (not datetime.utcnow) for created_at and updated_at",
     "json_columns": "Use JSONB from sqlalchemy.dialects.postgresql (not JSON)",
     "arrays": "Use ARRAY(Text) or ARRAY(UUID(as_uuid=True)) from sqlalchemy",

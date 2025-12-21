@@ -1,0 +1,25 @@
+{
+  "discovered_files": {
+    "app/database/models/process.py": {
+      "description": "Process management models created with 10 SQLAlchemy models: ProcessVersion, ProcessCommitment, ProcessNodeType, ProcessNode, ProcessFlowEdge, ProcessPrompt, PromptPackTemplate, PromptPackPrompt, ProcessSection, SectionPrompt. All use UUID primary keys, JSONB columns for flexible data, and proper relationships with back_populates.",
+      "category": "models",
+      "discovered_at": "2025-12-21T20:17:24.774716+00:00"
+    },
+    "app/database/models/storyteller.py": {
+      "description": "Storyteller and Life Event models created with 12 SQLAlchemy models. Key patterns: one-to-one relationships use uselist=False, ARRAY(Text) for text arrays, self-referential FKs in LifeEventPreference.merge_with_other_event_id. Storyteller is the root with life_events as children. LifeEvent has 8 child tables for timespans, locations, participants, details, trauma, boundary, media, and preferences.",
+      "category": "models",
+      "discovered_at": "2025-12-21T20:21:32.926917+00:00"
+    },
+    "app/database/models/session_models.py": {
+      "description": "Session models created with 12 SQLAlchemy models: StorytellerSession (renamed from Session to avoid conflict with app/database/session.py), SessionScope, SessionProfile, SessionProgress, SessionSectionStatus, SessionSynthesis, SessionArchetype, SessionLifeEvent, SessionInteraction, SessionArtifact, SessionTemplate, SessionNote. Key patterns: one-to-one relationships use uselist=False, UniqueConstraint for composite unique keys, proper indexes defined after class definitions.",
+      "category": "models",
+      "discovered_at": "2025-12-21T20:27:50.364839+00:00"
+    },
+    "app/database/models/collection.py": {
+      "description": "Collection models created with 7 SQLAlchemy models: Collection, CollectionLifeEvent, CollectionGrouping, CollectionGroupingMember, CollectionRelationship, CollectionTag, CollectionSynthesis. Key patterns: many-to-many relationships use join tables with UniqueConstraint, self-referential FKs for CollectionRelationship with source/target collections, ARRAY(Text) for synthesis_themes, proper back_populates on both sides of relationships.",
+      "category": "models",
+      "discovered_at": "2025-12-21T20:32:22.811294+00:00"
+    }
+  },
+  "last_updated": "2025-12-21T20:32:22.811307+00:00"
+}
