@@ -1,0 +1,94 @@
+{
+  "project_root": "/Users/marcusswift/python/everbound_backend",
+  "project_type": "single",
+  "services": {
+    "main": {
+      "name": "main",
+      "path": "/Users/marcusswift/python/everbound_backend",
+      "language": "Python",
+      "framework": "FastAPI",
+      "type": "backend",
+      "package_manager": "pip",
+      "default_port": 8000,
+      "task_queue": "Celery",
+      "key_directories": {
+        "app": {
+          "path": "app",
+          "purpose": "Application code"
+        }
+      },
+      "testing": "pytest",
+      "api": {
+        "routes": [
+          {
+            "path": "/",
+            "methods": [
+              "POST"
+            ],
+            "file": "app/api/events.py",
+            "framework": "FastAPI",
+            "requires_auth": false
+          },
+          {
+            "path": "/chat/completions",
+            "methods": [
+              "POST"
+            ],
+            "file": "app/api/openai.py",
+            "framework": "FastAPI",
+            "requires_auth": false
+          }
+        ],
+        "total_routes": 2,
+        "methods": [
+          "POST"
+        ],
+        "protected_routes": []
+      },
+      "database": {
+        "models": {
+          "Event": {
+            "table": "events",
+            "fields": {
+              "data": {
+                "type": "JSON",
+                "primary_key": false,
+                "unique": false,
+                "nullable": true
+              },
+              "task_context": {
+                "type": "JSON",
+                "primary_key": false,
+                "unique": false,
+                "nullable": true
+              }
+            },
+            "file": "app/database/event.py",
+            "orm": "SQLAlchemy"
+          }
+        },
+        "total_models": 1,
+        "model_names": [
+          "Event"
+        ]
+      },
+      "api_documentation": {
+        "type": "openapi",
+        "auto_generated": true,
+        "docs_url": "/docs",
+        "redoc_url": "/redoc",
+        "openapi_url": "/openapi.json"
+      }
+    }
+  },
+  "infrastructure": {
+    "docker_directory": "docker/",
+    "dockerfiles": [
+      "docker/Dockerfile.api",
+      "docker/Dockerfile.celery"
+    ]
+  },
+  "conventions": {
+    "python_linting": "Ruff"
+  }
+}

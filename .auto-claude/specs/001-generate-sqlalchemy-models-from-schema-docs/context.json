@@ -1,0 +1,57 @@
+{
+  "task_description": "Generate SQLAlchemy models in app/database/ based on schema documentation in ai_docs/context/source_docs/schema/, compatible with Alembic migrations for local Supabase",
+  "scoped_services": ["main"],
+  "files_to_modify": [
+    "app/database/__init__.py",
+    "app/alembic/env.py"
+  ],
+  "files_to_create": [
+    "app/database/models/__init__.py",
+    "app/database/models/base.py",
+    "app/database/models/process.py",
+    "app/database/models/storyteller.py",
+    "app/database/models/session_models.py",
+    "app/database/models/collection.py",
+    "app/database/models/story.py",
+    "app/database/models/system_operations.py"
+  ],
+  "files_to_reference": [
+    "app/database/event.py",
+    "app/database/session.py",
+    "app/alembic/env.py",
+    "ai_docs/context/source_docs/schema/process_schema.md",
+    "ai_docs/context/source_docs/schema/storyteller_schema.md",
+    "ai_docs/context/source_docs/schema/session_schema.md",
+    "ai_docs/context/source_docs/schema/collection_schema.md",
+    "ai_docs/context/source_docs/schema/story_schema.md",
+    "ai_docs/context/source_docs/schema/system_operations_schema.md"
+  ],
+  "patterns": {
+    "model_structure": "Use Column() syntax with docstrings, import Base from database.session",
+    "uuid_handling": "UUID(as_uuid=True) with default=uuid.uuid4 for primary keys",
+    "timestamps": "Use datetime.now (not datetime.utcnow) for created_at and updated_at",
+    "json_columns": "Use JSONB from sqlalchemy.dialects.postgresql (not JSON)",
+    "arrays": "Use ARRAY(Text) or ARRAY(UUID(as_uuid=True)) from sqlalchemy",
+    "foreign_keys": "ForeignKey('table.id', ondelete='CASCADE') for referential integrity",
+    "relationships": "Use string class names like relationship('ClassName') to avoid circular imports",
+    "indexes": "Create indexes using Index() after class definition",
+    "unique_constraints": "Use UniqueConstraint in __table_args__"
+  },
+  "existing_implementations": {
+    "description": "Found existing Event model in app/database/event.py using SQLAlchemy with PostgreSQL UUID type",
+    "relevant_files": [
+      "app/database/event.py",
+      "app/database/session.py",
+      "app/database/database_utils.py"
+    ],
+    "base_class_location": "database.session.Base"
+  },
+  "edge_cases": {
+    "self_referential_fks": ["process_section.unlock_after_section_id", "archetype_analysis.previous_analysis_id"],
+    "circular_imports": "Use string references in relationships",
+    "nullable_fks": "Some foreign keys are optional - check schema for nullable=True",
+    "users_table": "Do NOT create users table - handled by Supabase Auth"
+  },
+  "created_at": "2025-12-21T11:41:15.268790",
+  "updated_at": "2025-12-21T12:00:00.000000"
+}
