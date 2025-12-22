@@ -31,3 +31,17 @@ class ValidationError(Exception):
     def __init__(self, message: str = "Validation failed."):
         logging.warning(message)
         super().__init__(message)
+
+
+class UnauthorizedError(Exception):
+    """Raised when authentication or authorization fails.
+
+    Use this for scenarios where the user is not authenticated or lacks
+    valid credentials to access the requested resource.
+    """
+
+    status_code: int = 401
+
+    def __init__(self, message: str = "Authentication required."):
+        logging.warning(message)
+        super().__init__(message)
