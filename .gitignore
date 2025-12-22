@@ -99,3 +99,9 @@ app/alembic/versions/*
 playground/*.png
 
 app/google-service-account.json
+
+# Auto Claude data directory
+.auto-claude/
+
+# Git worktrees
+.worktrees/
