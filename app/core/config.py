@@ -85,3 +85,19 @@ class Settings(BaseSettings):
     google_vertex_ai_location: str = Field(
         default="europe-west1", description="Google Vertex AI region"
     )
+
+    # LLM Providers - Ollama
+    ollama_base_url: Optional[str] = Field(
+        default="http://localhost:11434/v1", description="Ollama base URL for local LLM inference"
+    )
+
+    # LLM Providers - AWS Bedrock
+    bedrock_aws_access_key_id: Optional[SecretStr] = Field(
+        default=None, description="AWS access key ID for Bedrock"
+    )
+    bedrock_aws_secret_access_key: Optional[SecretStr] = Field(
+        default=None, description="AWS secret access key for Bedrock"
+    )
+    bedrock_aws_region: Optional[str] = Field(
+        default=None, description="AWS region for Bedrock"
+    )
