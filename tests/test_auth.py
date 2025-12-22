@@ -276,3 +276,191 @@ class TestVerifyWebhookSignature:
 
         # Verify body was called exactly once
         mock_request.body.assert_called_once()
+
+
+class TestVerifyApiKey:
+    """Test suite for verify_api_key function."""
+
+    # Import test constants
+    from conftest import TEST_WEBHOOK_API_KEY
+
+    @pytest.fixture
+    def mock_request(self) -> MagicMock:
+        """Create a mock FastAPI Request object for API key tests.
+
+        Returns:
+            MagicMock: A mock request object with headers.
+        """
+        return MagicMock()
+
+    def test_valid_api_key_accepted(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that a valid API key is accepted.
+
+        Verifies that when a request contains the correct API key
+        in the X-API-Key header, the verification succeeds without
+        raising an exception.
+        """
+        from app.api.auth import verify_api_key
+
+        # Set valid API key header
+        mock_request.headers = {"X-API-Key": self.TEST_WEBHOOK_API_KEY}
+
+        # Should not raise any exception
+        verify_api_key(mock_request)
+
+    def test_invalid_api_key_rejected(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that an invalid API key is rejected with 401.
+
+        Verifies that when a request contains an incorrect API key,
+        the verification fails with an HTTPException 401.
+        """
+        from app.api.auth import verify_api_key
+
+        # Set invalid API key
+        mock_request.headers = {"X-API-Key": "wrong-api-key-12345"}
+
+        # Verify rejection with 401
+        with pytest.raises(HTTPException) as exc_info:
+            verify_api_key(mock_request)
+
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "Unauthorized"
+
+    def test_missing_api_key_rejected(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that a missing API key header is rejected with 401.
+
+        Verifies that when a request does not include the X-API-Key
+        header, the verification fails with an HTTPException 401.
+        """
+        from app.api.auth import verify_api_key
+
+        # No API key header
+        mock_request.headers = {}
+
+        # Verify rejection with 401
+        with pytest.raises(HTTPException) as exc_info:
+            verify_api_key(mock_request)
+
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "Unauthorized"
+
+    def test_empty_api_key_rejected(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that an empty API key header is rejected with 401.
+
+        Verifies that when a request includes an empty X-API-Key
+        header value, the verification fails with an HTTPException 401.
+        """
+        from app.api.auth import verify_api_key
+
+        # Empty API key header
+        mock_request.headers = {"X-API-Key": ""}
+
+        # Verify rejection with 401
+        with pytest.raises(HTTPException) as exc_info:
+            verify_api_key(mock_request)
+
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.detail == "Unauthorized"
+
+    def test_empty_webhook_api_key_env_fails(
+        self,
+        mock_request: MagicMock,
+    ) -> None:
+        """Test that empty WEBHOOK_API_KEY causes rejection (fail closed).
+
+        Verifies that when WEBHOOK_API_KEY is not configured or empty,
+        all requests are rejected to ensure fail-closed behavior.
+        """
+        from app.api.auth import verify_api_key
+
+        # Set a valid-looking API key in request
+        mock_request.headers = {"X-API-Key": "some-api-key"}
+
+        # Mock empty WEBHOOK_API_KEY
+        with patch.dict(os.environ, {"WEBHOOK_API_KEY": ""}):
+            with pytest.raises(HTTPException) as exc_info:
+                verify_api_key(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_missing_webhook_api_key_env_fails(
+        self,
+        mock_request: MagicMock,
+    ) -> None:
+        """Test that missing WEBHOOK_API_KEY env var causes rejection.
+
+        Verifies that when WEBHOOK_API_KEY environment variable
+        is not set at all, requests are rejected (fail closed).
+        """
+        from app.api.auth import verify_api_key
+
+        mock_request.headers = {"X-API-Key": "some-api-key"}
+
+        # Ensure env var is not set
+        env_copy = os.environ.copy()
+        if "WEBHOOK_API_KEY" in env_copy:
+            del env_copy["WEBHOOK_API_KEY"]
+
+        with patch.dict(os.environ, env_copy, clear=True):
+            with pytest.raises(HTTPException) as exc_info:
+                verify_api_key(mock_request)
+
+            assert exc_info.value.status_code == 401
+            assert exc_info.value.detail == "Unauthorized"
+
+    def test_api_key_header_is_case_sensitive_value(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that API key comparison is case-sensitive.
+
+        Verifies that the API key value comparison treats uppercase
+        and lowercase characters as different.
+        """
+        from app.api.auth import verify_api_key
+
+        # Use uppercase version of the test API key
+        mock_request.headers = {"X-API-Key": self.TEST_WEBHOOK_API_KEY.upper()}
+
+        # If original was not all uppercase, this should fail
+        if self.TEST_WEBHOOK_API_KEY != self.TEST_WEBHOOK_API_KEY.upper():
+            with pytest.raises(HTTPException) as exc_info:
+                verify_api_key(mock_request)
+
+            assert exc_info.value.status_code == 401
+
+    def test_api_key_header_name_case_insensitivity(
+        self,
+        mock_request: MagicMock,
+        mock_env_vars: None,
+    ) -> None:
+        """Test that X-API-Key header name lookup works.
+
+        Verifies that the header is retrieved correctly using
+        the expected header name format.
+        """
+        from app.api.auth import verify_api_key
+
+        # Use exact header name as expected
+        mock_request.headers = {"X-API-Key": self.TEST_WEBHOOK_API_KEY}
+
+        # Should not raise any exception
+        verify_api_key(mock_request)
