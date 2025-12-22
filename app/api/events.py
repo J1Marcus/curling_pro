@@ -36,12 +36,13 @@ def handle_event(
         The endpoint returns immediately after queueing the task.
         Use the task ID in the response to check processing status.
     """
+    raw_event = data.model_dump(mode="json")
+
     # Store event in database
     repository = GenericRepository(
         session=session,
         model=Event,
     )
-    raw_event = data.model_dump(mode="json")
     event = Event(data=raw_event, workflow_type=get_workflow_type())
     repository.create(obj=event)
 
