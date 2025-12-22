@@ -1,280 +1,387 @@
 """
-Pytest Configuration and Fixtures
+Pytest configuration and shared fixtures for Everbound Backend tests.
 
-This module provides shared fixtures for testing the webhook authentication
-functionality and FastAPI endpoints.
+This module provides common test fixtures used across the test suite,
+including FastAPI TestClient, mock request objects, and logging capture
+utilities.
+
+Fixtures:
+    test_client: FastAPI TestClient for integration testing
+    mock_request: Mock FastAPI Request object for unit testing handlers
+    caplog_with_handler: Enhanced log capturing with handler-level access
 """
 
-import hashlib
-import hmac
-import os
-import sys
+import logging
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-from fastapi.testclient import TestClient
+from fastapi import FastAPI
+from starlette.testclient import TestClient
 
-# Add app directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
-
-from main import app
-from database.session import db_session
-
-
-# Test constants - never use real secrets in tests
-TEST_VAPI_SERVER_SECRET = "test-vapi-server-secret-12345"
-TEST_WEBHOOK_API_KEY = "test-webhook-api-key-67890"
+from app.main import app as fastapi_app
+from app.middleware import register_exception_handlers
 
 
 @pytest.fixture
-def test_vapi_secret() -> str:
-    """Provide test VAPI server secret."""
-    return TEST_VAPI_SERVER_SECRET
+def test_client() -> Generator[TestClient, None, None]:
+    """Provide a FastAPI TestClient for integration testing.
 
-
-@pytest.fixture
-def test_api_key() -> str:
-    """Provide test webhook API key."""
-    return TEST_WEBHOOK_API_KEY
-
-
-@pytest.fixture
-def mock_env_vars() -> Generator[None, None, None]:
-    """Mock environment variables for webhook authentication.
-
-    This fixture sets up the required environment variables for testing:
-    - VAPI_SERVER_SECRET: Used for HMAC signature verification
-    - WEBHOOK_API_KEY: Used for API key authentication
+    This fixture creates a TestClient instance connected to the main
+    FastAPI application, allowing tests to make HTTP requests to the
+    API endpoints.
 
     Yields:
-        None: The environment variables are available during the test.
+        TestClient: A configured test client for the FastAPI app.
+
+    Example:
+        def test_get_endpoint(test_client):
+            response = test_client.get("/some-endpoint")
+            assert response.status_code == 200
     """
-    env_vars = {
-        "VAPI_SERVER_SECRET": TEST_VAPI_SERVER_SECRET,
-        "WEBHOOK_API_KEY": TEST_WEBHOOK_API_KEY,
-    }
-    with patch.dict(os.environ, env_vars):
-        yield
+    with TestClient(fastapi_app) as client:
+        yield client
 
 
 @pytest.fixture
-def mock_env_empty_secret() -> Generator[None, None, None]:
-    """Mock environment with empty VAPI_SERVER_SECRET.
+def test_app() -> FastAPI:
+    """Provide a clean FastAPI app instance for testing.
 
-    Used to test fail-closed behavior when secret is not configured.
+    This fixture creates a new FastAPI instance with exception handlers
+    registered, useful for testing middleware components in isolation
+    without affecting the main application.
+
+    Returns:
+        FastAPI: A fresh FastAPI application instance with error handlers.
+
+    Example:
+        def test_app_with_custom_routes(test_app):
+            @test_app.get("/test")
+            def test_route():
+                return {"message": "test"}
+
+            with TestClient(test_app) as client:
+                response = client.get("/test")
+                assert response.status_code == 200
     """
-    env_vars = {
-        "VAPI_SERVER_SECRET": "",
-        "WEBHOOK_API_KEY": TEST_WEBHOOK_API_KEY,
-    }
-    with patch.dict(os.environ, env_vars, clear=False):
-        yield
+    app = FastAPI()
+    register_exception_handlers(app)
+    return app
 
 
 @pytest.fixture
-def mock_env_empty_api_key() -> Generator[None, None, None]:
-    """Mock environment with empty WEBHOOK_API_KEY.
+def test_app_client(test_app: FastAPI) -> Generator[TestClient, None, None]:
+    """Provide a TestClient for a clean test app instance.
 
-    Used to test fail-closed behavior when API key is not configured.
-    """
-    env_vars = {
-        "VAPI_SERVER_SECRET": TEST_VAPI_SERVER_SECRET,
-        "WEBHOOK_API_KEY": "",
-    }
-    with patch.dict(os.environ, env_vars, clear=False):
-        yield
-
-
-def mock_db_session() -> Generator[MagicMock, None, None]:
-    """Create a mock database session for testing."""
-    mock_session = MagicMock()
-    yield mock_session
-
-
-@pytest.fixture
-def client(mock_env_vars: None) -> Generator[TestClient, None, None]:
-    """Create FastAPI test client with mocked environment variables.
+    This fixture combines test_app with a TestClient, useful for testing
+    middleware behavior with custom routes.
 
     Args:
-        mock_env_vars: Fixture that sets up required environment variables.
+        test_app: The clean FastAPI app fixture.
 
     Yields:
-        TestClient: A test client for making requests to the FastAPI app.
+        TestClient: A configured test client for the test app.
     """
-    # Override the database session dependency with a mock
-    app.dependency_overrides[db_session] = mock_db_session
-
-    # Mock celery task sending, workflow registry, and repository
-    with patch("api.events.celery_app") as mock_celery, \
-         patch("api.events.get_workflow_type", return_value="test_workflow"), \
-         patch("api.events.GenericRepository") as mock_repo_class:
-        mock_celery.send_task.return_value = "test-task-id-12345"
-        mock_repo = MagicMock()
-        mock_repo_class.return_value = mock_repo
-        with TestClient(app) as test_client:
-            yield test_client
-
-    # Clean up the override
-    app.dependency_overrides.clear()
+    with TestClient(test_app) as client:
+        yield client
 
 
 @pytest.fixture
-def client_no_mock() -> Generator[TestClient, None, None]:
-    """Create FastAPI test client without mocked environment variables.
+def mock_request() -> MagicMock:
+    """Provide a mock FastAPI Request object for unit testing.
 
-    Used for testing behavior when environment variables are not set.
-    """
-    with TestClient(app) as test_client:
-        yield test_client
+    This fixture creates a MagicMock that mimics FastAPI's Request object,
+    pre-configured with common attributes needed for testing exception
+    handlers and middleware functions.
 
-
-def generate_signature(payload: bytes, secret: str) -> str:
-    """Generate HMAC-SHA256 signature for a payload.
-
-    This helper function creates a valid signature that matches
-    the format expected by the webhook authentication.
-
-    Args:
-        payload: The raw request body as bytes.
-        secret: The VAPI server secret.
+    The mock includes:
+        - url.path: Request path (default: "/test-endpoint")
+        - method: HTTP method (default: "GET")
+        - headers: Dict-like object for request headers
+        - client.host: Client IP address (default: "127.0.0.1")
 
     Returns:
-        str: The hex-encoded HMAC-SHA256 signature.
+        MagicMock: A mock Request object with pre-configured attributes.
+
+    Example:
+        def test_error_handler(mock_request):
+            mock_request.url.path = "/custom/path"
+            mock_request.method = "POST"
+            # Use mock_request in handler tests
     """
-    return hmac.new(
-        secret.encode(),
-        payload,
-        hashlib.sha256,
-    ).hexdigest()
+    mock = MagicMock()
 
+    # Configure URL
+    mock.url.path = "/test-endpoint"
 
-@pytest.fixture
-def signature_generator() -> Any:
-    """Provide signature generator function as a fixture.
+    # Configure HTTP method
+    mock.method = "GET"
 
-    Returns:
-        Callable: The generate_signature function.
-    """
-    return generate_signature
-
-
-@pytest.fixture
-def sample_payload() -> bytes:
-    """Provide a sample webhook payload for testing.
-
-    Returns:
-        bytes: A JSON-encoded sample event payload.
-    """
-    return b'{"type": "test-event", "data": {"key": "value"}}'
-
-
-@pytest.fixture
-def sample_payload_dict() -> dict[str, Any]:
-    """Provide sample payload as dictionary for assertions.
-
-    Returns:
-        dict: The sample event payload as a dictionary.
-    """
-    return {"type": "test-event", "data": {"key": "value"}}
-
-
-@pytest.fixture
-def valid_auth_headers(
-    sample_payload: bytes,
-    test_vapi_secret: str,
-    test_api_key: str,
-) -> dict[str, str]:
-    """Generate valid authentication headers for testing.
-
-    Args:
-        sample_payload: The request payload bytes.
-        test_vapi_secret: The test VAPI server secret.
-        test_api_key: The test webhook API key.
-
-    Returns:
-        dict: Headers with valid signature and API key.
-    """
-    signature = generate_signature(sample_payload, test_vapi_secret)
-    return {
-        "Content-Type": "application/json",
-        "x-vapi-signature": signature,
-        "X-API-Key": test_api_key,
+    # Configure headers with dict-like behavior
+    headers_dict: dict[str, str] = {
+        "user-agent": "TestClient/1.0",
+        "content-type": "application/json",
     }
+    mock.headers.get.side_effect = lambda key, default=None: headers_dict.get(
+        key.lower(), default
+    )
+    mock.headers.__getitem__.side_effect = lambda key: headers_dict.get(key.lower(), "")
+    mock.headers.__contains__.side_effect = lambda key: key.lower() in headers_dict
+
+    # Configure client info
+    mock.client.host = "127.0.0.1"
+
+    return mock
 
 
 @pytest.fixture
-def invalid_signature_headers(test_api_key: str) -> dict[str, str]:
-    """Generate headers with invalid signature for testing.
+def mock_request_with_headers() -> MagicMock:
+    """Provide a mock Request with customizable headers.
 
-    Args:
-        test_api_key: The test webhook API key.
+    This fixture provides a factory function that creates mock Request
+    objects with specific header configurations. Useful for testing
+    proxy headers (X-Forwarded-For, X-Real-IP) and other header-dependent
+    functionality.
 
     Returns:
-        dict: Headers with invalid signature but valid API key.
+        MagicMock: A function that creates configured mock Request objects.
+
+    Example:
+        def test_client_ip_extraction(mock_request_with_headers):
+            request = mock_request_with_headers
+            request.headers = {"x-forwarded-for": "192.168.1.100"}
+            # Test with custom headers
     """
-    return {
-        "Content-Type": "application/json",
-        "x-vapi-signature": "invalid-signature-12345",
-        "X-API-Key": test_api_key,
-    }
+    mock = MagicMock()
+    mock.url.path = "/test-endpoint"
+    mock.method = "GET"
+    mock.client.host = "127.0.0.1"
+
+    # Default empty headers that can be customized
+    _headers: dict[str, str] = {}
+
+    def set_headers(headers: dict[str, str]) -> None:
+        """Update the mock's headers."""
+        _headers.clear()
+        _headers.update({k.lower(): v for k, v in headers.items()})
+        mock.headers.get.side_effect = lambda key, default=None: _headers.get(
+            key.lower(), default
+        )
+
+    mock.set_headers = set_headers
+    mock.headers.get.side_effect = lambda key, default=None: _headers.get(
+        key.lower(), default
+    )
+
+    return mock
+
+
+class LogCapture:
+    """Helper class for capturing and asserting log messages.
+
+    This class provides a more ergonomic interface for working with
+    captured log records during testing.
+
+    Attributes:
+        records: List of captured LogRecord objects.
+
+    Example:
+        log_capture = LogCapture(caplog.records)
+        assert log_capture.has_message("Error occurred")
+        assert log_capture.has_level(logging.ERROR)
+    """
+
+    def __init__(self, records: list[logging.LogRecord]) -> None:
+        """Initialize with a list of log records.
+
+        Args:
+            records: List of LogRecord objects from caplog.
+        """
+        self.records = records
+
+    def has_message(self, substring: str) -> bool:
+        """Check if any log message contains the given substring.
+
+        Args:
+            substring: Text to search for in log messages.
+
+        Returns:
+            True if any log message contains the substring.
+        """
+        return any(substring in record.message for record in self.records)
+
+    def has_level(self, level: int) -> bool:
+        """Check if any log was captured at the specified level.
+
+        Args:
+            level: Logging level (e.g., logging.ERROR, logging.WARNING).
+
+        Returns:
+            True if any log was captured at the specified level.
+        """
+        return any(record.levelno == level for record in self.records)
+
+    def get_messages(self, level: int | None = None) -> list[str]:
+        """Get all captured log messages, optionally filtered by level.
+
+        Args:
+            level: Optional logging level to filter by.
+
+        Returns:
+            List of log message strings.
+        """
+        if level is not None:
+            return [r.message for r in self.records if r.levelno == level]
+        return [r.message for r in self.records]
+
+    def get_records_by_level(self, level: int) -> list[logging.LogRecord]:
+        """Get all log records at a specific level.
+
+        Args:
+            level: Logging level to filter by.
+
+        Returns:
+            List of LogRecord objects at the specified level.
+        """
+        return [r for r in self.records if r.levelno == level]
+
+    def count(self, level: int | None = None) -> int:
+        """Count captured log records, optionally filtered by level.
+
+        Args:
+            level: Optional logging level to filter by.
+
+        Returns:
+            Number of matching log records.
+        """
+        if level is not None:
+            return len([r for r in self.records if r.levelno == level])
+        return len(self.records)
+
+    def clear(self) -> None:
+        """Clear all captured records."""
+        self.records.clear()
 
 
 @pytest.fixture
-def missing_signature_headers(test_api_key: str) -> dict[str, str]:
-    """Generate headers without signature for testing.
+def log_capture(caplog: pytest.LogCaptureFixture) -> LogCapture:
+    """Provide enhanced log capturing functionality.
+
+    This fixture wraps pytest's caplog with a LogCapture helper class
+    that provides more ergonomic methods for asserting log behavior.
 
     Args:
-        test_api_key: The test webhook API key.
+        caplog: pytest's built-in log capture fixture.
 
     Returns:
-        dict: Headers with API key but no signature.
+        LogCapture: A helper object for working with captured logs.
+
+    Example:
+        def test_error_logging(log_capture, caplog):
+            caplog.set_level(logging.ERROR)
+            # ... trigger some logging ...
+            assert log_capture.has_message("Error occurred")
+            assert log_capture.has_level(logging.ERROR)
     """
-    return {
-        "Content-Type": "application/json",
-        "X-API-Key": test_api_key,
-    }
+    return LogCapture(caplog.records)
 
 
 @pytest.fixture
-def missing_api_key_headers(
-    sample_payload: bytes,
-    test_vapi_secret: str,
-) -> dict[str, str]:
-    """Generate headers without API key for testing.
+def capture_error_logs(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """Configure log capture for error-level logging.
+
+    This fixture configures caplog to capture ERROR and above level logs,
+    which is useful for testing exception handlers that log errors.
 
     Args:
-        sample_payload: The request payload bytes.
-        test_vapi_secret: The test VAPI server secret.
+        caplog: pytest's built-in log capture fixture.
 
     Returns:
-        dict: Headers with valid signature but no API key.
+        LogCaptureFixture: Configured to capture ERROR level logs.
+
+    Example:
+        def test_unhandled_exception(capture_error_logs):
+            # ... trigger error ...
+            assert "Exception occurred" in capture_error_logs.text
     """
-    signature = generate_signature(sample_payload, test_vapi_secret)
-    return {
-        "Content-Type": "application/json",
-        "x-vapi-signature": signature,
-    }
+    caplog.set_level(logging.ERROR)
+    return caplog
 
 
 @pytest.fixture
-def invalid_api_key_headers(
-    sample_payload: bytes,
-    test_vapi_secret: str,
-) -> dict[str, str]:
-    """Generate headers with invalid API key for testing.
+def capture_warning_logs(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """Configure log capture for warning-level logging.
+
+    This fixture configures caplog to capture WARNING and above level logs,
+    which is useful for testing 4xx error handlers that log warnings.
 
     Args:
-        sample_payload: The request payload bytes.
-        test_vapi_secret: The test VAPI server secret.
+        caplog: pytest's built-in log capture fixture.
 
     Returns:
-        dict: Headers with valid signature but invalid API key.
+        LogCaptureFixture: Configured to capture WARNING level logs.
+
+    Example:
+        def test_validation_error(capture_warning_logs):
+            # ... trigger validation error ...
+            assert "validation failed" in capture_warning_logs.text
     """
-    signature = generate_signature(sample_payload, test_vapi_secret)
-    return {
-        "Content-Type": "application/json",
-        "x-vapi-signature": signature,
-        "X-API-Key": "wrong-api-key",
-    }
+    caplog.set_level(logging.WARNING)
+    return caplog
+
+
+@pytest.fixture
+def capture_all_logs(caplog: pytest.LogCaptureFixture) -> pytest.LogCaptureFixture:
+    """Configure log capture for all logging levels.
+
+    This fixture configures caplog to capture DEBUG and above level logs,
+    allowing tests to verify all logged messages.
+
+    Args:
+        caplog: pytest's built-in log capture fixture.
+
+    Returns:
+        LogCaptureFixture: Configured to capture all log levels.
+
+    Example:
+        def test_detailed_logging(capture_all_logs):
+            # ... run code with logging ...
+            assert len(capture_all_logs.records) > 0
+    """
+    caplog.set_level(logging.DEBUG)
+    return caplog
+
+
+@pytest.fixture
+def sample_validation_errors() -> list[dict[str, Any]]:
+    """Provide sample Pydantic validation errors for testing.
+
+    This fixture provides a list of validation error dictionaries in the
+    format returned by Pydantic's ValidationError.errors() method.
+
+    Returns:
+        List of validation error dictionaries.
+
+    Example:
+        def test_format_validation_errors(sample_validation_errors):
+            formatted = _format_validation_errors(sample_validation_errors)
+            assert "email" in formatted
+    """
+    return [
+        {
+            "loc": ("body", "email"),
+            "msg": "field required",
+            "type": "missing",
+        },
+        {
+            "loc": ("body", "age"),
+            "msg": "value is not a valid integer",
+            "type": "int_parsing",
+        },
+        {
+            "loc": ("query", "page"),
+            "msg": "value must be greater than 0",
+            "type": "greater_than",
+        },
+    ]
