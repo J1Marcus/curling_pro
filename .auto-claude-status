@@ -1,46 +1,25 @@
 {
-  "active": true,
-<<<<<<< HEAD
-  "spec": "009-health-check-endpoints",
-  "state": "building",
+  "active": false,
+  "spec": "011-centralized-configuration",
+  "state": "complete",
   "subtasks": {
-    "completed": 7,
-    "total": 8,
-=======
-  "spec": "010-error-handling-middleware",
-  "state": "building",
-  "subtasks": {
-    "completed": 23,
-    "total": 26,
->>>>>>> auto-claude/010-error-handling-middleware
-    "in_progress": 1,
+    "completed": 12,
+    "total": 12,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
-<<<<<<< HEAD
-    "current": "Router Registration and Verification",
+    "current": "Testing and Verification",
     "id": null,
     "total": 3
-=======
-    "current": "Verification & Cleanup",
-    "id": null,
-    "total": 4
->>>>>>> auto-claude/010-error-handling-middleware
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-<<<<<<< HEAD
-    "number": 8,
-    "started_at": "2025-12-21T17:51:45.473528"
+    "number": 11,
+    "started_at": "2025-12-21T17:51:47.675735"
   },
-  "last_update": "2025-12-21T18:05:32.732968"
-=======
-    "number": 25,
-    "started_at": "2025-12-21T17:51:46.951707"
-  },
-  "last_update": "2025-12-21T18:45:29.100727"
->>>>>>> auto-claude/010-error-handling-middleware
+  "last_update": "2025-12-21T20:32:00.000000"
 }

@@ -7,4 +7,5 @@ Tests cover:
     - Custom exception classes (NotFoundError, ValidationError, etc.)
     - Exception message handling and status codes
     - Logging behavior for exceptions
+    - Core application infrastructure and configuration
 """
