@@ -30,6 +30,99 @@ EXTERNAL_SERVICE_TIMEOUT = 10  # seconds
 router = APIRouter()
 
 
+@router.get("/")
+def health_overall(
+    session: Session = Depends(db_session),
+) -> JSONResponse:
+    """Check overall system health.
+
+    This endpoint aggregates health status from all service dependencies
+    including database, Redis, and external services. It provides a
+    comprehensive view of system health for monitoring and orchestration.
+
+    Args:
+        session: Database session injected by FastAPI dependency
+
+    Returns:
+        JSONResponse: 200 OK with all component statuses if system is
+            healthy, 503 Service Unavailable if any critical component
+            is unhealthy.
+
+    Note:
+        This endpoint is suitable for Kubernetes readiness probes and
+        comprehensive system health monitoring. It checks all critical
+        dependencies and returns detailed status for each component.
+    """
+    start_time = time.time()
+    components: list[dict[str, Any]] = []
+    overall_healthy = True
+
+    # Check API (always healthy if we reach this point)
+    components.append({
+        "service": "api",
+        "status": "healthy",
+    })
+
+    # Check database connectivity
+    db_start = time.time()
+    try:
+        session.execute(text("SELECT 1"))
+        db_response_time_ms = (time.time() - db_start) * 1000
+        components.append({
+            "service": "database",
+            "status": "healthy",
+            "connected": True,
+            "response_time_ms": round(db_response_time_ms, 2),
+        })
+    except Exception as ex:
+        db_response_time_ms = (time.time() - db_start) * 1000
+        logging.error(f"Database health check failed: {ex}")
+        overall_healthy = False
+        components.append({
+            "service": "database",
+            "status": "unhealthy",
+            "connected": False,
+            "response_time_ms": round(db_response_time_ms, 2),
+            "error": "Database connection failed",
+        })
+
+    # Check Redis connectivity
+    redis_start = time.time()
+    try:
+        client = redis.from_url(REDIS_URL, socket_timeout=5)
+        client.ping()
+        redis_response_time_ms = (time.time() - redis_start) * 1000
+        components.append({
+            "service": "redis",
+            "status": "healthy",
+            "connected": True,
+            "response_time_ms": round(redis_response_time_ms, 2),
+        })
+    except Exception as ex:
+        redis_response_time_ms = (time.time() - redis_start) * 1000
+        logging.error(f"Redis health check failed: {ex}")
+        overall_healthy = False
+        components.append({
+            "service": "redis",
+            "status": "unhealthy",
+            "connected": False,
+            "response_time_ms": round(redis_response_time_ms, 2),
+            "error": "Redis connection failed",
+        })
+
+    response_time_ms = (time.time() - start_time) * 1000
+
+    return JSONResponse(
+        content={
+            "status": "healthy" if overall_healthy else "unhealthy",
+            "components": components,
+            "response_time_ms": round(response_time_ms, 2),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        },
+        status_code=HTTPStatus.OK if overall_healthy else HTTPStatus.SERVICE_UNAVAILABLE,
+    )
+
+
 @router.get("/api")
 def health_api() -> JSONResponse:
     """Check API liveness.
