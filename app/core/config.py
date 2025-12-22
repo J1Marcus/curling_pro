@@ -123,3 +123,7 @@ class Settings(BaseSettings):
     backend_url: str = Field(
         default="http://localhost:8080", description="Backend URL for VAPI callbacks"
     )
+
+
+# Singleton instance for easy import
+settings = Settings()
