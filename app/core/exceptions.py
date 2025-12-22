@@ -74,3 +74,20 @@ class DatabaseError(Exception):
     def __init__(self, message: str = "Database operation failed."):
         logging.error(message)
         super().__init__(message)
+
+
+class BusinessLogicError(Exception):
+    """Raised when a domain-specific business rule is violated.
+
+    Use this for business logic violations that don't fit other exception
+    categories - such as invalid state transitions, conflicting operations,
+    or domain constraint violations. Returns 422 Unprocessable Entity to
+    indicate the request was well-formed but could not be processed due
+    to semantic errors.
+    """
+
+    status_code: int = 422
+
+    def __init__(self, message: str = "Business rule violation."):
+        logging.warning(message)
+        super().__init__(message)
