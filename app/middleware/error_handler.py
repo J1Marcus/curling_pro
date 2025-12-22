@@ -7,16 +7,18 @@ for debugging and monitoring purposes.
 
 import logging
 import traceback
-from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-    from fastapi import Request
+from fastapi import Request
+from fastapi.exceptions import RequestValidationError
+from starlette.responses import JSONResponse
+
+from app.schemas.error_schema import ErrorResponse
 
 logger = logging.getLogger(__name__)
 
 
 def log_error_with_context(
-    request: "Request",
+    request: Request,
     exc: Exception,
     *,
     log_level: int = logging.ERROR,
@@ -68,7 +70,7 @@ def log_error_with_context(
     logger.log(log_level, log_message)
 
 
-def _get_client_ip(request: "Request") -> str:
+def _get_client_ip(request: Request) -> str:
     """Extract the client IP address from the request.
 
     Handles common proxy headers (X-Forwarded-For, X-Real-IP) to extract
@@ -96,3 +98,75 @@ def _get_client_ip(request: "Request") -> str:
         return request.client.host
 
     return "unknown"
+
+
+def _format_validation_errors(errors: list[dict]) -> str:
+    """Format Pydantic validation errors into a human-readable string.
+
+    Extracts field locations and error messages from Pydantic validation errors
+    and formats them into a concise, readable format for API responses.
+
+    Args:
+        errors: List of error dictionaries from Pydantic's ValidationError.
+
+    Returns:
+        A formatted string with field-specific error details.
+    """
+    formatted_errors = []
+    for error in errors:
+        # Build field path from location (e.g., ["body", "user", "email"] -> "body.user.email")
+        location = ".".join(str(loc) for loc in error.get("loc", []))
+        message = error.get("msg", "Invalid value")
+        error_type = error.get("type", "value_error")
+        formatted_errors.append(f"{location}: {message} (type={error_type})")
+
+    return "; ".join(formatted_errors)
+
+
+async def request_validation_error_handler(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Handle FastAPI RequestValidationError exceptions.
+
+    This handler is triggered when Pydantic validation fails on incoming request
+    data (body, query parameters, path parameters, etc.). It returns a 422
+    Unprocessable Entity response with field-specific validation error details.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The RequestValidationError raised by Pydantic.
+
+    Returns:
+        JSONResponse with 422 status code and ErrorResponse-formatted body
+        containing field-specific validation error details.
+
+    Example response:
+        {
+            "status_code": 422,
+            "error_type": "validation_error",
+            "message": "Request validation failed",
+            "detail": "body.email: field required (type=missing); body.age: value is not a valid integer (type=int_parsing)",
+            "request_id": null
+        }
+    """
+    # Log the validation error with request context (use WARNING for 4xx errors)
+    log_error_with_context(request, exc, log_level=logging.WARNING)
+
+    # Extract and format field-specific errors
+    validation_errors = exc.errors()
+    detail = _format_validation_errors(validation_errors)
+
+    # Build error response
+    error_response = ErrorResponse(
+        status_code=422,
+        error_type="validation_error",
+        message="Request validation failed",
+        detail=detail,
+        request_id=None,
+    )
+
+    return JSONResponse(
+        status_code=422,
+        content=error_response.model_dump(),
+    )
