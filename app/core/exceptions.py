@@ -45,3 +45,17 @@ class UnauthorizedError(Exception):
     def __init__(self, message: str = "Authentication required."):
         logging.warning(message)
         super().__init__(message)
+
+
+class ForbiddenError(Exception):
+    """Raised when the user lacks permission to access the resource.
+
+    Use this for scenarios where the user is authenticated but does not
+    have sufficient permissions to perform the requested action.
+    """
+
+    status_code: int = 403
+
+    def __init__(self, message: str = "Permission denied."):
+        logging.warning(message)
+        super().__init__(message)
