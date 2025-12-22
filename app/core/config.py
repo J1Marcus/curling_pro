@@ -112,3 +112,14 @@ class Settings(BaseSettings):
     langfuse_base_url: str = Field(
         default="https://cloud.langfuse.com", description="Langfuse API base URL"
     )
+
+    # VAPI Integration
+    vapi_api_key: Optional[SecretStr] = Field(
+        default=None, description="VAPI API key for voice AI integration"
+    )
+    vapi_server_secret: Optional[SecretStr] = Field(
+        default=None, description="VAPI server secret for webhook authentication"
+    )
+    backend_url: str = Field(
+        default="http://localhost:8080", description="Backend URL for VAPI callbacks"
+    )
