@@ -1,6 +1,6 @@
 """Centralized application configuration using Pydantic Settings."""
 
-from pydantic import Field
+from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,3 +20,21 @@ class Settings(BaseSettings):
 
     # Application
     project_name: str = Field(default="launchpad", description="Application name")
+
+    # Database
+    database_host: str = Field(default="localhost", description="PostgreSQL host")
+    database_port: int = Field(
+        default=5432, ge=1, le=65535, description="PostgreSQL port"
+    )
+    database_name: str = Field(default="postgres", description="Database name")
+    database_user: str = Field(default="postgres", description="Database user")
+    database_password: SecretStr = Field(
+        default="postgres", description="Database password"
+    )
+
+    @computed_field
+    @property
+    def database_url(self) -> str:
+        """Construct PostgreSQL connection string."""
+        password = self.database_password.get_secret_value()
+        return f"postgresql://{self.database_user}:{password}@{self.database_host}:{self.database_port}/{self.database_name}"
