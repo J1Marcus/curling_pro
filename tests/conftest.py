@@ -11,7 +11,7 @@ import os
 import sys
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "app"))
 
 from main import app
+from database.session import db_session
 
 
 # Test constants - never use real secrets in tests
@@ -86,6 +87,12 @@ def mock_env_empty_api_key() -> Generator[None, None, None]:
         yield
 
 
+def mock_db_session() -> Generator[MagicMock, None, None]:
+    """Create a mock database session for testing."""
+    mock_session = MagicMock()
+    yield mock_session
+
+
 @pytest.fixture
 def client(mock_env_vars: None) -> Generator[TestClient, None, None]:
     """Create FastAPI test client with mocked environment variables.
@@ -96,8 +103,21 @@ def client(mock_env_vars: None) -> Generator[TestClient, None, None]:
     Yields:
         TestClient: A test client for making requests to the FastAPI app.
     """
-    with TestClient(app) as test_client:
-        yield test_client
+    # Override the database session dependency with a mock
+    app.dependency_overrides[db_session] = mock_db_session
+
+    # Mock celery task sending, workflow registry, and repository
+    with patch("api.events.celery_app") as mock_celery, \
+         patch("api.events.get_workflow_type", return_value="test_workflow"), \
+         patch("api.events.GenericRepository") as mock_repo_class:
+        mock_celery.send_task.return_value = "test-task-id-12345"
+        mock_repo = MagicMock()
+        mock_repo_class.return_value = mock_repo
+        with TestClient(app) as test_client:
+            yield test_client
+
+    # Clean up the override
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture

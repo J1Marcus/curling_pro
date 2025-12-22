@@ -12,7 +12,7 @@ import pytest
 from fastapi import HTTPException
 
 # Import test fixtures and helpers
-from conftest import TEST_VAPI_SERVER_SECRET, generate_signature
+from tests.conftest import TEST_VAPI_SERVER_SECRET, generate_signature
 
 
 class TestVerifyWebhookSignature:
@@ -282,7 +282,7 @@ class TestVerifyApiKey:
     """Test suite for verify_api_key function."""
 
     # Import test constants
-    from conftest import TEST_WEBHOOK_API_KEY
+    from tests.conftest import TEST_WEBHOOK_API_KEY
 
     @pytest.fixture
     def mock_request(self) -> MagicMock:
@@ -474,7 +474,7 @@ class TestVerifyWebhookAuth:
     """
 
     # Import test constants
-    from conftest import TEST_VAPI_SERVER_SECRET, TEST_WEBHOOK_API_KEY
+    from tests.conftest import TEST_VAPI_SERVER_SECRET, TEST_WEBHOOK_API_KEY
 
     @pytest.fixture
     def mock_request(self, sample_payload: bytes) -> MagicMock:
@@ -840,6 +840,8 @@ class TestEventsEndpointAuthentication:
         headers fails at JSON parsing, not at authentication.
         This confirms auth is working but empty bodies are invalid.
         """
+        import json
+
         # Generate signature for empty body
         empty_payload = b""
         signature = generate_signature(empty_payload, test_vapi_secret)
@@ -850,16 +852,16 @@ class TestEventsEndpointAuthentication:
             "X-API-Key": test_api_key,
         }
 
-        response = client.post(
-            "/events/",
-            content=empty_payload,
-            headers=headers,
-        )
-
         # Should fail due to JSON parsing error, not auth
-        # Empty body is not valid JSON, so we expect an error
-        # but NOT 401 (auth passed, JSON parsing failed)
-        assert response.status_code != 401
+        # Empty body is not valid JSON, so we expect JSONDecodeError
+        # The fact that we get this error (not HTTPException 401)
+        # proves that auth passed successfully
+        with pytest.raises(json.JSONDecodeError):
+            client.post(
+                "/events/",
+                content=empty_payload,
+                headers=headers,
+            )
 
     def test_partial_auth_signature_only_fails(
         self,
