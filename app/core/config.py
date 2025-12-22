@@ -69,3 +69,19 @@ class Settings(BaseSettings):
     openai_api_version: str = Field(
         default="2024-07-01-preview", description="OpenAI API version for Azure OpenAI"
     )
+
+    # LLM Providers - Anthropic
+    anthropic_api_key: Optional[SecretStr] = Field(
+        default=None, description="Anthropic API key for Claude models"
+    )
+
+    # LLM Providers - Google
+    google_api_key: Optional[SecretStr] = Field(
+        default=None, description="Google AI API key"
+    )
+    google_application_credentials: Optional[str] = Field(
+        default=None, description="Path to Google service account JSON file"
+    )
+    google_vertex_ai_location: str = Field(
+        default="europe-west1", description="Google Vertex AI region"
+    )
