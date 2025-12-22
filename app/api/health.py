@@ -5,11 +5,17 @@ and service dependencies. These endpoints enable orchestration platforms,
 load balancers, and monitoring systems to verify service health.
 """
 
+import logging
+import time
 from datetime import datetime, timezone
 from http import HTTPStatus
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 from starlette.responses import JSONResponse
+
+from database.session import db_session
 
 router = APIRouter()
 
@@ -37,3 +43,59 @@ def health_api() -> JSONResponse:
         },
         status_code=HTTPStatus.OK,
     )
+
+
+@router.get("/database")
+def health_database(
+    session: Session = Depends(db_session),
+) -> JSONResponse:
+    """Check database connectivity.
+
+    This endpoint verifies PostgreSQL connectivity by executing
+    a simple SELECT 1 query. It measures response time and reports
+    the connection status.
+
+    Args:
+        session: Database session injected by FastAPI dependency
+
+    Returns:
+        JSONResponse: 200 OK with database status and response time
+            if connected, 503 Service Unavailable if database is
+            unreachable.
+
+    Note:
+        This endpoint uses a 5-second timeout for the database query.
+        It is suitable for Kubernetes readiness probes and monitoring
+        database availability.
+    """
+    start_time = time.time()
+    try:
+        # Execute simple query to verify database connectivity
+        session.execute(text("SELECT 1"))
+        response_time_ms = (time.time() - start_time) * 1000
+
+        return JSONResponse(
+            content={
+                "status": "healthy",
+                "service": "database",
+                "connected": True,
+                "response_time_ms": round(response_time_ms, 2),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            status_code=HTTPStatus.OK,
+        )
+    except Exception as ex:
+        response_time_ms = (time.time() - start_time) * 1000
+        logging.error(f"Database health check failed: {ex}")
+
+        return JSONResponse(
+            content={
+                "status": "unhealthy",
+                "service": "database",
+                "connected": False,
+                "response_time_ms": round(response_time_ms, 2),
+                "error": "Database connection failed",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            },
+            status_code=HTTPStatus.SERVICE_UNAVAILABLE,
+        )
