@@ -12,6 +12,14 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
+from app.core.exceptions import (
+    BusinessLogicError,
+    DatabaseError,
+    ForbiddenError,
+    NotFoundError,
+    UnauthorizedError,
+    ValidationError,
+)
 from app.schemas.error_schema import ErrorResponse
 
 logger = logging.getLogger(__name__)
@@ -253,3 +261,205 @@ async def http_exception_handler(
         status_code=exc.status_code,
         content=error_response.model_dump(),
     )
+
+
+# Type alias for all custom exceptions with status_code attribute
+CustomException = (
+    NotFoundError
+    | ValidationError
+    | UnauthorizedError
+    | ForbiddenError
+    | DatabaseError
+    | BusinessLogicError
+)
+
+
+async def custom_exception_handler(
+    request: Request,
+    exc: CustomException,
+) -> JSONResponse:
+    """Handle custom application exceptions.
+
+    This handler processes all custom exceptions defined in app.core.exceptions
+    that have a status_code attribute. It provides consistent error responses
+    while logging with appropriate severity levels.
+
+    Supported exceptions:
+        - NotFoundError (404): Resource not found
+        - ValidationError (400): Business logic validation failure
+        - UnauthorizedError (401): Authentication failure
+        - ForbiddenError (403): Permission denied
+        - DatabaseError (503): Database operation failure
+        - BusinessLogicError (422): Domain rule violation
+
+    Args:
+        request: The FastAPI request object.
+        exc: A custom exception with status_code attribute.
+
+    Returns:
+        JSONResponse with the exception's status code and ErrorResponse-formatted
+        body containing the exception message.
+
+    Example response:
+        {
+            "status_code": 404,
+            "error_type": "not_found",
+            "message": "User with id '123' not found",
+            "detail": null,
+            "request_id": null
+        }
+    """
+    # Get status code from exception attribute
+    status_code = exc.status_code
+
+    # Determine appropriate log level based on status code
+    # Use WARNING for 4xx client errors, ERROR for 5xx server errors
+    log_level = logging.WARNING if status_code < 500 else logging.ERROR
+
+    # Log the exception with request context
+    log_error_with_context(request, exc, log_level=log_level)
+
+    # Get error type classification from status code
+    error_type = _get_error_type_from_status_code(status_code)
+
+    # Extract message from exception
+    message = str(exc)
+
+    # Build error response
+    error_response = ErrorResponse(
+        status_code=status_code,
+        error_type=error_type,
+        message=message,
+        detail=None,
+        request_id=None,
+    )
+
+    return JSONResponse(
+        status_code=status_code,
+        content=error_response.model_dump(),
+    )
+
+
+async def not_found_error_handler(
+    request: Request,
+    exc: NotFoundError,
+) -> JSONResponse:
+    """Handle NotFoundError exceptions.
+
+    Wrapper handler for NotFoundError that delegates to the base custom
+    exception handler. Returns 404 Not Found with the error message.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The NotFoundError exception.
+
+    Returns:
+        JSONResponse with 404 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
+
+
+async def validation_error_handler(
+    request: Request,
+    exc: ValidationError,
+) -> JSONResponse:
+    """Handle custom ValidationError exceptions.
+
+    Wrapper handler for ValidationError (business logic validation failures)
+    that delegates to the base custom exception handler. Returns 400 Bad Request
+    with the error message.
+
+    Note: This is distinct from Pydantic's RequestValidationError which is
+    handled by request_validation_error_handler.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The ValidationError exception.
+
+    Returns:
+        JSONResponse with 400 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
+
+
+async def unauthorized_error_handler(
+    request: Request,
+    exc: UnauthorizedError,
+) -> JSONResponse:
+    """Handle UnauthorizedError exceptions.
+
+    Wrapper handler for UnauthorizedError (authentication failures) that
+    delegates to the base custom exception handler. Returns 401 Unauthorized
+    with the error message.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The UnauthorizedError exception.
+
+    Returns:
+        JSONResponse with 401 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
+
+
+async def forbidden_error_handler(
+    request: Request,
+    exc: ForbiddenError,
+) -> JSONResponse:
+    """Handle ForbiddenError exceptions.
+
+    Wrapper handler for ForbiddenError (permission denied) that delegates
+    to the base custom exception handler. Returns 403 Forbidden with the
+    error message.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The ForbiddenError exception.
+
+    Returns:
+        JSONResponse with 403 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
+
+
+async def database_error_handler(
+    request: Request,
+    exc: DatabaseError,
+) -> JSONResponse:
+    """Handle DatabaseError exceptions.
+
+    Wrapper handler for DatabaseError (database operation failures) that
+    delegates to the base custom exception handler. Returns 503 Service
+    Unavailable with a generic message.
+
+    Note: The full database error details are logged but not exposed in the
+    response to prevent leaking sensitive information.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The DatabaseError exception.
+
+    Returns:
+        JSONResponse with 503 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
+
+
+async def business_logic_error_handler(
+    request: Request,
+    exc: BusinessLogicError,
+) -> JSONResponse:
+    """Handle BusinessLogicError exceptions.
+
+    Wrapper handler for BusinessLogicError (domain rule violations) that
+    delegates to the base custom exception handler. Returns 422 Unprocessable
+    Entity with the error message.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The BusinessLogicError exception.
+
+    Returns:
+        JSONResponse with 422 status code and ErrorResponse body.
+    """
+    return await custom_exception_handler(request, exc)
