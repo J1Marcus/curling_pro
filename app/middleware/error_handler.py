@@ -8,7 +8,7 @@ for debugging and monitoring purposes.
 import logging
 import traceback
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
@@ -168,5 +168,88 @@ async def request_validation_error_handler(
 
     return JSONResponse(
         status_code=422,
+        content=error_response.model_dump(),
+    )
+
+
+def _get_error_type_from_status_code(status_code: int) -> str:
+    """Map HTTP status codes to error type strings.
+
+    Args:
+        status_code: The HTTP status code.
+
+    Returns:
+        A string representing the error type classification.
+    """
+    error_types = {
+        400: "bad_request",
+        401: "unauthorized",
+        403: "forbidden",
+        404: "not_found",
+        405: "method_not_allowed",
+        409: "conflict",
+        410: "gone",
+        422: "unprocessable_entity",
+        429: "too_many_requests",
+        500: "internal_server_error",
+        502: "bad_gateway",
+        503: "service_unavailable",
+        504: "gateway_timeout",
+    }
+    return error_types.get(status_code, "http_error")
+
+
+async def http_exception_handler(
+    request: Request,
+    exc: HTTPException,
+) -> JSONResponse:
+    """Handle FastAPI HTTPException exceptions.
+
+    This handler is triggered when an HTTPException is explicitly raised in the
+    application code. It preserves the original status code and message from
+    the exception while returning a standardized ErrorResponse format.
+
+    Args:
+        request: The FastAPI request object.
+        exc: The HTTPException raised in the application.
+
+    Returns:
+        JSONResponse with the original status code and ErrorResponse-formatted
+        body containing the exception's detail message.
+
+    Example response:
+        {
+            "status_code": 404,
+            "error_type": "not_found",
+            "message": "User not found",
+            "detail": null,
+            "request_id": null
+        }
+    """
+    # Determine appropriate log level based on status code
+    # Use WARNING for 4xx client errors, ERROR for 5xx server errors
+    log_level = logging.WARNING if exc.status_code < 500 else logging.ERROR
+
+    # Log the exception with request context
+    log_error_with_context(request, exc, log_level=log_level)
+
+    # Get error type classification from status code
+    error_type = _get_error_type_from_status_code(exc.status_code)
+
+    # Extract message from exception detail
+    # HTTPException.detail can be a string or dict; convert to string for message
+    message = str(exc.detail) if exc.detail else "An error occurred"
+
+    # Build error response preserving original status code and message
+    error_response = ErrorResponse(
+        status_code=exc.status_code,
+        error_type=error_type,
+        message=message,
+        detail=None,
+        request_id=None,
+    )
+
+    return JSONResponse(
+        status_code=exc.status_code,
         content=error_response.model_dump(),
     )
