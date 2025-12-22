@@ -58,3 +58,32 @@ async def verify_webhook_signature(request: Request) -> bytes:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
     return payload
+
+
+def verify_api_key(request: Request) -> None:
+    """Validate API key from X-API-Key header.
+
+    This function provides an additional security layer by validating
+    an API key header. This enables key rotation without requiring
+    changes in the VAPI dashboard.
+
+    Args:
+        request: The incoming FastAPI request object.
+
+    Raises:
+        HTTPException: 401 Unauthorized if API key is missing, invalid,
+            or if WEBHOOK_API_KEY is not configured.
+    """
+    # Get the API key from header
+    api_key = request.headers.get("X-API-Key", "")
+    if not api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Get the expected API key - fail closed if not configured
+    expected_api_key = os.getenv("WEBHOOK_API_KEY", "")
+    if not expected_api_key:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    # Timing-safe comparison to prevent timing attacks
+    if not hmac.compare_digest(api_key, expected_api_key):
+        raise HTTPException(status_code=401, detail="Unauthorized")
