@@ -1,8 +1,14 @@
 # Users & Agents: High-Level Architecture
 
+**Version:** 1.1
+**Date:** 2025-12-22
+**Status:** Aligned with Analyst Subflow Execution Pattern
+
 ## Overview
 
-The Everbound system is built around a **storyteller** (the human user) and a sophisticated network of **orchestrator flows** and **specialized subflows** that guide the storyteller through the journey from initial trust-building to final book publication.
+The Everbound system is built around a **storyteller** (the human user) and a sophisticated network of **orchestrator flows** and **self-gating subflows** that guide the storyteller through the journey from initial trust-building to final book publication.
+
+**Key Architectural Pattern:** The Analyst Flow runs ALL 8 self-gating subflows on every trigger. Each subflow checks its own entry criteria and executes only if conditions are met. The Analyst is triggered in real-time after EVERY `submit_requirement_result()` call, not after session completion.
 
 This document defines all actors in the system at a high level: their roles, responsibilities, and how they interact.
 
@@ -47,36 +53,67 @@ These are the "brains" of the system—autonomous decision-making agents that as
 
 **Agent Type**: `analyst_orchestrator`
 
-**Role**: The **decision-making brain** of the system. Continuously assesses storyteller state to determine what needs to happen next.
+**Role**: The **decision-making brain** of the system. Orchestrates ALL 8 self-gating subflows after every requirement result submission.
 
 **Primary Responsibilities**:
-- **Phase Assessment**: Determine current phase in canonical process (trust → scope → context → capture → synthesis → composition)
+- **Run ALL 8 Subflows**: Execute all subflows on every trigger (no selective execution)
+- **Self-Gating Orchestration**: Each subflow checks its own entry criteria and returns early if not met
+- **Phase Assessment**: Determine current phase (trust_building → history_building → story_capture → composition)
 - **Completeness Check**: Evaluate material against phase requirements
 - **Gap Identification**: Identify missing context, scenes, characters, themes, sensory details
 - **Requirements Lodging**: Create/update requirements in the Requirements Table (critical, important, optional)
-- **Next Action Determination**: Decide which subflow should execute next
 - **Section Unlocking**: Progressively unlock new narrative lanes as prerequisites are met
 - **Archetype-Aware Strategy**: Lodge discriminating, validating, or strengthening requirements based on archetype refinement status
 
 **Key Interactions**:
-- **Input**: Storyteller state, progress, life events, session artifacts, requirements table, archetype analysis
-- **Output**: Updated requirements, next subflow instruction, section status updates, progress state
-- **Triggers**: After session completion, on new storyteller initialization, when user requests next steps, periodically (e.g., after 7 days inactivity)
+- **Input**: Storyteller state, progress, life events, session artifacts, requirements table, archetype analysis, requirement_result (with transcript_segment)
+- **Output**: Updated state from all subflows that executed, requirements lodged, progress updated
+- **Triggers**: **Real-time after EVERY `submit_requirement_result()` call** (not after session completion)
 
-**Decision Logic**:
+**8 Self-Gating Subflows** (ALL run on every trigger):
+| Subflow | Entry Criteria (Self-Gating) |
+|---------|------------------------------|
+| TrustBuildingSubflow | `!trust_complete` |
+| ContextualGroundingSubflow | `trust_complete && !grounding_complete` |
+| SectionSelectionSubflow | `grounding_complete && !sections_selected` |
+| LaneDevelopmentSubflow | `sections_selected && has_pending_requirements` |
+| ArchetypeAssessmentSubflow | `session_count >= 4 && assessment_due` |
+| SynthesisSubflow | `section_has_sufficient_material` |
+| CompositionSubflow | `phase == composition && sufficiency_gates_passed` |
+| EditorSubflow | `has_draft_content && needs_quality_review` |
+
+**Execution Pattern**:
 ```
-IF phase = null → lodge "complete_trust_setup" → RETURN trust_building
-IF phase = trust_building AND complete → transition to history_building → RETURN contextual_grounding
-IF phase = history_building AND timeline ready → transition to story_capture → RETURN lane_development
-IF phase = story_capture → evaluate sections → lodge requirements → RETURN lane_development (next section)
-  └─ ALSO: every 3rd session → trigger archetype_assessment
-  └─ IF archetype exploring → lodge discriminating requirements
-  └─ IF archetype narrowing → lodge validating requirements
-  └─ IF archetype resolved → lodge strengthening requirements
-IF phase = composition → RETURN editor_orchestrator
+ON submit_requirement_result(storyteller_id, requirement_id, transcript_segment, result_data):
+  → Load storyteller_state once
+  → Run ALL 8 subflows in sequence:
+      1. TrustBuildingSubflow.execute()
+         → check_entry_criteria: !trust_complete
+         → If False: return early (no action)
+      2. ContextualGroundingSubflow.execute()
+         → check_entry_criteria: trust_complete && !grounding_complete
+         → If False: return early (no action)
+      3. SectionSelectionSubflow.execute()
+         → check_entry_criteria: grounding_complete && !sections_selected
+         → If False: return early (no action)
+      4. LaneDevelopmentSubflow.execute()
+         → check_entry_criteria: sections_selected && has_pending_requirements
+         → If True: generate prompts, update session_context
+      5. ArchetypeAssessmentSubflow.execute()
+         → check_entry_criteria: session_count >= 4 && assessment_due
+         → If True: analyze archetypes, lodge strategic requirements
+      6. SynthesisSubflow.execute()
+         → check_entry_criteria: section_has_sufficient_material
+         → If True: create provisional draft
+      7. CompositionSubflow.execute()
+         → check_entry_criteria: phase == composition && sufficiency_gates_passed
+         → If True: update global manuscript
+      8. EditorSubflow.execute()
+         → check_entry_criteria: has_draft_content && needs_quality_review
+         → If True: assess quality, lodge edit requirements
 ```
 
-**Flow Pattern**: **Analyst → Requirements → Session → Analyst (Loop)**
+**Flow Pattern**: **Requirement Submitted → Analyst runs ALL 8 subflows → State Updated → Ready for next requirement**
 
 ---
 
@@ -84,39 +121,56 @@ IF phase = composition → RETURN editor_orchestrator
 
 **Agent Type**: `session_orchestrator`
 
-**Role**: The **executor**. Conducts goal-oriented story capture sessions with the storyteller through VAPI integration.
+**Role**: The **executor**. Conducts goal-oriented story capture sessions with the storyteller through VAPI integration. Calls `submit_requirement_result()` with transcript segments, which triggers the Analyst Flow in real-time.
 
 **Primary Responsibilities**:
 - **Pre-Call Preparation**: Load storyteller context, determine session goal, fetch requirements, generate prompts, create VAPI agent
 - **Call Execution**: VAPI conducts interview with dynamic agent (voice or text)
+- **Requirement Submission**: Call `submit_requirement_result()` with transcript segments for each requirement addressed (triggers Analyst in real-time)
 - **Post-Call Processing**: Organize transcript, extract story points, tag metadata (people, places, emotions, themes)
 - **Quality Validation**: Check session quality before finalizing (duration, engagement, sentiment)
 - **User Verification**: Send session summary for user review/approval
 - **Progress Update**: Update storyteller state and section completion
-- **Trigger Analyst**: Kick off Analyst Flow to determine next steps
 
 **Key Interactions**:
-- **Input**: Session task ID, storyteller ID, subflow type (from Analyst), requirements table, user context
-- **Output**: Session record, session artifacts, life events, updated section status, trigger to Analyst Flow
+- **Input**: Session task ID, storyteller ID, subflow type, requirements table, user context
+- **Output**: Session record, session artifacts, life events, updated section status
 - **Triggers**: Scheduled session reaches time, user manually initiates, system-initiated follow-up
+- **Analyst Trigger**: Analyst is triggered by `submit_requirement_result()` calls during session (real-time), NOT by session completion
+
+**Requirement Submission Pattern**:
+```python
+# During session, for each requirement addressed:
+submit_requirement_result(
+    storyteller_id="s123",
+    requirement_id="req-001",
+    transcript_segment="I grew up in a small town in Ohio...",  # REQUIRED
+    result_data={...}
+)
+# This IMMEDIATELY triggers run_analyst_flow.delay()
+```
 
 **Execution Phases** (Sequential):
 1. **Pre-Call Preparation** → Load context, determine goal, generate prompts, create VAPI agent
-2. **Call Execution** → VAPI conducts interview
+2. **Call Execution** → VAPI conducts interview, calls `submit_requirement_result()` for requirements addressed (triggers Analyst in real-time)
 3. **Quality Validation** → Check completeness, engagement, sentiment
 4. **Post-Call Processing** → Extract story points, create/update life events, create artifacts
 5. **User Verification** → Send summary for approval
-6. **Trigger Next Steps** → Update progress, mark requirements addressed, trigger Analyst
+6. **Final Update** → Update progress, finalize session record
 
-**Flow Pattern**: **Session executes → Updates state → Marks requirements addressed → Triggers Analyst**
+**Flow Pattern**: **Session executes → Submits requirements with transcripts → Analyst triggered in real-time → Session completes**
 
 ---
 
-### 3. EDITOR FLOW
+### 3. EDITOR SUBFLOW (Within Analyst Flow)
 
-**Agent Type**: `editor_orchestrator`
+**Agent Type**: `editor_subflow` (part of 8 self-gating subflows)
 
-**Role**: The **quality gate**. Reviews composed narrative material for craft standards, coherence, and quality.
+**Role**: The **quality gate**. Reviews composed narrative material for craft standards, coherence, and quality. Runs as part of Analyst Flow's 8 self-gating subflows.
+
+**Entry Criteria (Self-Gating)**:
+- `has_draft_content`: Composition subflow has created draft content
+- `needs_quality_review`: Draft content has not been reviewed or needs re-review
 
 **Primary Responsibilities**:
 - **Narrative Quality Review**: Assess chapters for craft standards (0-10 scoring)
@@ -129,8 +183,8 @@ IF phase = composition → RETURN editor_orchestrator
 
 **Key Interactions**:
 - **Input**: Storyteller ID, story ID, story chapters, collections, current archetype
-- **Output**: Chapter status updates, edit requirements, quality reports, next subflow instruction
-- **Triggers**: Analyst Flow determines sufficiency gates passed, after composition subflow creates chapters, user requests review, periodically during composition phase
+- **Output**: Chapter status updates, edit requirements, quality reports
+- **Triggers**: Runs automatically when Analyst Flow executes (every `submit_requirement_result()` call) if entry criteria are met
 
 **Assessment Criteria** (per chapter, 0-10 scale):
 - Narrative Coherence (flow, transitions, chronology)
@@ -142,22 +196,33 @@ IF phase = composition → RETURN editor_orchestrator
 
 **Decision Logic**:
 ```
-FOR each chapter:
-  IF any_score < 6 → lodge edit_requirement (severity: blocking) → chapter.status = needs_revision
-  IF any_score < 8 → lodge edit_requirement (severity: important) → chapter.status = needs_polish
-  ELSE → chapter.status = approved
+check_entry_criteria:
+  IF !has_draft_content → return early (no action)
+  IF !needs_quality_review → return early (no action)
 
-IF all_chapters_approved → story.status = ready_for_export → RETURN book_export
-ELSE → RETURN composition (address edit requirements)
+execute_logic:
+  FOR each chapter:
+    IF any_score < 6 → lodge edit_requirement (severity: blocking) → chapter.status = needs_revision
+    IF any_score < 8 → lodge edit_requirement (severity: important) → chapter.status = needs_polish
+    ELSE → chapter.status = approved
+
+  IF all_chapters_approved → story.status = ready_for_export
+  ELSE → composition will address edit requirements on next trigger
 ```
 
-**Flow Pattern**: **Editor reviews → Lodges edit requirements → Composition addresses → Editor re-reviews (Loop)**
+**Flow Pattern**: **Analyst triggers → EditorSubflow checks entry criteria → Reviews if criteria met → Lodges edit requirements → CompositionSubflow addresses on next trigger**
 
 ---
 
-## Specialized Subflows (Execution Agents)
+## Specialized Subflows (Self-Gating Execution Agents)
 
-These are narrow-scope execution agents called by orchestrator flows. They have specific goals and clear success criteria.
+These are the 8 self-gating subflows that run within the Analyst Flow. **ALL 8 subflows run on every Analyst trigger** - each subflow checks its own entry criteria and returns early if conditions are not met. This self-gating pattern ensures no selective execution logic in the orchestrator.
+
+**4 Phases of the Journey:**
+1. **trust_building** → TrustBuildingSubflow active
+2. **history_building** → ContextualGroundingSubflow, SectionSelectionSubflow active
+3. **story_capture** → LaneDevelopmentSubflow, ArchetypeAssessmentSubflow, SynthesisSubflow active
+4. **composition** → CompositionSubflow, EditorSubflow active
 
 ---
 
@@ -165,9 +230,12 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `trust_building_subflow`
 
-**Parent Flow**: Session Flow (executed by)
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 1-3 (Introduction & Trust Setup, Scope Selection, Gentle Profile)
+**Canonical Phase**: trust_building (Phase 1)
+
+**Entry Criteria (Self-Gating)**:
+- `!trust_complete`: Trust setup has not been completed
 
 **Role**: Establish psychological safety and gather essential context.
 
@@ -186,7 +254,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 **Success Criteria**:
 - All three steps completed
 - Storyteller feels safe and informed
-- Ready to transition to history building phase
+- Entry criteria changes to False (`trust_complete = true`) → subflow returns early on subsequent triggers
 
 ---
 
@@ -194,9 +262,13 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `contextual_grounding_subflow`
 
-**Parent Flow**: Session Flow
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 4 (Facts Before Story)
+**Canonical Phase**: history_building (Phase 2)
+
+**Entry Criteria (Self-Gating)**:
+- `trust_complete`: Trust setup has been completed
+- `!grounding_complete`: Contextual grounding has not been completed
 
 **Role**: Build chronological scaffold to enable memory retrieval.
 
@@ -220,7 +292,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 **Success Criteria**:
 - Chronological scaffold established
 - Key time/place/role cues captured
-- Ready for section selection and deep story capture
+- Entry criteria changes (`grounding_complete = true`) → subflow returns early on subsequent triggers
 
 ---
 
@@ -228,9 +300,13 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `section_selection_subflow`
 
-**Parent Flow**: Session Flow
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 5 (Narrative Lanes)
+**Canonical Phase**: history_building (Phase 2)
+
+**Entry Criteria (Self-Gating)**:
+- `grounding_complete`: Contextual grounding has been completed
+- `!sections_selected`: Section selection has not been completed
 
 **Role**: Allow storyteller to choose which sections of life to explore.
 
@@ -250,7 +326,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 **Success Criteria**:
 - Sections selected
 - Sections appropriately locked/unlocked based on prerequisites
-- Ready to start lane development
+- Entry criteria changes (`sections_selected = true`) → subflow returns early on subsequent triggers
 
 ---
 
@@ -258,9 +334,13 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `lane_development_subflow`
 
-**Parent Flow**: Session Flow
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 6 (Guided Story Capture - The Engine)
+**Canonical Phase**: story_capture (Phase 3)
+
+**Entry Criteria (Self-Gating)**:
+- `sections_selected`: Sections have been selected
+- `has_pending_requirements`: There are pending requirements to address
 
 **Role**: Capture rich, scene-based material for a specific narrative lane. **This is the core storytelling engine.**
 
@@ -286,13 +366,13 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 - New/updated `life_event` records with rich detail
 - Updated `storyteller_section_status` (progress tracked)
 - Potentially unlocked new sections (if prerequisites met)
-- Requirements marked as addressed
+- Requirements marked as addressed via `submit_requirement_result()` with transcript_segment
 
 **Success Criteria**:
 - Rich, scene-based material captured (70%+ showing vs. telling)
 - Section progress tracked and updated
 - Dependent sections unlocked if appropriate
-- Requirements addressed
+- Requirements addressed (triggers Analyst Flow in real-time)
 
 ---
 
@@ -300,9 +380,13 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `archetype_assessment_subflow`
 
-**Parent Flow**: Analyst Flow (NOT Session Flow—this is analysis, not capture)
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 10 (Archetype Inference - Multi-Archetype Refinement)
+**Canonical Phase**: story_capture (Phase 3)
+
+**Entry Criteria (Self-Gating)**:
+- `session_count >= 4`: Minimum sessions for archetype patterns to emerge
+- `assessment_due`: Time for next assessment (every 3rd session starting at session 4)
 
 **Role**: Progressive archetype refinement through multi-archetype tracking. Starts with multiple candidate archetypes (**exploring**), narrows to strong contenders (**narrowing**), resolves to single dominant archetype (**resolved**).
 
@@ -314,7 +398,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
   - **exploring**: 3+ viable candidates (confidence > 0.60), pattern unclear
   - **narrowing**: 2 strong contenders emerging
   - **resolved**: Single archetype dominant (confidence >= 0.85)
-- **Signal Analyst Flow**: Return refinement status so Analyst can lodge strategic requirements
+- **Lodge Strategic Requirements**: Based on refinement status, lodge requirements directly
 - **Hidden Observer**: Archetype NOT revealed unless user asks ("what's my story shape?")
 - **User Verification** (if revealed): Honest presentation of multiple candidates OR resolved archetype
 
@@ -338,30 +422,23 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
   - `dominant_archetype` (NULL until resolved)
   - `dominant_confidence` (must be >= 0.85 for composition gate)
   - `revealed_to_user` (false by default)
-- Signal to Analyst Flow about strategic requirements to lodge
+- Strategic requirements lodged based on refinement status
 
-**Analyst Flow Response** (based on refinement status):
+**Strategic Requirements** (based on refinement status):
 - **IF exploring** → Lodge **discriminating requirements** (help choose between top 2 candidates)
 - **IF narrowing** → Lodge **validating requirements** (confirm evidence for candidates)
 - **IF resolved** → Lodge **strengthening requirements** (deepen the dominant archetype)
 
-**Triggers**:
-- Session count >= 4 AND session_count % 3 == 0 (every 3rd session starting at session 4)
-- User asks "what's my story shape?" or "how does this fit together?"
-- Before composition gate (must validate archetype resolved)
-- Manual trigger by admin
-
 **Success Criteria**:
 - Multiple candidate archetypes tracked with confidence scores
 - Refinement status determined
+- Strategic requirements lodged
 - Hidden from user unless they ask
 - If revealed, honest presentation with user verification
-- Analyst Flow signaled with strategic guidance
 - Progression: exploring → narrowing → resolved over multiple assessments
 
 **Feeds Into**:
-- **Analyst Flow**: Uses refinement status to lodge discriminating/validating/strengthening requirements
-- **Composition Gate**: Blocks composition unless `refinement_status = 'resolved'` AND `confidence >= 0.85`
+- **CompositionSubflow**: Blocks composition unless `refinement_status = 'resolved'` AND `confidence >= 0.85`
 
 ---
 
@@ -369,9 +446,12 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `synthesis_subflow`
 
-**Parent Flow**: Analyst Flow
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 9 (Synthesis Checkpoints - Provisional)
+**Canonical Phase**: story_capture (Phase 3)
+
+**Entry Criteria (Self-Gating)**:
+- `section_has_sufficient_material`: A section has enough captured material to synthesize into a provisional draft
 
 **Role**: Create visible progress by assembling read-only chapter drafts from captured material.
 
@@ -401,13 +481,17 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 **Agent Type**: `composition_subflow`
 
-**Parent Flow**: Editor Flow
+**Parent Flow**: Analyst Flow (one of 8 self-gating subflows)
 
-**Canonical Phase**: Phase 12 (Story Writing - Composition)
+**Canonical Phase**: composition (Phase 4)
 
-**Role**: Once sufficiency gates passed, assemble material into book-grade narrative manuscript.
+**Entry Criteria (Self-Gating)**:
+- `phase == composition`: Storyteller has reached composition phase
+- `sufficiency_gates_passed`: All blocking sufficiency gates have passed
 
-**BLOCKING Sufficiency Gates** (must ALL pass before composition begins):
+**Role**: Once sufficiency gates passed, assemble material into book-grade narrative manuscript. Runs as **global continuous composition** on every Analyst trigger during composition phase.
+
+**BLOCKING Sufficiency Gates** (checked in entry criteria):
 1. **Archetype Resolution Gate** (CRITICAL):
    - `archetype_analysis.refinement_status = 'resolved'`
    - `archetype_analysis.dominant_confidence >= 0.85`
@@ -424,6 +508,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 - **Weave Themes**: Map themes to chapters, identify symbols/motifs
 - **Calibrate Tone**: Apply tone based on book type preference (reflective, adventure, legacy, healing)
 - **Create Draft Version**: Save snapshot for version history
+- **Set needs_quality_review**: Flag content for EditorSubflow on next trigger
 
 **Key Outputs**:
 - `story` record (manuscript initialized)
@@ -434,7 +519,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 - `character_relationship` records (relational dynamics)
 - `story_theme` records (thematic threads)
 - `story_draft` record (version snapshot)
-- Editor Flow triggered for quality review
+- `needs_quality_review = true` for EditorSubflow to pick up
 
 **Success Criteria**:
 - Full manuscript assembled
@@ -442,7 +527,7 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 - Character arcs tracked and complete
 - Themes woven throughout
 - Tone calibrated to user preference
-- Ready for Editor Flow review
+- Content flagged for EditorSubflow review
 
 ---
 
@@ -498,17 +583,18 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 **Purpose**: The connective tissue between flows. Track what needs to happen and what's been addressed.
 
 #### requirement (Story Capture Requirements)
-- **Lodged by**: Analyst Flow (gap analysis)
-- **Addressed by**: Session Flow (during lane development)
-- **Validated by**: Analyst Flow (confirm resolution)
+- **Lodged by**: Analyst Flow subflows (gap analysis, archetype assessment)
+- **Addressed by**: Session Flow via `submit_requirement_result()` with transcript_segment
+- **Validated by**: Analyst Flow subflows (on next trigger)
 - **Types**: `scene_detail`, `character_insight`, `thematic_exploration`, `timeline_clarification`, `emotional_context`, `sensory_detail`, `relationship_dynamic`, `turning_point`
 - **Priority**: `critical`, `important`, `optional`
 - **Archetype Refinement**: `archetype_refinement_purpose` (discriminate, validate, strengthen)
 - **Status Flow**: `pending` → `in_progress` → `addressed` → `resolved`
+- **Transcript Payload**: Every requirement result includes `transcript_segment` field
 
 #### edit_requirement (Composition Quality Requirements)
-- **Lodged by**: Editor Flow (quality review)
-- **Addressed by**: Composition Subflow (revision cycle)
+- **Lodged by**: EditorSubflow (quality review within Analyst Flow)
+- **Addressed by**: CompositionSubflow (on next Analyst trigger)
 - **Types**: `flow`, `pacing`, `clarity`, `consistency`, `sensory_detail`, `theme`, `character_voice`, `timeline`, `tone`, `scene_structure`, `showing_vs_telling`, `repetition`
 - **Severity**: `blocking`, `important`, `polish`
 - **Status Flow**: `pending` → `in_review` → `resolved`
@@ -517,74 +603,104 @@ These are narrow-scope execution agents called by orchestrator flows. They have 
 
 ## Flow Patterns
 
-### Pattern 1: Analyst → Session → Analyst Loop
+### Pattern 1: Real-Time Analyst Trigger (Core Pattern)
 
 ```
-Analyst Flow (assess state)
-  → Lodge requirements in Requirements Table
-  → Determine next subflow
-  → Trigger Session Flow
-      → Session Flow executes subflow (e.g., lane_development)
-      → Updates storyteller state
-      → Marks requirements as "addressed"
-  → Trigger Analyst Flow
-      → Analyst validates if requirements are "resolved"
-      → Determine next action (loop or transition to next phase)
+Session Flow captures story content
+  → Requirement addressed with transcript segment
+  → submit_requirement_result(
+      storyteller_id="s123",
+      requirement_id="req-001",
+      transcript_segment="I grew up in a small town in Ohio...",
+      result_data={...}
+    )
+  → IMMEDIATELY triggers run_analyst_flow.delay()
+  → Analyst Flow runs ALL 8 self-gating subflows:
+      1. TrustBuildingSubflow → check_entry_criteria → execute if met
+      2. ContextualGroundingSubflow → check_entry_criteria → execute if met
+      3. SectionSelectionSubflow → check_entry_criteria → execute if met
+      4. LaneDevelopmentSubflow → check_entry_criteria → execute if met
+      5. ArchetypeAssessmentSubflow → check_entry_criteria → execute if met
+      6. SynthesisSubflow → check_entry_criteria → execute if met
+      7. CompositionSubflow → check_entry_criteria → execute if met
+      8. EditorSubflow → check_entry_criteria → execute if met
+  → State updated by subflows that executed
+  → Ready for next requirement submission
 ```
 
-**This is the primary loop during story capture phase.**
+**This is the core execution pattern. Analyst runs after EVERY requirement submission, NOT after session completion.**
 
 ---
 
-### Pattern 2: Editor → Composition → Editor Loop
+### Pattern 2: Self-Gating Subflow Execution
 
 ```
-Analyst Flow (sufficiency gates passed)
-  → Trigger Composition Subflow
-      → Assemble chapters from collections
-      → Generate manuscript
-  → Trigger Editor Flow
-      → Review chapters for quality
-      → Assess craft standards (0-10 scoring)
+ON every Analyst trigger:
+  Load storyteller_state once
+
+  FOR each of 8 subflows:
+    subflow.check_entry_criteria(storyteller_state)
+    IF criteria NOT met:
+      → Return early (no action, no state change)
+    ELSE:
+      → Execute subflow logic
+      → Update storyteller_state for subsequent subflows
+      → Lodge requirements if applicable
+```
+
+**No selective execution logic in orchestrator. ALL subflows run, each gates itself.**
+
+---
+
+### Pattern 3: Composition Phase Loop
+
+```
+Analyst triggered during composition phase
+  → CompositionSubflow.check_entry_criteria:
+      - phase == composition ✓
+      - sufficiency_gates_passed ✓
+  → CompositionSubflow.execute:
+      → Update global manuscript
+      → Set needs_quality_review = true
+
+  → EditorSubflow.check_entry_criteria:
+      - has_draft_content ✓
+      - needs_quality_review ✓
+  → EditorSubflow.execute:
+      → Assess quality (0-10 scoring)
       → IF issues found:
-          → Lodge edit requirements in Edit Requirements Table
-          → IF blocking: chapter.status = needs_revision
-          → Return to Composition Subflow
-              → Address requirements
-              → Create revised draft
-          → Re-trigger Editor Flow (iterative refinement)
+          → Lodge edit requirements
+          → chapter.status = needs_revision
       → ELSE:
           → Approve chapter
-          → Continue to next chapter
-  → IF all chapters approved:
-      → Transition to Book Export
+          → IF all approved: story.status = ready_for_export
 ```
 
-**This is the primary loop during composition phase.**
+**CompositionSubflow and EditorSubflow both run on every trigger during composition phase.**
 
 ---
 
-### Pattern 3: Multi-Archetype Refinement (Progressive Narrowing)
+### Pattern 4: Multi-Archetype Refinement (Progressive Narrowing)
 
 ```
-Session 4+ completed
-  → Analyst Flow (every 3rd session)
-      → Trigger Archetype Assessment Subflow
-          → Multi-archetype agentic assessment
-          → Track multiple candidates with confidence scores
-          → Determine refinement status:
-              - EXPLORING (3+ viable candidates)
-              - NARROWING (2 strong contenders)
-              - RESOLVED (1 dominant >= 0.85 confidence)
-          → Save to archetype_analysis table (revealed_to_user = FALSE)
-          → Signal Analyst Flow:
-              - IF exploring → Lodge DISCRIMINATING requirements
-              - IF narrowing → Lodge VALIDATING requirements
-              - IF resolved → Lodge STRENGTHENING requirements
-      → Analyst lodges strategic requirements in Requirements Table
-      → Continue normal flow (archetype hidden)
-      → Next assessment in 3 sessions
-          → Progressive refinement: exploring → narrowing → resolved
+ArchetypeAssessmentSubflow.check_entry_criteria:
+  - session_count >= 4 ✓
+  - assessment_due (every 3rd session) ✓
+
+ArchetypeAssessmentSubflow.execute:
+  → Multi-archetype agentic assessment
+  → Track multiple candidates with confidence scores
+  → Determine refinement_status:
+      - EXPLORING (3+ viable candidates)
+      - NARROWING (2 strong contenders)
+      - RESOLVED (1 dominant >= 0.85 confidence)
+  → Save to archetype_analysis table (revealed_to_user = FALSE)
+  → Lodge strategic requirements:
+      - IF exploring → Lodge DISCRIMINATING requirements
+      - IF narrowing → Lodge VALIDATING requirements
+      - IF resolved → Lodge STRENGTHENING requirements
+  → Next assessment in 3 sessions
+      → Progressive refinement: exploring → narrowing → resolved
 
 [OPTIONAL: User asks "what's my story shape?"]
   → Reveal archetype
@@ -601,58 +717,67 @@ Session 4+ completed
 
 ## State Transitions
 
+**4 Phases of the Journey:**
+
 ```
 [Start]
-  → Trust Building (Phases 1-3)
-      → History Building (Phase 4)
-          → Story Capture (Phase 6) ←─┐
-              ↓                        │
-              ├─→ Synthesis (Phase 9) ─┘ (Provisional drafts)
-              │
-              ↓ (Sufficiency gates passed)
-          → Composition (Phase 12) ←─┐
-              ↓                      │
-          → Editing ─────────────────┘ (Iterative refinement)
-              ↓ (All chapters approved)
-          → Export (Phase 13)
-              → [Book Delivered]
+  → Phase 1: trust_building
+      └─ TrustBuildingSubflow (introduction, scope, profile)
+      └─ Ends when: trust_complete = true
+
+  → Phase 2: history_building
+      └─ ContextualGroundingSubflow (timeline scaffold)
+      └─ SectionSelectionSubflow (narrative lanes)
+      └─ Ends when: grounding_complete = true && sections_selected = true
+
+  → Phase 3: story_capture ←───────────────────────────────────┐
+      └─ LaneDevelopmentSubflow (story capture engine)         │
+      └─ ArchetypeAssessmentSubflow (multi-archetype tracking) │
+      └─ SynthesisSubflow (provisional drafts) ────────────────┘
+      └─ Ends when: sufficiency_gates_passed = true
+
+  → Phase 4: composition ←─────────────────────────────────────┐
+      └─ CompositionSubflow (global continuous composition)    │
+      └─ EditorSubflow (quality review) ───────────────────────┘
+      └─ Ends when: all_chapters_approved = true
+
+  → Book Export
+      → [Book Delivered]
 ```
+
+**Key:** Each phase transition occurs when entry criteria for the next phase's subflows become true.
 
 ---
 
 ## Agent Hierarchy Summary
 
 ```
-ORCHESTRATORS (Primary Flows)
+ORCHESTRATOR FLOWS
 ├─ Analyst Flow (Decision Maker)
-│   └─ Lodges requirements
-│   └─ Triggers subflows
-│   └─ Determines next actions
+│   └─ Runs ALL 8 self-gating subflows on every trigger
+│   └─ Triggered by: submit_requirement_result() (real-time)
+│   └─ 4 phases: trust_building → history_building → story_capture → composition
 │
-├─ Session Flow (Executor)
-│   └─ Executes subflows
-│   └─ Conducts sessions via VAPI
-│   └─ Addresses requirements
-│
-└─ Editor Flow (Quality Gate)
-    └─ Reviews chapters
-    └─ Lodges edit requirements
-    └─ Approves or blocks progression
+└─ Session Flow (Executor)
+    └─ Conducts story capture sessions via VAPI
+    └─ Calls submit_requirement_result() with transcript_segment
+    └─ Triggers Analyst Flow in real-time
 
-SUBFLOWS (Specialized Execution)
-├─ Trust Building Subflow
-├─ Contextual Grounding Subflow
-├─ Section Selection Subflow
-├─ Lane Development Subflow (The Engine)
-├─ Archetype Assessment Subflow (Hidden Observer)
-├─ Synthesis Subflow (Provisional Drafts)
-└─ Composition Subflow (Final Manuscript)
+8 SELF-GATING SUBFLOWS (All run on every Analyst trigger)
+├─ TrustBuildingSubflow (gates on: !trust_complete)
+├─ ContextualGroundingSubflow (gates on: trust_complete && !grounding_complete)
+├─ SectionSelectionSubflow (gates on: grounding_complete && !sections_selected)
+├─ LaneDevelopmentSubflow (gates on: sections_selected && has_pending_requirements)
+├─ ArchetypeAssessmentSubflow (gates on: session_count >= 4 && assessment_due)
+├─ SynthesisSubflow (gates on: section_has_sufficient_material)
+├─ CompositionSubflow (gates on: phase == composition && sufficiency_gates_passed)
+└─ EditorSubflow (gates on: has_draft_content && needs_quality_review)
 
 EXECUTION AGENTS
 └─ VAPI Agent (Voice Interface)
 
 SUPPORT COMPONENTS
-├─ Requirements Table (Story Capture Gaps)
+├─ Requirements Table (Story Capture Gaps + Transcript Payloads)
 └─ Edit Requirements Table (Composition Quality)
 ```
 
@@ -661,23 +786,25 @@ SUPPORT COMPONENTS
 ## Key Design Principles
 
 1. **Storyteller as Author**: Nothing is locked in without approval. System proposes, user decides.
-2. **Orchestrators + Subflows**: Clear separation between decision-making (orchestrators) and execution (subflows).
-3. **Requirements-Driven**: Flows communicate via Requirements Tables. Analyst identifies gaps → Sessions address → Analyst validates.
-4. **Progressive Unlocking**: Sections unlock as prerequisites are met. Momentum builds naturally.
-5. **Archetype Refinement**: Multi-archetype tracking with progressive refinement (exploring → narrowing → resolved). Hidden by default, revealed on request.
-6. **Quality Gates**: Sessions and chapters validated before progression. Blocking issues prevent advancement.
-7. **Feedback Loops**: Analyst → Session → Analyst (story capture), Editor → Composition → Editor (manuscript refinement).
-8. **Trauma-Aware**: Boundary checks at every prompt. Consent required for deepening.
-9. **Scene-Based Craft**: 70-80% scene (showing) vs. 20-30% summary (telling). All 5 senses in key scenes.
-10. **Iterative Refinement**: Nothing is one-and-done. Provisional drafts, multiple archetype assessments, revision cycles.
+2. **Real-Time Analyst Triggers**: Analyst Flow runs after EVERY `submit_requirement_result()` call, not after session completion.
+3. **Self-Gating Subflows**: ALL 8 subflows run on every trigger. Each subflow checks its own entry criteria. No selective execution in orchestrator.
+4. **4-Phase Journey**: trust_building → history_building → story_capture → composition with clear progression.
+5. **Transcript Payloads**: Every requirement submission includes `transcript_segment` for context.
+6. **Requirements-Driven**: Flows communicate via Requirements Tables. Subflows lodge requirements → Session addresses → Analyst validates.
+7. **Progressive Unlocking**: Sections unlock as prerequisites are met. Momentum builds naturally.
+8. **Archetype Refinement**: Multi-archetype tracking with progressive refinement (exploring → narrowing → resolved). Hidden by default, revealed on request.
+9. **Quality Gates**: Sessions and chapters validated before progression. Blocking issues prevent advancement.
+10. **Trauma-Aware**: Boundary checks at every prompt. Consent required for deepening.
+11. **Scene-Based Craft**: 70-80% scene (showing) vs. 20-30% summary (telling). All 5 senses in key scenes.
+12. **Iterative Refinement**: Nothing is one-and-done. Provisional drafts, multiple archetype assessments, revision cycles.
 
 ---
 
 ## Next Steps: Implementation
 
-1. **Phase 1 (MVP)**: Analyst Flow (basic), Session Flow (complete), Trust Building, Contextual Grounding, Section Selection, Lane Development (basic)
-2. **Phase 2 (Advanced)**: Analyst Flow (gap analysis + requirements), Lane Development (advanced), Archetype Assessment, Synthesis
-3. **Phase 3 (Composition)**: Editor Flow, Composition Subflow, Book Export
+1. **Phase 1 (MVP)**: Analyst Flow with all 8 self-gating subflows, Session Flow with `submit_requirement_result()` pattern
+2. **Phase 2 (Advanced)**: All subflows fully implemented with entry criteria, gap analysis, archetype assessment
+3. **Phase 3 (Composition)**: CompositionSubflow and EditorSubflow with quality scoring
 4. **Phase 4 (Optimization)**: Session Recovery, Agent-Driven Scheduling, Multi-User Interviews, Advanced Archetype
 
 ---
@@ -686,10 +813,18 @@ SUPPORT COMPONENTS
 
 The Everbound system is built around a **storyteller** (the author) and a network of intelligent agents that guide, facilitate, and refine their life story into a professional memoir. The architecture emphasizes:
 
-- **Orchestration** (Analyst, Session, Editor Flows)
-- **Specialization** (Subflows with narrow scope)
-- **Requirements-Driven Execution** (Gap analysis → Lodge → Address → Validate)
-- **Progressive Refinement** (Archetype, Sections, Composition)
-- **User Authority** (Verification loops, immediate pivots)
+- **Real-Time Analyst Triggers**: Analyst runs after EVERY `submit_requirement_result()` call
+- **8 Self-Gating Subflows**: ALL subflows run on every trigger, each checking entry criteria
+- **4-Phase Journey**: trust_building → history_building → story_capture → composition
+- **Transcript Payloads**: Every requirement submission includes transcript segment context
+- **Requirements-Driven Execution**: Gap analysis → Lodge → Address → Validate
+- **Progressive Refinement**: Archetype, Sections, Composition
+- **User Authority**: Verification loops, immediate pivots
 
 This high-level architecture ensures that the system is both powerful (autonomous decision-making) and safe (trauma-aware, user-controlled).
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-12-22
+**Status:** Aligned with Analyst Subflow Execution Pattern

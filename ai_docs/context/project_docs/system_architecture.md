@@ -1,8 +1,8 @@
 # Everbound System Architecture
 
-**Version:** 1.0
-**Date:** 2025-12-20
-**Status:** Implementation Ready
+**Version:** 1.1
+**Date:** 2025-12-22
+**Status:** Aligned with Analyst Subflow Execution Pattern
 
 ---
 
@@ -28,19 +28,23 @@ This document defines the technical system architecture for Everbound, a Python 
 ### Core Architecture Decisions
 
 **Foundation:** GenAI Launchpad framework
-**Pattern:** Event-driven workflow orchestration
+**Pattern:** Real-time Analyst triggers with self-gating subflows
 **Primary Flows:** Analyst (orchestrator), Session (executor), Editor (quality gate)
+**Subflows:** 8 self-gating subflows run on every Analyst trigger
+**Phases:** trust_building → history_building → story_capture → composition
 **Integration:** VAPI for voice capture via webhooks
 **Database:** PostgreSQL with event-centric schema
 **Deployment:** Docker-based containerization
 
 ### Key Architectural Principles
 
-1. **Event-Driven Processing:** All operations triggered by events, processed asynchronously
-2. **Workflow-Based Orchestration:** Flows implemented as Workflows with Nodes (Chain of Responsibility)
-3. **Separation of Concerns:** Analyst decides, Session executes, Editor validates
-4. **Requirements-Driven Execution:** Gap analysis drives intelligent story capture
-5. **User Authority:** Provisional outputs, verification loops, trauma-aware boundaries
+1. **Real-Time Analyst Triggers:** Analyst Flow runs after EVERY `submit_requirement_result()` call
+2. **Self-Gating Subflows:** ALL 8 subflows run on every trigger; each subflow gates itself based on entry criteria
+3. **Workflow-Based Orchestration:** Flows implemented as Workflows with Nodes (Chain of Responsibility)
+4. **Separation of Concerns:** Analyst orchestrates, Session executes, Editor validates
+5. **Requirements-Driven Execution:** Gap analysis drives intelligent story capture with transcript segment payloads
+6. **User Authority:** Provisional outputs, verification loops, trauma-aware boundaries
+7. **4-Phase Journey:** trust_building → history_building → story_capture → composition with clear progression
 
 ---
 
@@ -88,27 +92,30 @@ This document defines the technical system architecture for Everbound, a Python 
             │  ┌──────────────────────────────────────────┐    │
             │  │  Task Handlers                           │    │
             │  │  - process_vapi_webhook                   │    │
-            │  │  - run_analyst_flow                       │    │
+            │  │  - run_analyst_flow (triggered on every   │    │
+            │  │      submit_requirement_result() call)    │    │
             │  │  - run_session_flow                       │    │
             │  │  - run_editor_flow                        │    │
             │  └──────────────┬───────────────────────────┘    │
             │                 │                                 │
             │  ┌──────────────▼───────────────────────────┐    │
             │  │  Workflow Engine (app/workflows/)        │    │
-            │  │  - AnalystWorkflow                        │    │
+            │  │  - AnalystWorkflow (runs ALL 8 subflows)  │    │
             │  │  - SessionWorkflow                        │    │
             │  │  - EditorWorkflow                         │    │
             │  └──────────────┬───────────────────────────┘    │
             │                 │                                 │
             │  ┌──────────────▼───────────────────────────┐    │
-            │  │  Node Execution (app/core/nodes/)        │    │
-            │  │  - PhaseAssessmentNode                    │    │
-            │  │  - GapAnalysisNode                        │    │
-            │  │  - RequirementsLoggingNode                │    │
-            │  │  - TrustBuildingNode                      │    │
-            │  │  - LaneDevelopmentNode                    │    │
-            │  │  - StoryPointExtractionNode               │    │
-            │  │  - QualityAssessmentNode                  │    │
+            │  │  8 Self-Gating Subflows (app/subflows/)  │    │
+            │  │  - TrustBuildingSubflow                   │    │
+            │  │  - ContextualGroundingSubflow             │    │
+            │  │  - SectionSelectionSubflow                │    │
+            │  │  - LaneDevelopmentSubflow                 │    │
+            │  │  - ArchetypeAssessmentSubflow             │    │
+            │  │  - SynthesisSubflow                       │    │
+            │  │  - CompositionSubflow                     │    │
+            │  │  - EditorSubflow                          │    │
+            │  │  (Each subflow checks entry criteria)     │    │
             │  └──────────────┬───────────────────────────┘    │
             └─────────────────┼────────────────────────────────┘
                               │ DB Operations
@@ -229,37 +236,72 @@ def process_vapi_webhook(webhook_data: dict):
 **B. Workflow Execution Tasks** (`app/worker/workflow_tasks.py`)
 ```python
 @celery_app.task(name="run_analyst_flow")
-def run_analyst_flow(storyteller_id: str, trigger_reason: str):
-    """Execute Analyst Flow for storyteller."""
+def run_analyst_flow(storyteller_id: str, requirement_result: dict = None):
+    """
+    Execute Analyst Flow for storyteller.
+
+    CRITICAL: Triggered in real-time after EVERY submit_requirement_result() call.
+    Runs ALL 8 subflows - each subflow self-gates based on entry criteria.
+    """
     workflow = AnalystWorkflow(enable_tracing=True)
     event = AnalystTriggerEvent(
         storyteller_id=storyteller_id,
-        trigger_reason=trigger_reason
+        requirement_result=requirement_result  # Includes transcript_segment
     )
     result = workflow.run(event)
 
-    # Queue next action based on result
-    if result.metadata.get("next_flow") == "session":
-        run_session_flow.delay(
-            storyteller_id=storyteller_id,
-            subflow_type=result.metadata["subflow_type"]
-        )
+    # Analyst runs ALL 8 subflows with self-gating:
+    # 1. TrustBuildingSubflow - gates on: not trust_complete
+    # 2. ContextualGroundingSubflow - gates on: trust_complete, not grounding_complete
+    # 3. SectionSelectionSubflow - gates on: grounding_complete, not sections_selected
+    # 4. LaneDevelopmentSubflow - gates on: sections_selected, has_pending_requirements
+    # 5. ArchetypeAssessmentSubflow - gates on: session_count >= 4, assessment_due
+    # 6. SynthesisSubflow - gates on: section_has_sufficient_material
+    # 7. CompositionSubflow - gates on: phase == composition, sufficiency_gates_passed
+    # 8. EditorSubflow - gates on: has_draft_content, needs_quality_review
+
+@celery_app.task(name="submit_requirement_result")
+def submit_requirement_result(
+    storyteller_id: str,
+    requirement_id: str,
+    transcript_segment: str,
+    result_data: dict
+):
+    """
+    Submit requirement result with transcript segment.
+    IMMEDIATELY triggers Analyst Flow after every call.
+    """
+    # Persist requirement result
+    requirements_service = RequirementsService()
+    requirements_service.mark_addressed(
+        requirement_id=requirement_id,
+        transcript_segment=transcript_segment,
+        result_data=result_data
+    )
+
+    # CRITICAL: Trigger Analyst Flow in real-time
+    run_analyst_flow.delay(
+        storyteller_id=storyteller_id,
+        requirement_result={
+            "requirement_id": requirement_id,
+            "transcript_segment": transcript_segment,
+            "result_data": result_data
+        }
+    )
 
 @celery_app.task(name="run_session_flow")
-def run_session_flow(storyteller_id: str, subflow_type: str):
-    """Execute Session Flow for specific subflow."""
+def run_session_flow(storyteller_id: str, session_context: dict):
+    """Execute Session Flow for story capture."""
     workflow = SessionWorkflow(enable_tracing=True)
     event = SessionStartEvent(
         storyteller_id=storyteller_id,
-        subflow_type=subflow_type
+        session_context=session_context
     )
     result = workflow.run(event)
 
-    # Trigger Analyst after session completion
-    run_analyst_flow.delay(
-        storyteller_id=storyteller_id,
-        trigger_reason="post_session"
-    )
+    # Note: Analyst is triggered by submit_requirement_result() calls,
+    # NOT by session completion. Each requirement submission triggers
+    # the Analyst in real-time.
 
 @celery_app.task(name="run_editor_flow")
 def run_editor_flow(storyteller_id: str, story_id: str):
@@ -360,11 +402,18 @@ everbound_backend/
 │   │   ├── nodes/                 # Node implementations
 │   │   │   ├── base.py
 │   │   │   ├── agent.py           # LLM agent nodes
-│   │   │   ├── router.py          # Routing logic
-│   │   │   ├── analyst/           # Analyst-specific nodes
-│   │   │   ├── session/           # Session-specific nodes
-│   │   │   └── editor/            # Editor-specific nodes
+│   │   │   └── router.py          # Routing logic
 │   │   └── schema.py              # Workflow schema definitions
+│   ├── subflows/                  # 8 Self-Gating Subflows
+│   │   ├── base.py                # Base subflow with entry criteria check
+│   │   ├── trust_building.py      # TrustBuildingSubflow
+│   │   ├── contextual_grounding.py # ContextualGroundingSubflow
+│   │   ├── section_selection.py   # SectionSelectionSubflow
+│   │   ├── lane_development.py    # LaneDevelopmentSubflow
+│   │   ├── archetype_assessment.py # ArchetypeAssessmentSubflow
+│   │   ├── synthesis.py           # SynthesisSubflow
+│   │   ├── composition.py         # CompositionSubflow
+│   │   └── editor.py              # EditorSubflow
 │   ├── services/                  # Business logic
 │   │   ├── storyteller_service.py
 │   │   ├── session_service.py
@@ -435,11 +484,24 @@ class FirstNode(Node):
 
 ### Workflow Mapping: Everbound Flows → GenAI Launchpad
 
-| Everbound Flow | Workflow Class | Primary Nodes | Trigger |
-|----------------|----------------|---------------|---------|
-| **Analyst Flow** | `AnalystWorkflow` | PhaseAssessmentNode<br>GapAnalysisNode<br>RequirementsLoggingNode<br>SectionUnlockingNode<br>NextActionDeterminationNode | After session completion<br>New storyteller init<br>User request |
-| **Session Flow** | `SessionWorkflow` | SubflowRouterNode<br>TrustBuildingNode<br>ContextualGroundingNode<br>LaneDevelopmentNode<br>StoryPointExtractionNode<br>VerificationNode | Analyst determines next session<br>User initiates session<br>Scheduled session |
-| **Editor Flow** | `EditorWorkflow` | ChapterQualityNode<br>CoherenceCheckNode<br>PacingAnalysisNode<br>EditRequirementsNode<br>ApprovalGatingNode | Composition creates chapters<br>User requests review |
+| Everbound Flow | Workflow Class | Pattern | Trigger |
+|----------------|----------------|---------|---------|
+| **Analyst Flow** | `AnalystWorkflow` | Runs ALL 8 subflows on every trigger.<br>Each subflow self-gates based on entry criteria. | After EVERY `submit_requirement_result()` call (real-time) |
+| **Session Flow** | `SessionWorkflow` | Prepares context, executes story capture,<br>calls `submit_requirement_result()` with transcript segments | Scheduled session<br>User initiates session |
+| **Editor Flow** | `EditorWorkflow` | Quality assessment of composed narrative,<br>lodges edit requirements | Composition gate passed<br>EditorSubflow triggers it |
+
+### 8 Self-Gating Subflows (All Run on Every Analyst Trigger)
+
+| Subflow | Entry Criteria (Self-Gating) | Purpose |
+|---------|------------------------------|---------|
+| **TrustBuildingSubflow** | `!trust_complete` | Introduction, scope selection, gentle profile |
+| **ContextualGroundingSubflow** | `trust_complete && !grounding_complete` | Timeline scaffolding, factual anchors |
+| **SectionSelectionSubflow** | `grounding_complete && !sections_selected` | Narrative lane selection |
+| **LaneDevelopmentSubflow** | `sections_selected && has_pending_requirements` | Story capture with prompt packs |
+| **ArchetypeAssessmentSubflow** | `session_count >= 4 && assessment_due` | Multi-archetype tracking (exploring → narrowing → resolved) |
+| **SynthesisSubflow** | `section_has_sufficient_material` | Provisional draft generation |
+| **CompositionSubflow** | `phase == composition && sufficiency_gates_passed` | Global continuous composition |
+| **EditorSubflow** | `has_draft_content && needs_quality_review` | Quality scoring, edit requirements |
 
 ---
 
@@ -447,15 +509,21 @@ class FirstNode(Node):
 
 **File:** `app/workflows/analyst_workflow.py`
 
-**Purpose:** Assess storyteller state, identify gaps, lodge requirements, determine next action
+**Purpose:** Orchestrates ALL 8 self-gating subflows after every requirement result submission
+
+**Trigger Pattern:** Real-time after EVERY `submit_requirement_result()` call
 
 **Event Schema:**
 ```python
 # app/schemas/events.py
 class AnalystTriggerEvent(BaseModel):
     storyteller_id: str
-    trigger_reason: str  # "post_session", "initialization", "user_request"
-    session_id: Optional[str] = None
+    requirement_result: Optional[RequirementResult] = None  # Includes transcript_segment
+
+class RequirementResult(BaseModel):
+    requirement_id: str
+    transcript_segment: str  # CRITICAL: All submissions include transcript segment
+    result_data: dict
 ```
 
 **Workflow Definition:**
@@ -463,39 +531,152 @@ class AnalystTriggerEvent(BaseModel):
 # app/workflows/analyst_workflow.py
 from core.workflow import Workflow
 from core.schema import WorkflowSchema, NodeConfig
-from core.nodes.analyst.phase_assessment_node import PhaseAssessmentNode
-from core.nodes.analyst.gap_analysis_node import GapAnalysisNode
-from core.nodes.analyst.requirements_logging_node import RequirementsLoggingNode
-from core.nodes.analyst.archetype_aware_requirements_node import ArchetypeAwareRequirementsNode
-from core.nodes.analyst.section_unlocking_node import SectionUnlockingNode
-from core.nodes.analyst.next_action_node import NextActionDeterminationNode
+from subflows.trust_building import TrustBuildingSubflow
+from subflows.contextual_grounding import ContextualGroundingSubflow
+from subflows.section_selection import SectionSelectionSubflow
+from subflows.lane_development import LaneDevelopmentSubflow
+from subflows.archetype_assessment import ArchetypeAssessmentSubflow
+from subflows.synthesis import SynthesisSubflow
+from subflows.composition import CompositionSubflow
+from subflows.editor import EditorSubflow
 from schemas.events import AnalystTriggerEvent
 
 class AnalystWorkflow(Workflow):
     """
-    Analyst Flow: Decision-making orchestrator.
+    Analyst Flow: Orchestrates ALL 8 self-gating subflows.
 
-    Flow:
-    1. PhaseAssessmentNode - Determine current phase (trust, history, capture, composition)
-    2. GapAnalysisNode - Identify missing material (scenes, emotions, characters)
-    3. ArchetypeAwareRequirementsNode - Lodge strategic requirements based on archetype refinement
-    4. RequirementsLoggingNode - Persist requirements to database
-    5. SectionUnlockingNode - Unlock new sections based on prerequisites
-    6. NextActionDeterminationNode - Decide next subflow or flow
+    CRITICAL PATTERN:
+    - Triggered in real-time after EVERY submit_requirement_result() call
+    - Runs ALL 8 subflows on every trigger
+    - Each subflow self-gates based on entry criteria
+    - No selective execution - all subflows evaluate their entry criteria
+
+    4 Phases: trust_building → history_building → story_capture → composition
+
+    8 Self-Gating Subflows (run in sequence, each checks entry criteria):
+    1. TrustBuildingSubflow - gates on: !trust_complete
+    2. ContextualGroundingSubflow - gates on: trust_complete && !grounding_complete
+    3. SectionSelectionSubflow - gates on: grounding_complete && !sections_selected
+    4. LaneDevelopmentSubflow - gates on: sections_selected && has_pending_requirements
+    5. ArchetypeAssessmentSubflow - gates on: session_count >= 4 && assessment_due
+    6. SynthesisSubflow - gates on: section_has_sufficient_material
+    7. CompositionSubflow - gates on: phase == composition && sufficiency_gates_passed
+    8. EditorSubflow - gates on: has_draft_content && needs_quality_review
     """
 
     workflow_schema = WorkflowSchema(
-        start=PhaseAssessmentNode,
+        start=SubflowOrchestratorNode,
         event_schema=AnalystTriggerEvent,
         nodes=[
-            NodeConfig(node=PhaseAssessmentNode, connections=[GapAnalysisNode]),
-            NodeConfig(node=GapAnalysisNode, connections=[ArchetypeAwareRequirementsNode]),
-            NodeConfig(node=ArchetypeAwareRequirementsNode, connections=[RequirementsLoggingNode]),
-            NodeConfig(node=RequirementsLoggingNode, connections=[SectionUnlockingNode]),
-            NodeConfig(node=SectionUnlockingNode, connections=[NextActionDeterminationNode]),
-            NodeConfig(node=NextActionDeterminationNode, connections=[])
+            NodeConfig(
+                node=SubflowOrchestratorNode,
+                connections=[]  # Orchestrator runs all subflows internally
+            )
         ]
     )
+
+class SubflowOrchestratorNode(Node):
+    """Runs ALL 8 subflows, each self-gating based on entry criteria."""
+
+    async def process(self, task_context: TaskContext) -> TaskContext:
+        storyteller_id = task_context.event.storyteller_id
+
+        # Load storyteller state once for all subflows
+        storyteller_state = load_storyteller_state(storyteller_id)
+
+        # Run ALL 8 subflows - each checks its own entry criteria
+        subflows = [
+            TrustBuildingSubflow(),
+            ContextualGroundingSubflow(),
+            SectionSelectionSubflow(),
+            LaneDevelopmentSubflow(),
+            ArchetypeAssessmentSubflow(),
+            SynthesisSubflow(),
+            CompositionSubflow(),
+            EditorSubflow(),
+        ]
+
+        for subflow in subflows:
+            # Each subflow checks entry criteria and returns early if not met
+            result = await subflow.execute(storyteller_state, task_context)
+            if result.actions_taken:
+                # Update state for subsequent subflows
+                storyteller_state = result.updated_state
+
+        return task_context
+```
+
+**Base Subflow with Self-Gating:**
+```python
+# app/subflows/base.py
+from abc import ABC, abstractmethod
+
+class BaseSubflow(ABC):
+    """Base class for self-gating subflows."""
+
+    @abstractmethod
+    def check_entry_criteria(self, storyteller_state: dict) -> bool:
+        """Return True if subflow should execute, False to skip."""
+        pass
+
+    @abstractmethod
+    async def execute_logic(self, storyteller_state: dict, task_context: TaskContext) -> SubflowResult:
+        """Execute subflow logic. Only called if entry criteria met."""
+        pass
+
+    async def execute(self, storyteller_state: dict, task_context: TaskContext) -> SubflowResult:
+        """Execute subflow if entry criteria are met."""
+        if not self.check_entry_criteria(storyteller_state):
+            return SubflowResult(actions_taken=False, updated_state=storyteller_state)
+
+        return await self.execute_logic(storyteller_state, task_context)
+```
+
+**Example Self-Gating Subflow:**
+```python
+# app/subflows/lane_development.py
+from subflows.base import BaseSubflow
+
+class LaneDevelopmentSubflow(BaseSubflow):
+    """Story capture subflow - gates on sections_selected and pending requirements."""
+
+    def check_entry_criteria(self, storyteller_state: dict) -> bool:
+        """
+        Entry Criteria (self-gating):
+        - sections_selected must be True
+        - has_pending_requirements must be True
+        """
+        return (
+            storyteller_state.get("sections_selected", False) and
+            storyteller_state.get("has_pending_requirements", False)
+        )
+
+    async def execute_logic(
+        self, storyteller_state: dict, task_context: TaskContext
+    ) -> SubflowResult:
+        """Execute lane development logic - addresses pending requirements."""
+        storyteller_id = task_context.event.storyteller_id
+
+        # Get pending requirements for current section
+        requirements = get_pending_requirements(storyteller_id)
+
+        # Generate prompts from requirements
+        prompts = generate_prompts_from_requirements(requirements)
+
+        # Lodge session preparation context
+        session_context = {
+            "prompts": prompts,
+            "requirements_to_address": [r.id for r in requirements],
+            "section": storyteller_state.get("current_section")
+        }
+
+        # Update state
+        storyteller_state["session_context"] = session_context
+
+        return SubflowResult(
+            actions_taken=True,
+            updated_state=storyteller_state
+        )
 ```
 
 **Node Implementations:**
@@ -1548,57 +1729,83 @@ class LLMService:
 
 ## Data Flow & State Management
 
-### TaskContext Flow Through Workflows
+### Real-Time Analyst Trigger Flow
 
-**Example: Analyst Flow Execution**
+**Critical Pattern:** Analyst Flow is triggered in real-time after EVERY `submit_requirement_result()` call
 
 ```
-Event: AnalystTriggerEvent(storyteller_id="s123", trigger_reason="post_session")
+Session Flow captures story content
+  ↓
+Requirement addressed with transcript segment
+  ↓
+submit_requirement_result(
+    storyteller_id="s123",
+    requirement_id="req-001",
+    transcript_segment="I grew up in a small town in Ohio...",
+    result_data={...}
+)
+  ↓
+IMMEDIATELY triggers run_analyst_flow.delay()
   ↓
 TaskContext created:
 {
-  "event": AnalystTriggerEvent(...),
+  "event": AnalystTriggerEvent(
+    storyteller_id="s123",
+    requirement_result={
+      "requirement_id": "req-001",
+      "transcript_segment": "I grew up in a small town..."
+    }
+  ),
   "nodes": {},
-  "metadata": {},
-  "should_stop": false
+  "metadata": {}
 }
   ↓
-PhaseAssessmentNode.process(task_context)
-  → Output: PhaseAssessmentOutput(current_phase="story_capture", ...)
-  → task_context.nodes["PhaseAssessmentNode"] = output
-  → task_context.metadata["current_phase"] = "story_capture"
+SubflowOrchestratorNode.process(task_context)
+  → Loads storyteller_state once
+  → Runs ALL 8 subflows in sequence:
+
+    1. TrustBuildingSubflow.execute()
+       → check_entry_criteria: !trust_complete
+       → If False: return early (no action)
+
+    2. ContextualGroundingSubflow.execute()
+       → check_entry_criteria: trust_complete && !grounding_complete
+       → If False: return early (no action)
+
+    3. SectionSelectionSubflow.execute()
+       → check_entry_criteria: grounding_complete && !sections_selected
+       → If False: return early (no action)
+
+    4. LaneDevelopmentSubflow.execute()
+       → check_entry_criteria: sections_selected && has_pending_requirements
+       → If True: generate prompts, update session_context
+
+    5. ArchetypeAssessmentSubflow.execute()
+       → check_entry_criteria: session_count >= 4 && assessment_due
+       → If True: analyze archetypes, lodge strategic requirements
+
+    6. SynthesisSubflow.execute()
+       → check_entry_criteria: section_has_sufficient_material
+       → If True: create provisional draft
+
+    7. CompositionSubflow.execute()
+       → check_entry_criteria: phase == composition && sufficiency_gates_passed
+       → If True: update global manuscript
+
+    8. EditorSubflow.execute()
+       → check_entry_criteria: has_draft_content && needs_quality_review
+       → If True: assess quality, lodge edit requirements
   ↓
-GapAnalysisNode.process(task_context)
-  → Accesses: task_context.metadata["current_phase"]
-  → Output: GapAnalysisOutput(gaps=[...])
-  → task_context.nodes["GapAnalysisNode"] = output
-  → task_context.metadata["gaps"] = [...]
+All subflows complete (each self-gated)
   ↓
-ArchetypeAwareRequirementsNode.process(task_context)
-  → Accesses: task_context.metadata["gaps"]
-  → Output: ArchetypeAwareRequirementsOutput(strategic_requirements=[...])
-  → task_context.nodes["ArchetypeAwareRequirementsNode"] = output
-  → task_context.metadata["strategic_requirements"] = [...]
-  ↓
-RequirementsLoggingNode.process(task_context)
-  → Persists requirements to database
-  → No output saved to context (DB operation)
-  ↓
-SectionUnlockingNode.process(task_context)
-  → Updates storyteller_section_status in database
-  → No output
-  ↓
-NextActionDeterminationNode.process(task_context)
-  → Output: NextActionOutput(next_flow="session", subflow_type="lane_development")
-  → task_context.nodes["NextActionDeterminationNode"] = output
-  → task_context.metadata["next_flow"] = "session"
-  ↓
-Workflow completes, returns TaskContext
-  ↓
-Celery task reads task_context.metadata["next_flow"]
-  ↓
-Queues run_session_flow.delay(storyteller_id, subflow_type)
+TaskContext returned with updated state
 ```
+
+**Key Points:**
+- **Real-time trigger**: Analyst runs after EVERY requirement submission, not after session completion
+- **Self-gating**: ALL 8 subflows run, but each checks its own entry criteria
+- **No selective execution**: The orchestrator doesn't choose which subflow to run
+- **Transcript payloads**: Every requirement result includes the transcript segment
 
 ---
 
@@ -2048,19 +2255,39 @@ def run_migrations_online():
 
 ## Summary
 
-This system architecture provides a complete technical specification for implementing Everbound on the GenAI Launchpad framework. Key strengths:
+This system architecture provides a complete technical specification for implementing Everbound on the GenAI Launchpad framework, aligned with the **Analyst Subflow Execution Pattern**. Key strengths:
 
+✅ **Real-Time Analyst Triggers:** Analyst Flow runs after EVERY `submit_requirement_result()` call
+✅ **8 Self-Gating Subflows:** ALL subflows run on every trigger, each checking its own entry criteria
+✅ **4-Phase Journey:** trust_building → history_building → story_capture → composition
+✅ **Transcript Payloads:** Every requirement submission includes transcript segment context
 ✅ **Event-Driven:** Celery + Redis for async, scalable processing
-✅ **Workflow-Based:** Clean separation of Analyst, Session, Editor flows
-✅ **Modular Nodes:** Chain of Responsibility pattern for extensibility
+✅ **Workflow-Based:** Clean separation of Analyst (orchestrator), Session (executor), Editor (validator)
 ✅ **VAPI Integration:** Voice-first capture via webhooks
-✅ **Requirements-Driven:** Intelligent gap analysis guides story capture
+✅ **Requirements-Driven:** Intelligent gap analysis with discriminating, validating, strengthening requirements
 ✅ **Production-Ready:** Docker deployment, security, monitoring
+
+**Critical Pattern Summary:**
+1. Session Flow captures story content and calls `submit_requirement_result()` with transcript segments
+2. EVERY call triggers `run_analyst_flow.delay()` in real-time
+3. Analyst runs ALL 8 subflows (no selective execution)
+4. Each subflow self-gates based on entry criteria
+5. Subflows that pass entry criteria execute their logic and update state
+
+**8 Self-Gating Subflows:**
+1. TrustBuildingSubflow - Introduction, scope, profile
+2. ContextualGroundingSubflow - Timeline scaffolding
+3. SectionSelectionSubflow - Narrative lanes
+4. LaneDevelopmentSubflow - Story capture engine
+5. ArchetypeAssessmentSubflow - Multi-archetype tracking
+6. SynthesisSubflow - Provisional drafts
+7. CompositionSubflow - Global continuous composition
+8. EditorSubflow - Quality scoring, edit requirements
 
 **Next Step:** Begin Phase 1 implementation (Foundation).
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-20
-**Status:** Ready for Implementation
+**Document Version:** 1.1
+**Last Updated:** 2025-12-22
+**Status:** Aligned with Analyst Subflow Execution Pattern
