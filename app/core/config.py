@@ -38,3 +38,16 @@ class Settings(BaseSettings):
         """Construct PostgreSQL connection string."""
         password = self.database_password.get_secret_value()
         return f"postgresql://{self.database_user}:{password}@{self.database_host}:{self.database_port}/{self.database_name}"
+
+    # Redis
+    redis_host: str = Field(default="redis", description="Redis host")
+    redis_port: int = Field(
+        default=6379, ge=1, le=65535, description="Redis port"
+    )
+    redis_db: int = Field(default=0, ge=0, description="Redis database number")
+
+    @computed_field
+    @property
+    def redis_url(self) -> str:
+        """Construct Redis connection string."""
+        return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
