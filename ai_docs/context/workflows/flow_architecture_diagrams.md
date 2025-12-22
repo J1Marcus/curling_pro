@@ -1,6 +1,14 @@
 # Flow Architecture: Mermaid Diagrams
 
-Visual representations of the Everbound flow architecture defined in [flow_architecture.md](flow_architecture.md).
+Visual representations of the Everbound flow architecture defined in [flow_architecture.md](../source_docs/flow_architecture.md).
+
+**UPDATED**: These diagrams reflect the new execution pattern where:
+1. **Analyst ALWAYS runs ALL subflows** (no selective execution)
+2. **Analyst runs after EVERY requirement submission** (real-time)
+3. **Subflows self-gate** based on entry criteria
+4. **Requirement submissions include transcript** payload
+
+For detailed execution pattern with code examples, see [analyst_subflow_execution_pattern.md](../project_docs/analyst_subflow_execution_pattern.md).
 
 ---
 
@@ -93,49 +101,170 @@ graph TB
 
 ---
 
-## 3. Pattern 1: Analyst → Session → Analyst Loop
+## 3. Core Execution Pattern: Analyst Runs ALL Subflows
+
+```mermaid
+flowchart TB
+    START[Trigger Event:<br/>- storyteller_created<br/>- requirement_submission<br/>- session_completion<br/>- periodic check] --> ANALYST[Analyst Flow<br/>Triggered]
+
+    ANALYST --> RUN[Run ALL Subflows<br/>in Sequence]
+
+    RUN --> SF1[Trust Building]
+    SF1 --> GATE1{Entry<br/>Criteria?}
+    GATE1 -->|phase IN<br/>[NULL, trust_building]| EXEC1[✓ Execute:<br/>Assess & Create<br/>Requirements]
+    GATE1 -->|Other| SKIP1[✗ Return Early]
+    EXEC1 --> SF2
+    SKIP1 --> SF2
+
+    SF2[Contextual Grounding]
+    SF2 --> GATE2{Entry<br/>Criteria?}
+    GATE2 -->|phase =<br/>history_building| EXEC2[✓ Execute]
+    GATE2 -->|Other| SKIP2[✗ Return Early]
+    EXEC2 --> SF3
+    SKIP2 --> SF3
+
+    SF3[Section Selection]
+    SF3 --> GATE3{Entry<br/>Criteria?}
+    GATE3 -->|history_building<br/>AND grounding_complete| EXEC3[✓ Execute]
+    GATE3 -->|Other| SKIP3[✗ Return Early]
+    EXEC3 --> SF4
+    SKIP3 --> SF4
+
+    SF4[Lane Development]
+    SF4 --> GATE4{Entry<br/>Criteria?}
+    GATE4 -->|story_capture<br/>AND sections_selected| EXEC4[✓ Execute]
+    GATE4 -->|Other| SKIP4[✗ Return Early]
+    EXEC4 --> SF5
+    SKIP4 --> SF5
+
+    SF5[Archetype Assessment]
+    SF5 --> GATE5{Entry<br/>Criteria?}
+    GATE5 -->|story_capture<br/>AND session_count >= 4<br/>AND count % 3 = 0| EXEC5[✓ Execute]
+    GATE5 -->|Other| SKIP5[✗ Return Early]
+    EXEC5 --> SF6
+    SKIP5 --> SF6
+
+    SF6[Synthesis]
+    SF6 --> GATE6{Entry<br/>Criteria?}
+    GATE6 -->|story_capture<br/>AND sufficient_material| EXEC6[✓ Execute]
+    GATE6 -->|Other| SKIP6[✗ Return Early]
+    EXEC6 --> SF7
+    SKIP6 --> SF7
+
+    SF7[Composition]
+    SF7 --> GATE7{Entry<br/>Criteria?}
+    GATE7 -->|All sufficiency<br/>gates passed| EXEC7[✓ Execute]
+    GATE7 -->|Other| SKIP7[✗ Return Early]
+    EXEC7 --> SF8
+    SKIP7 --> SF8
+
+    SF8[Editor]
+    SF8 --> GATE8{Entry<br/>Criteria?}
+    GATE8 -->|story_exists<br/>AND chapters_created| EXEC8[✓ Execute]
+    GATE8 -->|Other| SKIP8[✗ Return Early]
+    EXEC8 --> COMPLETE
+    SKIP8 --> COMPLETE
+
+    COMPLETE[All Subflows<br/>Complete] --> DETERMINE[Determine<br/>Next Action]
+
+    DETERMINE --> ACTION{State<br/>After All<br/>Subflows?}
+    ACTION -->|Pending<br/>Requirements| SESSION[Schedule/Continue<br/>Session]
+    ACTION -->|No Requirements<br/>+ Complete| EXPORT[Story Ready]
+    ACTION -->|No Requirements<br/>+ Incomplete| REVIEW[Review Needed]
+
+    SESSION --> VAPI[VAPI Session]
+    VAPI --> SUBMIT[submit_requirement_result]
+    SUBMIT --> RETRIGGER[Trigger Analyst<br/>IMMEDIATELY]
+    RETRIGGER -.->|Loop| ANALYST
+
+    style ANALYST fill:#3498db,color:#fff
+    style RUN fill:#4a90e2,color:#fff
+    style EXEC1 fill:#27ae60,color:#fff
+    style EXEC2 fill:#27ae60,color:#fff
+    style EXEC3 fill:#27ae60,color:#fff
+    style EXEC4 fill:#27ae60,color:#fff
+    style EXEC5 fill:#27ae60,color:#fff
+    style EXEC6 fill:#27ae60,color:#fff
+    style EXEC7 fill:#27ae60,color:#fff
+    style EXEC8 fill:#27ae60,color:#fff
+    style SKIP1 fill:#95a5a6
+    style SKIP2 fill:#95a5a6
+    style SKIP3 fill:#95a5a6
+    style SKIP4 fill:#95a5a6
+    style SKIP5 fill:#95a5a6
+    style SKIP6 fill:#95a5a6
+    style SKIP7 fill:#95a5a6
+    style SKIP8 fill:#95a5a6
+    style SUBMIT fill:#e74c3c,color:#fff
+    style RETRIGGER fill:#e67e22,color:#fff
+```
+
+**Key Principles:**
+1. **Analyst ALWAYS runs ALL subflows** - No selective execution
+2. **Each subflow self-gates** - Checks entry criteria and returns early if not met
+3. **Analyst runs after EVERY requirement submission** - Real-time response
+4. **Deterministic & predictable** - Same sequence every time, state determines behavior
+
+---
+
+## 4. Real-Time Requirement Submission Flow
 
 ```mermaid
 sequenceDiagram
     participant A as Analyst Flow
+    participant SW as All Subflows
     participant RT as Requirements Table
-    participant SF as Session Flow
+    participant VAPI as VAPI Agent
     participant ST as Storyteller State
 
-    Note over A: 1. Assess State
-    A->>A: Evaluate phase, material, gaps
+    Note over A: Analyst Triggered
+    A->>SW: Run ALL Subflows
 
-    Note over A,RT: 2. Lodge Requirements
-    A->>RT: Create requirement records<br/>(critical, important, optional)
+    Note over SW: Trust Building
+    SW->>SW: Check gate: phase?
+    alt Phase gate met
+        SW->>SW: Assess requirements
+        SW->>RT: Create requirements
+    else Phase gate not met
+        SW->>SW: Return early
+    end
 
-    Note over A,SF: 3. Determine Next Action
-    A->>SF: Trigger subflow<br/>(e.g., lane_development)
+    Note over SW: Contextual Grounding
+    SW->>SW: Check gate: phase?
+    Note over SW: Section Selection...
+    Note over SW: Lane Development...
+    Note over SW: (All subflows run)
 
-    Note over SF: 4. Execute Session
-    SF->>SF: Pre-call prep
-    SF->>SF: VAPI call execution
-    SF->>SF: Post-call processing
+    Note over A,RT: After all subflows
+    A->>A: Determine next action
+    A->>RT: Pending requirements exist?
 
-    Note over SF,ST: 5. Update State
-    SF->>ST: Update progress
-    SF->>ST: Create life events
-    SF->>ST: Create artifacts
+    Note over VAPI: VAPI Session Begins
+    VAPI->>VAPI: Address requirement #1
 
-    Note over SF,RT: 6. Mark Addressed
-    SF->>RT: Update requirements<br/>pending → addressed
+    Note over VAPI: submit_requirement_result()
+    VAPI->>RT: Mark addressed + transcript
+    VAPI->>ST: Apply side effects
 
-    Note over SF,A: 7. Trigger Re-Assessment
-    SF->>A: Reassess storyteller
+    Note over VAPI,A: IMMEDIATE TRIGGER
+    VAPI->>A: Trigger Analyst Flow
 
-    Note over A: 8. Validate Resolution
-    A->>RT: Check if resolved<br/>addressed → resolved
+    Note over A: Analyst Runs Again
+    A->>SW: Run ALL Subflows
+    SW->>SW: Reassess state
+    SW->>RT: Create/resolve requirements
 
-    A->>A: Loop or transition to next phase
+    Note over VAPI: Session Continues
+    VAPI->>VAPI: Address requirement #2
+    VAPI->>A: submit_requirement_result()<br/>→ Trigger Analyst
+
+    Note over A: Iterative Loop
+    A->>SW: Run ALL Subflows<br/>(after each submission)
 ```
 
 ---
 
-## 4. Pattern 2: Editor → Composition → Editor Loop
+## 5. Pattern 2: Editor → Composition → Editor Loop
 
 ```mermaid
 sequenceDiagram
@@ -193,7 +322,7 @@ sequenceDiagram
 
 ---
 
-## 5. Pattern 3: Multi-Archetype Refinement (Progressive Narrowing)
+## 6. Pattern 3: Multi-Archetype Refinement (Progressive Narrowing)
 
 ```mermaid
 flowchart TD
@@ -252,7 +381,7 @@ flowchart TD
 
 ---
 
-## 6. Session Flow: Complete Lifecycle
+## 7. Session Flow: Complete Lifecycle
 
 ```mermaid
 graph TB
@@ -312,79 +441,115 @@ graph TB
 
 ---
 
-## 7. Analyst Flow: Decision Logic
+## 8. Analyst Flow: All Subflows Execution Pattern
 
 ```mermaid
 flowchart TD
     START[Analyst Flow<br/>Triggered] --> LOAD[Load Storyteller<br/>State]
 
-    LOAD --> PHASE{Current<br/>Phase?}
+    LOAD --> RUN[Run ALL Subflows<br/>Sequentially]
 
-    PHASE -->|null| NEW[New Storyteller]
-    NEW --> TR[Lodge: complete_trust_setup<br/>Next: trust_building]
+    RUN --> SF1[1. Trust Building<br/>Workflow]
+    SF1 --> G1{Phase gate?}
+    G1 -->|NULL or trust_building| EX1[Execute:<br/>Assess requirements<br/>Create/resolve<br/>Transition if complete]
+    G1 -->|Other phase| SKIP1[Return early:<br/>gate not met]
+    EX1 --> SF2
+    SKIP1 --> SF2
 
-    PHASE -->|trust_building| TB{Trust Setup<br/>Complete?}
-    TB -->|Yes| HB[Transition:<br/>history_building<br/>Next: contextual_grounding]
-    TB -->|No| TBC[Continue:<br/>trust_building]
+    SF2[2. Contextual Grounding<br/>Workflow]
+    SF2 --> G2{Phase gate?}
+    G2 -->|history_building| EX2[Execute:<br/>Assess timeline anchors<br/>Create requirements]
+    G2 -->|Other phase| SKIP2[Return early:<br/>gate not met]
+    EX2 --> SF3
+    SKIP2 --> SF3
 
-    PHASE -->|history_building| HIS{Timeline &<br/>Sections?}
-    HIS -->|Complete| CAP[Transition:<br/>story_capture<br/>Next: lane_development]
-    HIS -->|Timeline Missing| CG[Next:<br/>contextual_grounding]
-    HIS -->|Sections Missing| SS[Next:<br/>section_selection]
+    SF3[3. Section Selection<br/>Workflow]
+    SF3 --> G3{Phase gate?}
+    G3 -->|history_building AND<br/>contextual_grounding_complete| EX3[Execute:<br/>Create section<br/>selection requirement]
+    G3 -->|Gates not met| SKIP3[Return early]
+    EX3 --> SF4
+    SKIP3 --> SF4
 
-    PHASE -->|story_capture| SC[Evaluate Each<br/>Section]
-    SC --> GAPS[Analyze<br/>Material Gaps]
-    GAPS --> LODGE[Lodge<br/>Requirements]
-    LODGE --> NEXT[Select Next<br/>Lane]
+    SF4[4. Lane Development<br/>Workflow]
+    SF4 --> G4{Phase gate?}
+    G4 -->|story_capture AND<br/>sections_selected| EX4[Execute:<br/>Analyze gaps<br/>Lodge requirements]
+    G4 -->|Gates not met| SKIP4[Return early]
+    EX4 --> SF5
+    SKIP4 --> SF5
 
-    NEXT --> CHECK{Additional<br/>Triggers?}
-    CHECK -->|session % 3 == 0| ARC[Trigger:<br/>archetype_assessment]
+    SF5[5. Archetype Assessment<br/>Workflow]
+    SF5 --> G5{Phase gate?}
+    G5 -->|story_capture AND<br/>session_count >= 4 AND<br/>session_count % 3 == 0| EX5[Execute:<br/>Multi-archetype analysis<br/>Lodge refinement requirements]
+    G5 -->|Gates not met| SKIP5[Return early]
+    EX5 --> SF6
+    SKIP5 --> SF6
 
-    ARC --> ARCSTAT{Archetype<br/>Refinement<br/>Status?}
-    ARCSTAT -->|exploring| DISC[Lodge DISCRIMINATING<br/>requirements<br/>between top 2 candidates]
-    ARCSTAT -->|narrowing| VAL[Lodge VALIDATING<br/>requirements<br/>for active candidates]
-    ARCSTAT -->|resolved| STR[Lodge STRENGTHENING<br/>requirements<br/>for dominant archetype]
+    SF6[6. Synthesis<br/>Workflow]
+    SF6 --> G6{Material gate?}
+    G6 -->|story_capture AND<br/>section has sufficient material| EX6[Execute:<br/>Create provisional draft<br/>Assemble collection]
+    G6 -->|Gates not met| SKIP6[Return early]
+    EX6 --> SF7
+    SKIP6 --> SF7
 
-    DISC --> LANE
-    VAL --> LANE
-    STR --> LANE
+    SF7[7. Composition<br/>Workflow]
+    SF7 --> G7{Sufficiency gates?}
+    G7 -->|All gates passed:<br/>archetype resolved<br/>material threshold<br/>character dev<br/>thematic coherence| EX7[Execute:<br/>Create chapters<br/>Compose prose]
+    G7 -->|Gates not met| SKIP7[Return early]
+    EX7 --> SF8
+    SKIP7 --> SF8
 
-    CHECK -->|section sufficient| SYN[Trigger:<br/>synthesis]
-    CHECK -->|Otherwise| LANE[Next:<br/>lane_development]
+    SF8[8. Editor<br/>Workflow]
+    SF8 --> G8{Story exists?}
+    G8 -->|story_exists AND<br/>chapters_created| EX8[Execute:<br/>Quality assessment<br/>Lodge edit requirements]
+    G8 -->|Gates not met| SKIP8[Return early]
+    EX8 --> DETERMINE
+    SKIP8 --> DETERMINE
 
-    PHASE -->|composition| COMP[Hand off to<br/>Editor Flow]
+    DETERMINE[Determine Next Action<br/>Based on State]
+    DETERMINE --> ACTION{State?}
+    ACTION -->|Pending requirements| SCHED[Schedule/Continue<br/>Session]
+    ACTION -->|No pending + complete| EXPORT[Story Complete]
+    ACTION -->|No pending + not complete| REVIEW[Review Needed]
 
-    TR --> OUTPUT[Output:<br/>Next Subflow]
-    HB --> OUTPUT
-    TBC --> OUTPUT
-    CAP --> OUTPUT
-    CG --> OUTPUT
-    SS --> OUTPUT
-    LANE --> OUTPUT
-    ARC --> OUTPUT
-    SYN --> OUTPUT
-    COMP --> OUTPUT
+    SCHED --> OUTPUT[Output:<br/>Next Action]
+    EXPORT --> OUTPUT
+    REVIEW --> OUTPUT
 
     style START fill:#3498db,color:#fff
-    style GAPS fill:#e67e22
-    style LODGE fill:#f39c12
-    style OUTPUT fill:#27ae60,color:#fff
+    style RUN fill:#4a90e2,color:#fff
+    style EX1 fill:#27ae60,color:#fff
+    style EX2 fill:#27ae60,color:#fff
+    style EX3 fill:#27ae60,color:#fff
+    style EX4 fill:#27ae60,color:#fff
+    style EX5 fill:#27ae60,color:#fff
+    style EX6 fill:#27ae60,color:#fff
+    style EX7 fill:#27ae60,color:#fff
+    style EX8 fill:#27ae60,color:#fff
+    style SKIP1 fill:#95a5a6
+    style SKIP2 fill:#95a5a6
+    style SKIP3 fill:#95a5a6
+    style SKIP4 fill:#95a5a6
+    style SKIP5 fill:#95a5a6
+    style SKIP6 fill:#95a5a6
+    style SKIP7 fill:#95a5a6
+    style SKIP8 fill:#95a5a6
+    style OUTPUT fill:#e74c3c,color:#fff
 ```
 
 ---
 
-## 8. Subflows: Trust Building Sequence
+## 9. Subflows: Trust Building Sequence
 
 ```mermaid
 sequenceDiagram
     participant AF as Analyst Flow
-    participant SF as Session Flow
+    participant SW as All Subflows
     participant TB as Trust Building<br/>Subflow
     participant ST as Storyteller State
 
-    Note over AF: Storyteller in<br/>trust_building phase
-    AF->>SF: Execute trust_building
-    SF->>TB: Initialize
+    Note over AF: Analyst Triggered
+    AF->>SW: Run ALL Subflows
+    SW->>TB: Trust Building checks gate
 
     Note over TB: Step 1: Introduction
     TB->>TB: Set expectations<br/>"Build outline first"<br/>"You can skip anything"
@@ -401,16 +566,17 @@ sequenceDiagram
     TB->>ST: storyteller_preference<br/>populated
     TB->>ST: Additional sections<br/>unlocked
 
-    Note over TB,AF: Complete
-    TB->>SF: Success
-    SF->>AF: Trigger reassessment
+    Note over TB,ST: Complete
+    TB->>ST: Update phase to<br/>history_building
 
-    Note over AF: Transition to<br/>history_building
+    Note over SW: Other subflows run<br/>(all gate early)
+
+    Note over AF: Determine next action
 ```
 
 ---
 
-## 9. Subflows: Lane Development (The Engine)
+## 10. Subflows: Lane Development (The Engine)
 
 ```mermaid
 flowchart TD
@@ -467,53 +633,56 @@ flowchart TD
 
 ---
 
-## 10. Requirements Workflow: Story Capture
+## 11. Requirements Workflow: Story Capture (Real-Time)
 
 ```mermaid
 sequenceDiagram
     participant AF as Analyst Flow
+    participant SW as All Subflows
     participant RT as requirement<br/>Table
-    participant SF as Session Flow
     participant VAPI as VAPI Agent
     participant ST as Storyteller
 
-    Note over AF: Gap Analysis
-    AF->>AF: Analyze section<br/>material
-    AF->>AF: Identify gaps:<br/>- Sensory detail<br/>- Character insight<br/>- Timeline clarity
+    Note over AF: Analyst Triggered
+    AF->>SW: Run ALL Subflows
 
-    Note over AF,RT: Lodge Requirements
-    AF->>RT: CREATE requirement<br/>type: sensory_detail<br/>priority: critical<br/>status: pending
+    Note over SW: Lane Development<br/>Subflow Executes
+    SW->>SW: Analyze section<br/>material
+    SW->>SW: Identify gaps:<br/>- Sensory detail<br/>- Character insight<br/>- Timeline clarity
 
-    Note over SF: Session Prep
-    SF->>RT: QUERY requirements<br/>WHERE section=current<br/>ORDER BY priority
-    RT-->>SF: Top 3 critical<br/>requirements
+    Note over SW,RT: Lodge Requirements
+    SW->>RT: CREATE requirement<br/>type: sensory_detail<br/>priority: critical<br/>status: pending<br/>suggested_prompts: [...]
 
-    SF->>RT: UPDATE status<br/>pending → in_progress
-
-    SF->>VAPI: Configure agent with<br/>suggested_prompts
+    Note over VAPI: VAPI Session
+    VAPI->>RT: Fetch pending<br/>requirements
+    RT-->>VAPI: Requirement list
 
     Note over VAPI,ST: Interview
     VAPI->>ST: "What did grandmother's<br/>house smell like?"
-    ST-->>VAPI: Response with<br/>sensory details
+    ST-->>VAPI: "Pine needles, fresh bread,<br/>her lavender perfume..."
 
-    Note over SF: Post-Call
-    SF->>SF: Extract story points<br/>with sensory details
+    Note over VAPI: submit_requirement_result()
+    VAPI->>RT: UPDATE requirement<br/>status: addressed<br/>result: {sensory_details: [...]}
+    VAPI->>RT: ADD transcript_segment<br/>{agent_utterance, user_utterance,<br/>timestamp, duration}
 
-    SF->>RT: UPDATE status<br/>in_progress → addressed
+    Note over VAPI,ST: Apply Side Effects
+    VAPI->>ST: Create life_event<br/>with sensory details
+    VAPI->>ST: Update section progress
 
-    Note over AF: Validation
-    AF->>RT: QUERY requirements<br/>WHERE status=addressed
-    RT-->>AF: Requirements list
+    Note over VAPI,AF: IMMEDIATE TRIGGER
+    VAPI->>AF: Trigger Analyst Flow
 
-    AF->>AF: Validate:<br/>Are senses present?
-    AF->>RT: UPDATE status<br/>addressed → resolved
+    Note over AF: Analyst Runs Again
+    AF->>SW: Run ALL Subflows
+    SW->>SW: Reassess state
+    SW->>RT: Validate requirement<br/>addressed → resolved
 
-    Note over RT: Requirement Lifecycle<br/>pending → in_progress →<br/>addressed → resolved
+    Note over RT: Requirement Lifecycle<br/>pending → addressed → resolved<br/>(Real-time during session)
 ```
 
 ---
 
-## 11. Requirements Workflow: Composition Quality
+## 12. Requirements Workflow: Composition Quality
 
 ```mermaid
 sequenceDiagram
@@ -565,7 +734,7 @@ sequenceDiagram
 
 ---
 
-## 12. Data Flow: Complete Journey
+## 13. Data Flow: Complete Journey
 
 ```mermaid
 flowchart LR
@@ -632,7 +801,7 @@ flowchart LR
 
 ---
 
-## 13. Implementation Phases
+## 14. Implementation Phases
 
 ```mermaid
 flowchart TD
@@ -698,7 +867,7 @@ flowchart TD
 
 ---
 
-## 14. Progressive Section Unlocking
+## 15. Progressive Section Unlocking
 
 ```mermaid
 flowchart TD
@@ -747,7 +916,7 @@ flowchart TD
 
 ---
 
-## 15. State Transitions
+## 16. State Transitions
 
 ```mermaid
 stateDiagram-v2

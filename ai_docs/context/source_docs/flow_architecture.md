@@ -4,7 +4,15 @@
 
 This document defines the **flow architecture** for the Everbound system. Flows are agentic orchestration nodes that assess state, determine next actions, and execute specialized processes. They interact with each other through **Requirements Tables** and state transitions.
 
-**Core Principle**: Flows assess → lodge requirements → execute subflows → update state → loop back.
+**Core Principle**: Analyst runs ALL subflows → Subflows self-gate → Requirements lodged → Session addresses requirements → Analyst re-runs ALL subflows → Loop.
+
+**Key Architectural Decisions**:
+1. **Analyst ALWAYS runs ALL subflows** - No selective execution, each subflow self-gates based on entry criteria
+2. **Analyst runs after EVERY requirement submission** - Real-time response during sessions, not batch processing
+3. **Requirement submissions include transcript** - Full audit trail of what was asked and answered
+4. **Subflows are assessment engines** - They create/resolve requirements, not interactive sessions
+
+For detailed execution pattern with examples, see [analyst_subflow_execution_pattern.md](../project_docs/analyst_subflow_execution_pattern.md).
 
 ---
 
@@ -19,17 +27,32 @@ Trust → Scope → Context → Capture → Synthesis → Verification → Book
 This translates to:
 
 ```
-Analyst Flow (assesses phase)
+Analyst Flow triggered
     ↓
-Determines which subflow needed
+Runs ALL subflows (each self-gates):
+    - Trust Building (gates on phase = trust_building)
+    - Contextual Grounding (gates on phase = history_building)
+    - Section Selection (gates on contextual_grounding_complete)
+    - Lane Development (gates on sections_selected)
+    - Archetype Assessment (gates on session_count >= 4 AND session_count % 3 == 0)
+    - Synthesis (gates on sufficient_material)
+    - Composition (gates on all_sufficiency_gates_passed)
+    - Editor (gates on story_exists)
     ↓
-Session Flow (executes subflow)
+Each subflow that passes gate:
+    - Assesses state
+    - Creates/resolves requirements
+    - Returns execution result
     ↓
-Updates storyteller state
+Analyst determines next action based on state after all subflows
     ↓
-Analyst Flow (reassesses)
+Session Flow addresses requirements (if pending)
     ↓
-[Loop or transition to Editor Flow when composition ready]
+During session: VAPI agent calls submit_requirement_result() for each requirement
+    ↓
+Each requirement submission triggers Analyst Flow (real-time)
+    ↓
+[Loop continues until composition complete → Editor approves → Export]
 ```
 
 ---
@@ -40,9 +63,12 @@ Analyst Flow (reassesses)
 
 **Node Type**: `analyst_orchestrator`
 
-**Purpose**: Continuous assessment of storyteller state to determine what needs to happen next. The "brain" of the system that decides which phase, which section, which requirements need addressing.
+**Purpose**: Continuous orchestration of all subflows to assess storyteller state and determine next actions. The "brain" of the system that runs ALL subflows on every invocation, allowing each to self-gate and create/resolve requirements.
 
-**Triggers**:
+**CRITICAL**: Analyst does NOT selectively choose which subflow to run. It ALWAYS runs ALL subflows sequentially. Each subflow checks its own entry criteria (gates) and returns early if not met.
+
+**Triggers** (Real-Time):
+- **After EVERY requirement submission during a session** (via `submit_requirement_result()` tool)
 - After session completion
 - On new storyteller initialization
 - When user requests next steps
@@ -50,78 +76,98 @@ Analyst Flow (reassesses)
 
 **Inputs**:
 - Storyteller ID
+- Trigger reason (`requirement_submission`, `session_complete`, `initialization`, etc.)
+- Requirement ID (if triggered by requirement submission)
 - Current progress state (`storyteller_progress`)
 - All life events
 - All session artifacts
 - Current requirements table
 - Scope type
 
-**Responsibilities**:
-1. **Phase Assessment**: Determine current phase in canonical process
-2. **Completeness Check**: Evaluate material against phase requirements
-3. **Gap Identification**: Identify missing context, scenes, characters, themes
-4. **Requirements Lodging**: Create/update requirements in Requirements Table
-5. **Next Action Determination**: Decide which subflow should execute next
-6. **Section Unlocking**: Unlock new sections when prerequisites met
+**Execution Pattern**:
+```python
+async def run_analyst_flow(storyteller_id: str, trigger_reason: str):
+    """
+    Analyst Flow ALWAYS runs ALL subflows.
+    Each subflow self-gates based on entry criteria.
+    """
+    storyteller = await load_storyteller(storyteller_id)
 
-**Decision Tree**:
+    # Run ALL subflows (in order)
+    results = []
+    results.append(await TrustBuildingWorkflow.run(storyteller_id))
+    results.append(await ContextualGroundingWorkflow.run(storyteller_id))
+    results.append(await SectionSelectionWorkflow.run(storyteller_id))
+    results.append(await LaneDevelopmentWorkflow.run(storyteller_id))
+    results.append(await ArchetypeAssessmentWorkflow.run(storyteller_id))
+    results.append(await SynthesisWorkflow.run(storyteller_id))
+    results.append(await CompositionWorkflow.run(storyteller_id))
+    results.append(await EditorWorkflow.run(storyteller_id))
+
+    # Determine next action based on state after all subflows run
+    next_action = await determine_next_action(storyteller_id, results)
+    return next_action
 ```
-IF phase = null (new storyteller)
-    THEN lodge requirement: "complete_trust_setup"
-    RETURN next_subflow: "trust_building"
 
-ELSE IF phase = "trust_building"
-    IF trust_setup_complete AND scope_selected AND profile_complete
-        THEN transition phase → "history_building"
-        RETURN next_subflow: "contextual_grounding"
-    ELSE
-        RETURN next_subflow: "trust_building" (continue)
+**Responsibilities**:
+1. **Trigger All Subflows**: Execute all subflows on every run (no selective execution)
+2. **Aggregate Results**: Collect results from all subflow executions
+3. **Next Action Determination**: Based on state after all subflows, determine what happens next
+4. **State Consistency**: Ensure storyteller state is coherent after all subflows complete
 
-ELSE IF phase = "history_building"
-    IF timeline_scaffolded AND sections_selected
-        THEN transition phase → "story_capture"
-        RETURN next_subflow: "lane_development" (first unlocked lane)
-    ELSE IF timeline_incomplete
-        RETURN next_subflow: "contextual_grounding"
-    ELSE IF sections_not_selected
-        RETURN next_subflow: "section_selection"
+**Subflow Execution Results**:
+Each subflow returns one of:
+- `{"executed": False, "reason": "gate_not_met"}` - Subflow gated early
+- `{"executed": True, "complete": False, "requirements_created": N}` - Subflow ran, created requirements
+- `{"executed": True, "complete": True, "next_phase": "..."}` - Subflow complete, phase transition
 
-ELSE IF phase = "story_capture"
-    # Evaluate each selected section
-    FOR each section IN storyteller_section_status WHERE status != "completed"
-        requirements = analyze_section_material(section)
-        IF requirements.critical.count > 0
-            lodge_requirements(requirements, section)
-        IF requirements.all_met
-            unlock_dependent_sections(section)
+**Next Action Determination Logic**:
+```python
+async def determine_next_action(storyteller_id: str, subflow_results: list):
+    """
+    After all subflows have run, determine what happens next based on state.
+    """
+    storyteller = await load_storyteller(storyteller_id)
+    pending_requirements = await RequirementService.get_pending(storyteller_id)
 
-    # Determine next session focus
-    next_section = select_highest_priority_incomplete_section()
-    RETURN next_subflow: "lane_development" (next_section)
+    if len(pending_requirements) > 0:
+        # There are pending requirements - schedule/trigger session
+        return {
+            "action": "schedule_session",
+            "session_type": "requirement_driven",
+            "requirements": [req.id for req in pending_requirements]
+        }
 
-    # Check if ready for synthesis
-    IF session_count % 3 == 0 AND session_count >= 4
-        RETURN additional_subflow: "archetype_assessment"
-        # After archetype assessment, lodge strategic requirements based on refinement status
-        archetype_analysis = get_latest_archetype_analysis(storyteller_id)
-        IF archetype_analysis.refinement_status == 'exploring':
-            lodge_discriminating_requirements(archetype_analysis.candidate_archetypes)
-        ELIF archetype_analysis.refinement_status == 'narrowing':
-            lodge_validating_requirements(archetype_analysis.candidate_archetypes)
-        ELIF archetype_analysis.refinement_status == 'resolved':
-            lodge_strengthening_requirements(archetype_analysis.dominant_archetype)
+    elif storyteller.current_phase == 'composition':
+        # In composition phase with no pending requirements
+        story = await StoryService.get_active_story(storyteller_id)
+        if story and story.status == "ready_for_export":
+            return {
+                "action": "export_story",
+                "story_id": story.id
+            }
+        else:
+            # Editor/Composition may be in progress
+            return {
+                "action": "wait",
+                "reason": "composition_in_progress"
+            }
 
-    IF any_section_has_sufficient_material
-        RETURN additional_subflow: "synthesis" (provisional drafts)
-
-ELSE IF phase = "composition"
-    # Hand off to Editor Flow
-    RETURN next_flow: "editor_orchestrator"
+    else:
+        # No pending requirements, not in composition
+        # May indicate completion of current phase or stuck state
+        return {
+            "action": "review_needed",
+            "reason": "no_pending_requirements_but_not_complete",
+            "current_phase": storyteller.current_phase
+        }
 ```
 
 **Archetype-Aware Requirement Lodging**:
 
-The Analyst Flow uses archetype refinement status to lodge strategic requirements that help clarify which archetype pattern is most apt:
+The **Archetype Assessment Workflow** (when it passes gate and executes) lodges strategic requirements based on refinement status. These requirements help clarify which archetype pattern is most apt.
+
+Note: This happens WITHIN the ArchetypeAssessmentWorkflow subflow, not directly in Analyst Flow. Analyst simply runs the subflow; the subflow creates the requirements.
 
 ```python
 def lodge_discriminating_requirements(candidate_archetypes):
@@ -266,8 +312,8 @@ def lodge_strengthening_requirements(dominant_archetype):
 
 6. Create VAPI agent configuration
    - System prompt with context
-   - Tools: GetStoryPointContext, SaveStorySegment, ScheduleNextSession
-   - First message from prompts
+   - Tools: submit_requirement_result, GetStoryPointContext, SaveStorySegment, ScheduleNextSession
+   - **CRITICAL**: submit_requirement_result tool triggers Analyst Flow after EACH requirement submission (real-time)
 
 7. Create session record in database
    - Status: "scheduled"
@@ -285,6 +331,10 @@ OUTPUT: agent_config, session_id
    - Follows session goal and prompts
    - Calls GetStoryPointContext as needed (dynamic retrieval)
    - Calls SaveStorySegment to persist key moments in real-time
+   - **Calls submit_requirement_result() for each requirement addressed**
+     - Includes structured result data + transcript segment
+     - Triggers Analyst Flow immediately (real-time response)
+     - Analyst re-runs ALL subflows to reassess state
 
 3. Real-time transcript streaming (webhook)
    - Backend receives transcript chunks
@@ -1450,6 +1500,8 @@ CREATE TABLE requirement (
     requirement_description TEXT NOT NULL,
     suggested_prompts JSONB,                -- Suggested follow-up prompts
     status VARCHAR(20) NOT NULL DEFAULT 'pending',  -- "pending", "addressed", "resolved"
+    result JSONB,                           -- Structured result data from user response
+    transcript_segment JSONB,               -- Transcript payload {agent_utterance, user_utterance, timestamp, duration_seconds}
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     addressed_at TIMESTAMP,
     created_by VARCHAR(50) NOT NULL DEFAULT 'analyst_flow',
@@ -1512,16 +1564,61 @@ CREATE INDEX idx_requirement_archetype_refinement ON requirement(archetype_refin
 }
 ```
 
-**Workflow**:
-1. Analyst Flow identifies gap → lodges requirement
-   - Standard requirements: scene_detail, character_insight, thematic_exploration
+**Workflow** (Real-Time):
+1. **Subflow creates requirement** (e.g., Trust Building, Lane Development, Archetype Assessment)
+   - Standard requirements: scene_detail, character_insight, thematic_exploration, trust_setup
    - **Archetype refinement requirements**: discriminate (exploring), validate (narrowing), strengthen (resolved)
-2. Session Flow fetches requirements for current section
-3. Agent uses suggested prompts during interview
-   - Discriminating requirements ask questions that reveal archetype patterns
-4. Post-call processing marks requirement as "addressed"
-5. Analyst Flow reviews if requirement is "resolved" (sufficient material now)
-6. **Archetype assessment** (every 3 sessions) analyzes addressed requirements to refine archetype confidence
+
+2. **Session Flow fetches pending requirements**
+   - Filter by: section, priority (critical first)
+   - Transform into conversational prompts for VAPI agent
+
+3. **VAPI agent addresses requirements during session**
+   - Uses suggested prompts from requirements
+   - **Calls submit_requirement_result() for EACH requirement addressed**
+     - Includes: requirement_id, status, structured result, transcript_segment
+     - **Tool immediately triggers Analyst Flow (real-time)**
+     - Analyst re-runs ALL subflows to reassess state
+
+4. **submit_requirement_result Tool Implementation**:
+```python
+async def submit_requirement_result(
+    requirement_id: str,
+    status: str,  # "addressed", "partially_addressed", "skipped"
+    result: dict,  # Structured data from user response
+    transcript_segment: dict  # Transcript with timestamps
+):
+    # Update requirement in database
+    await RequirementService.mark_addressed(
+        requirement_id=requirement_id,
+        status=status,
+        result=result,
+        transcript_segment=transcript_segment
+    )
+
+    # Apply side effects (e.g., update storyteller, unlock sections)
+    await apply_requirement_side_effects(requirement_id, result)
+
+    # TRIGGER ANALYST FLOW IMMEDIATELY
+    await run_analyst_flow(
+        storyteller_id=requirement.storyteller_id,
+        trigger_reason="requirement_submission",
+        requirement_id=requirement_id
+    )
+
+    return {"success": True, "analyst_triggered": True}
+```
+
+5. **Analyst Flow reassesses** (after each requirement submission)
+   - Runs ALL subflows with updated state
+   - Subflows may create new requirements or resolve existing ones
+   - Determines next action based on aggregate state
+
+6. **Post-session processing**
+   - Final Analyst Flow run after session complete
+   - Validates all requirements addressed
+   - Updates overall progress
+   - Determines next session focus
 
 ---
 
@@ -1576,51 +1673,67 @@ CREATE INDEX idx_edit_requirement_chapter ON edit_requirement(chapter_id, status
 
 ## Flow Interaction Patterns
 
-### Pattern 1: Analyst → Session → Analyst Loop
+### Pattern 1: Analyst → Session → Analyst Loop (Real-Time)
 
 ```
 ┌──────────────┐
-│  Analyst     │ Assess storyteller state
-│  Flow        │ Identify gaps
-└──────┬───────┘ Lodge requirements
+│  Analyst     │ Runs ALL subflows
+│  Flow        │ Each subflow assesses state and creates requirements
+└──────┬───────┘
        ↓
 ┌──────────────┐
-│ Requirements │ Pending requirements
+│ Requirements │ Pending requirements created by subflows
 │ Table        │
 └──────┬───────┘
        ↓
 ┌──────────────┐
-│  Analyst     │ Determine next subflow
-│  Flow        │ (based on requirements)
+│  Analyst     │ Determines next action based on state after all subflows
+│  Flow        │ → schedule_session if pending requirements exist
 └──────┬───────┘
        ↓
 ┌──────────────┐
-│  Session     │ Execute subflow
-│  Flow        │ (e.g., lane_development)
+│  Session     │ VAPI agent addresses requirements during call
+│  Flow        │
 └──────┬───────┘
-       ↓
+       │
+       │ DURING SESSION (Real-Time Loop):
+       │
+       ├→ VAPI agent asks requirement question
+       ├→ User responds
+       ├→ Agent calls submit_requirement_result(req_id, result, transcript_segment)
+       │     ↓
+       │  ┌──────────────┐
+       │  │ Requirements │ Update requirement: status = "addressed"
+       │  │ Table        │ Store result + transcript_segment
+       │  └──────┬───────┘
+       │         ↓
+       │  ┌──────────────┐
+       │  │  Analyst     │ IMMEDIATELY triggered (real-time)
+       │  │  Flow        │ Re-runs ALL subflows with updated state
+       │  └──────┬───────┘
+       │         ↓
+       │  Subflows reassess, may create/resolve requirements
+       │         ↓
+       │  [Continue session with updated state]
+       │
+       ├→ Next requirement question...
+       │
+       └→ Session ends
+          ↓
 ┌──────────────┐
-│  Session     │ Process transcript
-│  Artifacts   │ Extract story points
-└──────┬───────┘
-       ↓
-┌──────────────┐
-│ Requirements │ Mark requirements as "addressed"
-│ Table        │
-└──────┬───────┘
-       ↓
-┌──────────────┐
-│  Analyst     │ Reassess storyteller state
-│  Flow        │ Validate requirements resolved
-└──────────────┘ Determine next action
+│  Analyst     │ Final run after session complete
+│  Flow        │ Validates all addressed, determines next session
+└──────────────┘
        ↓
    [LOOP or transition to next phase]
 ```
 
 **Key Points**:
-- Analyst Flow is the decision-maker
-- Requirements Table is the memory/todo list
-- Session Flow is the executor
+- **Analyst ALWAYS runs ALL subflows** - No selective execution
+- **Real-time triggering** - Analyst runs after EVERY requirement submission during session
+- **Subflows self-gate** - Each subflow checks entry criteria and returns early if not met
+- **Requirements drive sessions** - Session addresses pending requirements
+- **Transcript included** - Each requirement submission includes transcript segment for audit trail
 - Loop continues until storyteller reaches composition phase
 
 ---
