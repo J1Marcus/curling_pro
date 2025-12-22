@@ -49,7 +49,7 @@ Build a robust Python backend that orchestrates AI agents, manages complex workf
 
 Enable anyone to transform their life experiences into a professionally crafted memoir through conversational AI, regardless of their writing ability, by providing an intelligent backend system that:
 
-- Orchestrates multi-agent workflows through 12 canonical phases
+- Orchestrates multi-agent workflows through 4 phases (trust_building → history_building → story_capture → composition)
 - Maintains trauma-aware boundaries and privacy controls
 - Supports multiple input modalities (voice via VAPI, text, UI-based voice-to-text)
 - Produces book-grade narrative from conversational responses
@@ -124,7 +124,7 @@ This PRD defines the **Core Complete MVP** which includes:
 - ✅ **Complete Session Flow** with all phases (pre-call prep, execution, post-processing, quality validation, user verification)
 - ✅ **Basic Editor Flow** with quality scoring (0-10 scale across 6 criteria) and requirement lodging
 
-#### Subflows (All 7)
+#### Subflows (All 8)
 - ✅ Trust Building (introduction, scope, profile)
 - ✅ Contextual Grounding (factual timeline)
 - ✅ Section Selection (narrative lanes)
@@ -132,6 +132,7 @@ This PRD defines the **Core Complete MVP** which includes:
 - ✅ Archetype Assessment (multi-archetype tracking: exploring → narrowing → resolved)
 - ✅ Synthesis (provisional drafts with user approval)
 - ✅ Composition (global continuous composition model)
+- ✅ Editor (quality scoring and edit requirements)
 
 #### Core Features
 - ✅ Multi-archetype tracking with progressive refinement
@@ -190,7 +191,7 @@ The following features are **NOT** included in Core Complete MVP but documented 
 The Core Complete MVP is considered successful when:
 
 ### Functional Completeness
-- ✅ All 7 subflows operational end-to-end
+- ✅ All 8 subflows operational end-to-end (self-gating based on entry criteria)
 - ✅ Analyst Flow successfully lodges and tracks requirements
 - ✅ Multi-archetype tracking reaches "resolved" status (0.85+ confidence)
 - ✅ Global composition produces coherent manuscript
@@ -802,6 +803,7 @@ edit_requirement (composition quality requirements)
   - All session artifacts
   - Current requirements table
   - Archetype analysis (if available)
+  - **Transcript segment** (from `submit_requirement_result()` payload - includes latest session content)
 
 - **Outputs:**
   - Updated requirements table
@@ -810,9 +812,15 @@ edit_requirement (composition quality requirements)
   - Progress state updates
 
 - **Triggers:**
-  - After every session completion
+  - **Real-time after every `submit_requirement_result()` call** (primary trigger)
   - On new storyteller initialization
   - When user requests next steps
+
+- **Execution Model:**
+  - **Runs ALL 8 subflows on every trigger** (no selective execution)
+  - Each subflow **self-gates** based on entry criteria
+  - Subflows that don't meet entry criteria exit immediately with no-op
+  - This ensures consistent state evaluation across all dimensions
 
 **2. Session Flow** (`session_orchestrator`)
 - **Role:** Executor - conducts story capture sessions
@@ -885,76 +893,89 @@ edit_requirement (composition quality requirements)
   - Periodically during composition phase
   - User requests review
 
-#### Specialized Subflows
+#### Specialized Subflows (All 8 - Self-Gating)
 
-**1. Trust Building Subflow** (Phases 1-3)
+Each subflow runs on every Analyst trigger but **self-gates** based on entry criteria. If criteria not met, subflow exits with no-op.
+
+**1. Trust Building Subflow** (Phase: trust_building)
+- **Entry Criteria:** `storyteller_progress.trust_setup_complete = false`
 - Introduction & trust setup
 - Scope selection (whole_life, major_chapter, single_event)
 - Gentle profile (boundaries, life structure)
 
-**2. Contextual Grounding Subflow** (Phase 4)
+**2. Contextual Grounding Subflow** (Phase: history_building)
+- **Entry Criteria:** `trust_setup_complete = true AND contextual_grounding_complete = false`
 - Factual timeline building
 - Scope-dependent depth (whole_life vs single_event)
 
-**3. Section Selection Subflow** (Phase 5)
+**3. Section Selection Subflow** (Phase: history_building)
+- **Entry Criteria:** `contextual_grounding_complete = true AND sections_selected = false`
 - Present available sections (all sections available, no locking)
 - Capture user selections
 
-**4. Lane Development Subflow** (Phase 6 - The Engine)
+**4. Lane Development Subflow** (Phase: story_capture)
+- **Entry Criteria:** `sections_selected = true AND has_pending_lane_requirements = true`
 - Apply prompt pack template (Scene → People → Tension → Change → Meaning)
 - Respect boundaries (two-level checking)
 - Extract scene-based material (sensory details, emotions)
 - Track section depth progression (factual → events → enriched)
 
-**5. Archetype Assessment Subflow** (Phase 10)
+**5. Archetype Assessment Subflow** (Phase: story_capture)
+- **Entry Criteria:** `session_count >= 4 AND session_count % 3 == 0` OR `user_requests_story_shape = true`
 - Multi-archetype agentic assessment
 - Track multiple candidates with confidence scores
 - Determine refinement status (exploring → narrowing → resolved)
 - Signal Analyst Flow for strategic requirements
 - Hidden by default, revealed only on request
 
-**6. Synthesis Subflow** (Phase 9)
+**6. Synthesis Subflow** (Phase: story_capture)
+- **Entry Criteria:** `section_has_sufficient_material = true AND provisional_draft_needed = true`
 - Assemble provisional drafts from session artifacts
 - Create collections with narrative roles
 - User verification workflow
 
-**7. Composition Subflow** (Phase 12)
+**7. Composition Subflow** (Phase: composition)
+- **Entry Criteria:** All 4 sufficiency gates pass (archetype + material + character + thematic)
 - **Global Composition Model** (NOT chapter-by-chapter)
-- Triggered when all 4 gates pass (archetype + material + character + thematic)
 - Automatically weaves new material into existing chapters
 - Chapters expand organically
 - Chapter structure fluid (determined by natural narrative arcs)
+
+**8. Editor Subflow** (Phase: composition)
+- **Entry Criteria:** `story.status = 'in_composition' AND has_uncommitted_changes = true`
+- Quality scoring (0-10 scale across 6 criteria)
+- Edit requirements lodging (blocking, important, polish)
+- Approval gating for chapters
 
 ---
 
 ### Flow Patterns & Loops
 
-#### Pattern 1: Analyst → Session → Analyst Loop (Story Capture)
+#### Pattern 1: Real-Time Analyst Trigger Loop (Story Capture)
 
 ```
-Analyst Flow (assess state)
+submit_requirement_result() called (with transcript segment)
   ↓
-Lodge requirements in Requirements Table
+Analyst Flow triggered IMMEDIATELY
   ↓
-Determine next subflow based on priority:
-  1. User preference
-  2. Critical requirements
-  3. Archetype refinement
-  4. Section depth
-  5. Important/optional requirements
+Runs ALL 8 subflows (self-gating)
   ↓
-Trigger Session Flow
+Each subflow checks entry criteria:
+  - Met → Execute subflow logic
+  - Not met → Exit with no-op
   ↓
-Session Flow executes subflow
+Subflows that execute:
+  - Lodge requirements in Requirements Table
+  - Update storyteller state
+  - Determine next session focus
   ↓
-Updates storyteller state
-Marks requirements as "addressed"
+Session Flow prepares next session
   ↓
-Trigger Analyst Flow
+Session Flow executes (VAPI call)
   ↓
-Analyst validates requirements "resolved"
+Post-call: submit_requirement_result() called
   ↓
-[LOOP until composition gates pass]
+[LOOP - Analyst triggers again with transcript segment]
 ```
 
 #### Pattern 2: Multi-Archetype Refinement (Progressive Narrowing)
@@ -1483,8 +1504,9 @@ This section defines detailed functional requirements for the onboarding journey
 
 **Requirements:**
 
-1. **After Every Session**
-   - Analyst Flow triggered
+1. **Real-Time Trigger After Every `submit_requirement_result()` Call**
+   - Analyst Flow triggered immediately with transcript segment payload
+   - Runs ALL 8 subflows (self-gating based on entry criteria)
    - Assesses new material captured
    - Identifies gaps:
      - Missing sensory details in scenes
@@ -1519,7 +1541,8 @@ This section defines detailed functional requirements for the onboarding journey
    - Example: "Add sensory details to loss-related scenes to deepen emotional resonance"
 
 **Acceptance Criteria:**
-- ✅ Analyst Flow runs after every session
+- ✅ Analyst Flow triggers in real-time after every `submit_requirement_result()` call
+- ✅ All 8 subflows run with self-gating (entry criteria checked)
 - ✅ Gap analysis identifies missing material
 - ✅ Requirements created with correct priority
 - ✅ Archetype refinement status determines requirement type
@@ -2011,9 +2034,10 @@ All 4 gates must PASS before composition begins:
 
 **Requirements:**
 
-1. **After Each Session (Post-Composition Start)**
-   - Session adds new material (artifacts, events)
-   - Composition Subflow automatically triggered
+1. **After Each `submit_requirement_result()` Call (Post-Composition Start)**
+   - Session adds new material (artifacts, events) with transcript segment
+   - Analyst triggers ALL 8 subflows (self-gating)
+   - Composition Subflow entry criteria met → executes weaving
    - New material woven into existing chapters
 
 2. **Weaving Logic**
@@ -2849,7 +2873,7 @@ OR (if more detail needed):
 This Product Requirements Document defines the **Everbound Core Complete MVP** - a comprehensive AI-powered memoir platform with:
 
 ✅ **Full Agent Orchestration:** Analyst, Session, and Editor Flows
-✅ **7 Specialized Subflows:** Trust Building, Contextual Grounding, Section Selection, Lane Development, Archetype Assessment, Synthesis, Composition
+✅ **8 Specialized Subflows (Self-Gating):** Trust Building, Contextual Grounding, Section Selection, Lane Development, Archetype Assessment, Synthesis, Composition, Editor
 ✅ **Multi-Archetype Tracking:** Progressive refinement (exploring → narrowing → resolved)
 ✅ **Requirements-Driven System:** Strategic lodging with priority hierarchy
 ✅ **Global Composition Model:** Living manuscript with continuous evolution
