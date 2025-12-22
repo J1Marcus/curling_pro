@@ -87,3 +87,44 @@ def verify_api_key(request: Request) -> None:
     # Timing-safe comparison to prevent timing attacks
     if not hmac.compare_digest(api_key, expected_api_key):
         raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+async def verify_webhook_auth(request: Request) -> bytes:
+    """Combined authentication dependency for VAPI webhooks.
+
+    This dependency implements defense-in-depth security by running both
+    signature verification and API key validation in order. Both checks
+    must pass for the request to proceed.
+
+    Order of validation:
+    1. HMAC-SHA256 signature verification (proves request came from VAPI)
+    2. API key validation (enables key rotation without VAPI changes)
+
+    Usage:
+        @router.post("/", dependencies=[Depends(verify_webhook_auth)])
+        async def handle_event(...):
+            ...
+
+        Or to receive the validated payload:
+        @router.post("/")
+        async def handle_event(payload: bytes = Depends(verify_webhook_auth)):
+            data = json.loads(payload)
+            ...
+
+    Args:
+        request: The incoming FastAPI request object.
+
+    Returns:
+        bytes: The raw request body payload for subsequent parsing.
+
+    Raises:
+        HTTPException: 401 Unauthorized if either authentication check fails.
+    """
+    # Step 1: Verify webhook signature (reads raw body, returns payload)
+    payload = await verify_webhook_signature(request)
+
+    # Step 2: Verify API key
+    verify_api_key(request)
+
+    # Both checks passed - return payload for subsequent parsing
+    return payload
