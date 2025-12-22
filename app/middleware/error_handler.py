@@ -7,8 +7,12 @@ for debugging and monitoring purposes.
 
 import logging
 import traceback
+from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, Request
+
+if TYPE_CHECKING:
+    from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
@@ -522,3 +526,65 @@ async def unhandled_exception_handler(
         status_code=500,
         content=error_response.model_dump(),
     )
+
+
+def register_exception_handlers(app: "FastAPI") -> None:
+    """Register all exception handlers with a FastAPI application instance.
+
+    This function registers all error handling middleware with the provided
+    FastAPI application. It should be called after app creation but before
+    router includes.
+
+    The handlers are registered in a specific order to ensure proper exception
+    handling priority. More specific exception handlers are registered first,
+    with the catch-all unhandled exception handler registered last.
+
+    Registered handlers:
+        - RequestValidationError (422): Pydantic validation failures
+        - HTTPException (4xx/5xx): FastAPI HTTP exceptions
+        - NotFoundError (404): Resource not found
+        - ValidationError (400): Business logic validation failure
+        - UnauthorizedError (401): Authentication failure
+        - ForbiddenError (403): Permission denied
+        - DatabaseError (503): Database operation failure
+        - BusinessLogicError (422): Domain rule violation
+        - Exception (500): Catch-all for unhandled exceptions
+
+    Args:
+        app: The FastAPI application instance to register handlers with.
+
+    Usage:
+        from fastapi import FastAPI
+        from app.middleware import register_exception_handlers
+
+        app = FastAPI()
+        register_exception_handlers(app)
+        # Then include routers...
+        app.include_router(some_router)
+
+    Example:
+        >>> from fastapi import FastAPI
+        >>> app = FastAPI()
+        >>> register_exception_handlers(app)
+        >>> # All exception handlers are now registered
+    """
+    # Register handler for Pydantic request validation errors (422)
+    app.add_exception_handler(RequestValidationError, request_validation_error_handler)
+
+    # Register handler for FastAPI HTTP exceptions (preserves status codes)
+    app.add_exception_handler(HTTPException, http_exception_handler)
+
+    # Register handlers for custom application exceptions
+    # Each custom exception has a specific status_code attribute
+    app.add_exception_handler(NotFoundError, not_found_error_handler)
+    app.add_exception_handler(ValidationError, validation_error_handler)
+    app.add_exception_handler(UnauthorizedError, unauthorized_error_handler)
+    app.add_exception_handler(ForbiddenError, forbidden_error_handler)
+    app.add_exception_handler(DatabaseError, database_error_handler)
+    app.add_exception_handler(BusinessLogicError, business_logic_error_handler)
+
+    # Register catch-all handler for any unhandled exceptions (500)
+    # This must be registered last to ensure specific handlers take precedence
+    app.add_exception_handler(Exception, unhandled_exception_handler)
+
+    logger.info("Exception handlers registered successfully")

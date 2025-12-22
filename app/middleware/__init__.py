@@ -16,4 +16,8 @@ Usage:
     register_exception_handlers(app)
 """
 
-__all__: list[str] = []
+from app.middleware.error_handler import register_exception_handlers
+
+__all__: list[str] = [
+    "register_exception_handlers",
+]
