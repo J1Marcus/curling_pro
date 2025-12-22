@@ -17,3 +17,17 @@ class NotFoundError(Exception):
     def __init__(self, message: str = "The requested resource was not found."):
         logging.warning(message)
         super().__init__(message)
+
+
+class ValidationError(Exception):
+    """Raised when business logic validation fails.
+
+    This is distinct from Pydantic's ValidationError which handles request
+    schema validation. Use this for custom validation rules in business logic.
+    """
+
+    status_code: int = 400
+
+    def __init__(self, message: str = "Validation failed."):
+        logging.warning(message)
+        super().__init__(message)
