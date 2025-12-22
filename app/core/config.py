@@ -101,3 +101,14 @@ class Settings(BaseSettings):
     bedrock_aws_region: Optional[str] = Field(
         default=None, description="AWS region for Bedrock"
     )
+
+    # Observability - Langfuse
+    langfuse_secret_key: Optional[SecretStr] = Field(
+        default=None, description="Langfuse secret key for authentication"
+    )
+    langfuse_public_key: Optional[str] = Field(
+        default=None, description="Langfuse public key for project identification"
+    )
+    langfuse_base_url: str = Field(
+        default="https://cloud.langfuse.com", description="Langfuse API base URL"
+    )
