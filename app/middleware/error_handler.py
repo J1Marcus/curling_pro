@@ -463,3 +463,62 @@ async def business_logic_error_handler(
         JSONResponse with 422 status code and ErrorResponse body.
     """
     return await custom_exception_handler(request, exc)
+
+
+# Generic message for unhandled exceptions to avoid exposing sensitive details
+INTERNAL_SERVER_ERROR_MESSAGE = "An unexpected error occurred. Please try again later."
+
+
+async def unhandled_exception_handler(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """Handle all unhandled exceptions as a catch-all fallback.
+
+    This handler catches any exception that is not handled by other exception
+    handlers. It returns a 500 Internal Server Error with a generic message
+    to avoid exposing sensitive implementation details to clients.
+
+    The full exception details including stack trace are logged for debugging
+    and monitoring purposes, but never exposed in the API response.
+
+    Security note:
+        - Stack traces are logged but NOT returned to the client
+        - Database errors, file paths, and other sensitive info are hidden
+        - Only a generic error message is shown in the response
+
+    Args:
+        request: The FastAPI request object.
+        exc: The unhandled exception that was raised.
+
+    Returns:
+        JSONResponse with 500 status code and ErrorResponse-formatted body
+        containing a generic error message.
+
+    Example response:
+        {
+            "status_code": 500,
+            "error_type": "internal_server_error",
+            "message": "An unexpected error occurred. Please try again later.",
+            "detail": null,
+            "request_id": null
+        }
+    """
+    # Log the full exception with stack trace for debugging
+    # Always use ERROR level for 500 errors as they indicate unexpected failures
+    log_error_with_context(request, exc, log_level=logging.ERROR)
+
+    # Build error response with generic message to avoid exposing sensitive details
+    # The actual exception message and stack trace are only in the logs
+    error_response = ErrorResponse(
+        status_code=500,
+        error_type="internal_server_error",
+        message=INTERNAL_SERVER_ERROR_MESSAGE,
+        detail=None,
+        request_id=None,
+    )
+
+    return JSONResponse(
+        status_code=500,
+        content=error_response.model_dump(),
+    )
