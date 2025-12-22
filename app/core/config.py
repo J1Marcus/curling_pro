@@ -1,5 +1,7 @@
 """Centralized application configuration using Pydantic Settings."""
 
+from typing import Optional
+
 from pydantic import Field, SecretStr, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -51,3 +53,19 @@ class Settings(BaseSettings):
     def redis_url(self) -> str:
         """Construct Redis connection string."""
         return f"redis://{self.redis_host}:{self.redis_port}/{self.redis_db}"
+
+    # LLM Providers - OpenAI
+    openai_api_key: Optional[SecretStr] = Field(
+        default=None, description="OpenAI API key"
+    )
+
+    # LLM Providers - Azure OpenAI
+    azure_openai_endpoint: Optional[str] = Field(
+        default=None, description="Azure OpenAI endpoint URL"
+    )
+    azure_openai_api_key: Optional[SecretStr] = Field(
+        default=None, description="Azure OpenAI API key"
+    )
+    openai_api_version: str = Field(
+        default="2024-07-01-preview", description="OpenAI API version for Azure OpenAI"
+    )
