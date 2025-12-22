@@ -15,9 +15,9 @@ from workflows.workflow_registry import WorkflowRegistry
 router = APIRouter()
 
 
-@router.post("/", dependencies=[Depends(verify_webhook_auth)])
-def handle_event(
-    data: dict,
+@router.post("/")
+async def handle_event(
+    payload: bytes = Depends(verify_webhook_auth),
     session: Session = Depends(db_session),
 ) -> Response:
     """Handles incoming event submissions.
@@ -26,23 +26,32 @@ def handle_event(
     and queues them for asynchronous processing. It implements
     a non-blocking pattern to ensure API responsiveness.
 
+    The endpoint requires authentication via HMAC-SHA256 signature
+    verification and API key validation. The auth dependency reads
+    the raw request body and returns it after successful validation.
+
     Args:
-        data: The event data, validated against EventSchema
+        payload: Raw request body bytes from verify_webhook_auth dependency
         session: Database session injected by FastAPI dependency
 
     Returns:
         Response: 202 Accepted response with task ID
 
+    Raises:
+        HTTPException: 401 Unauthorized if authentication fails
+
     Note:
         The endpoint returns immediately after queueing the task.
         Use the task ID in the response to check processing status.
     """
+    # Parse JSON from raw payload (auth dependency already validated signature)
+    raw_event = json.loads(payload)
+
     # Store event in database
     repository = GenericRepository(
         session=session,
         model=Event,
     )
-    raw_event = data.model_dump(mode="json")
     event = Event(data=raw_event, workflow_type=get_workflow_type())
     repository.create(obj=event)
 
