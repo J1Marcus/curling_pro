@@ -15,7 +15,7 @@ from workflows.workflow_registry import WorkflowRegistry
 router = APIRouter()
 
 
-@router.post("/", dependencies=[])
+@router.post("/", dependencies=[Depends(verify_webhook_auth)])
 def handle_event(
     data: dict,
     session: Session = Depends(db_session),
