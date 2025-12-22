@@ -15,7 +15,8 @@
 ## Project Vision Statement
 
 Enable anyone to transform their life experiences into a professionally crafted memoir through conversational AI, regardless of their writing ability, by providing an intelligent backend system that:
-- Orchestrates multi-agent workflows through 12 canonical phases
+- Orchestrates multi-agent workflows through 4 phases (trust_building → history_building → story_capture → composition)
+- Executes 8 self-gating subflows triggered in real-time after requirement submissions
 - Maintains trauma-aware boundaries and privacy controls
 - Supports multiple input modalities (voice via VAPI/WebRTC, text, UI-based voice-to-text)
 - Produces book-grade narrative from conversational responses
@@ -179,8 +180,9 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
 ### Competitive Advantages
 
 1. **Agent Orchestration Architecture**
-   - Analyst Flow identifies gaps → lodges requirements
-   - Session Flow addresses requirements strategically
+   - Real-time Analyst Flow triggers after every requirement submission
+   - All 8 subflows run on every trigger with self-gating entry criteria
+   - Session Flow addresses requirements strategically with transcript segment payloads
    - Editor Flow enforces quality gates
    - **No competitor has this level of intelligent orchestration**
 
@@ -227,13 +229,15 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
          └────────────┬────────────────┘
                       │
          ┌────────────▼──────────────┐
-         │   Subflows                 │
+         │   Subflows (8 self-gating) │
          │   - Trust Building         │
          │   - Contextual Grounding   │
+         │   - Section Selection      │
          │   - Lane Development       │
          │   - Archetype Assessment   │
          │   - Synthesis              │
          │   - Composition            │
+         │   - Editor                 │
          └────────────┬────────────────┘
                       │
          ┌────────────▼──────────────┐
@@ -255,8 +259,8 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
 ### Core Backend Responsibilities
 
 1. **Agent Orchestration**
-   - Analyst Flow: Assess state → lodge requirements → determine next action
-   - Session Flow: Prepare context → generate prompts → process responses
+   - Analyst Flow: Triggers in real-time after every `submit_requirement_result()` call → runs ALL 8 subflows (self-gating) → lodges requirements
+   - Session Flow: Prepare context → generate prompts → process responses → submit requirement results with transcript segments
    - Editor Flow: Review quality → lodge edit requirements → gate progression
 
 2. **Session Management**
@@ -426,11 +430,11 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
 ### Phase 2: Advanced Flows - Weeks 7-12
 
 **Milestone 2.1: Analyst Flow & Requirements System** (Week 7-8)
-- [ ] Gap analysis logic
-- [ ] Requirements Table implementation
-- [ ] Progressive section unlocking
-- [ ] Requirements-driven prompt generation
-- [ ] Deliverable: Intelligent gap identification and strategic prompting
+- [ ] Real-time Analyst Flow trigger after every `submit_requirement_result()` call
+- [ ] All 8 subflows run with self-gating (entry criteria checked)
+- [ ] Requirements Table implementation with transcript segment payloads
+- [ ] Gap analysis logic (discriminating, validating, strengthening requirements)
+- [ ] Deliverable: Intelligent gap identification and real-time strategic prompting
 
 **Milestone 2.2: Archetype Assessment** (Week 9-10)
 - [ ] Multi-archetype tracking (exploring → narrowing → resolved)
@@ -629,25 +633,32 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
 
 ### Must-Have (MVP)
 
-1. **Analyst Flow (Basic)**
-   - Phase detection
-   - Simple requirements lodging
-   - Next subflow determination
+1. **Analyst Flow (Full)**
+   - Real-time trigger after every `submit_requirement_result()` call
+   - Runs ALL 8 subflows on every trigger (self-gating based on entry criteria)
+   - Requirements lodging (discriminating, validating, strengthening)
+   - Phase detection (trust_building → history_building → story_capture → composition)
 
 2. **Session Flow (Complete)**
    - Webhook handlers for transcript ingestion
    - Context loading and prompt generation
-   - Story point extraction
+   - Story point extraction with transcript segment payloads
    - User verification
 
-3. **Core Subflows**
-   - Trust Building (onboarding)
-   - Contextual Grounding (timeline)
-   - Lane Development (story capture)
+3. **All 8 Self-Gating Subflows**
+   - Trust Building (onboarding, scope, profile)
+   - Contextual Grounding (factual timeline)
+   - Section Selection (narrative lanes)
+   - Lane Development (story capture with prompt packs)
+   - Archetype Assessment (multi-archetype tracking: exploring → narrowing → resolved)
+   - Synthesis (provisional drafts with user approval)
+   - Composition (global continuous composition model)
+   - Editor (quality scoring and edit requirements)
 
 4. **Data Layer**
    - storyteller, life_event, session tables
    - Basic boundaries and progress tracking
+   - Requirements tables (story capture + edit requirements)
 
 5. **Single Voice Modality**
    - VAPI or WebRTC (choose one for MVP)
@@ -655,32 +666,10 @@ From [process.txt](../source_docs/process.txt), these principles guide all archi
 
 ### Should-Have (Post-MVP)
 
-6. **Advanced Analyst Flow**
-   - Gap analysis
-   - Strategic requirements based on archetype
-
-7. **Archetype Assessment**
-   - Multi-archetype tracking
-   - User verification workflow
-
-8. **Synthesis Subflow**
-   - Collection assembly
-   - Provisional draft generation
-
-9. **Multiple Voice Modalities**
+6. **Multiple Voice Modalities**
    - Support all three: VAPI, WebRTC, UI voice-to-text
 
-### Could-Have (Future)
-
-10. **Editor Flow**
-    - Quality assessment
-    - Edit requirements system
-
-11. **Composition Subflow**
-    - Full manuscript assembly
-    - Character and theme development
-
-12. **Advanced Features**
+7. **Advanced Features**
     - Multi-user interviews
     - Audiobook generation
     - Multi-lingual support
@@ -806,10 +795,11 @@ The Everbound backend represents a sophisticated Python-based system that orches
 
 **Key Strengths**:
 - ✅ **Trauma-aware design**: Two-level boundaries, sensitivity tiers, consent-driven deepening
-- ✅ **Intelligent orchestration**: Analyst identifies gaps, Session addresses them, Editor enforces quality
+- ✅ **Intelligent orchestration**: Real-time Analyst triggers after every requirement submission, 8 self-gating subflows, Editor enforces quality
+- ✅ **4-phase journey**: trust_building → history_building → story_capture → composition with clear progression
 - ✅ **Flexible input modalities**: VAPI, WebRTC, UI voice-to-text all supported through unified Session Flow
 - ✅ **User authority preserved**: Provisional outputs, verification loops, immediate pivots
-- ✅ **Scalable architecture**: Agent-based design, requirements-driven execution, efficient state management
+- ✅ **Scalable architecture**: Agent-based design, requirements-driven execution with transcript segment payloads, efficient state management
 
 **Critical Success Factors**:
 1. Voice interaction reliability across multiple modalities
@@ -822,7 +812,7 @@ The Everbound backend represents a sophisticated Python-based system that orches
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2025-12-20
-**Status**: Draft for Review
+**Document Version**: 1.1
+**Last Updated**: 2025-12-22
+**Status**: Aligned with Analyst Subflow Execution Pattern
 **Next Review**: After technical architecture validation
