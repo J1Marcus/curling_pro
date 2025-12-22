@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from starlette.responses import Response
 
+from app.api.auth import verify_webhook_auth
 from database.event import Event
 from database.repository import GenericRepository
 from database.session import db_session
