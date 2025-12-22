@@ -715,8 +715,6 @@ class TestEventsEndpointAuthentication:
         Verifies that unauthenticated requests to the events endpoint
         are rejected with 401 Unauthorized.
         """
-        from fastapi.testclient import TestClient
-
         # Send request without any auth headers
         response = client_no_mock.post(
             "/events/",

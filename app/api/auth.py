@@ -10,7 +10,7 @@ import hashlib
 import hmac
 import os
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import HTTPException, Request
 
 
 async def verify_webhook_signature(request: Request) -> bytes:
