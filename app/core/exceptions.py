@@ -59,3 +59,18 @@ class ForbiddenError(Exception):
     def __init__(self, message: str = "Permission denied."):
         logging.warning(message)
         super().__init__(message)
+
+
+class DatabaseError(Exception):
+    """Raised when a database operation fails.
+
+    Use this for database connection failures, query errors, or other
+    database-related issues. Returns 503 Service Unavailable to indicate
+    the service is temporarily unable to handle the request.
+    """
+
+    status_code: int = 503
+
+    def __init__(self, message: str = "Database operation failed."):
+        logging.error(message)
+        super().__init__(message)
