@@ -1,0 +1,2130 @@
+[Lee] 10:45:26
+to get headers, to get all of that kind of stuff. I don't…
+
+[Lee] 10:45:31
+I wouldn't be able to, just like you can do in WordPress when you're doing a blog post,
+
+[Lee] 10:45:37
+highlight and put what header I want, H1, H2, H3, H4.
+
+[Marcus Swift] 10:45:42
+Perfect, yep.
+
+[Lee] 10:45:43
+I want to be able to, when I'm putting an image in, I want to be able to put the metadata right there next to it. The name of the image,
+
+[Lee] 10:45:50
+the, you know, meta name, I want to be able to
+
+[Marcus Swift] 10:45:54
+All that, yeah, makes sense.
+
+[Lee] 10:45:55
+have a place where I can put all the SEO for the blog post, so the keywords, where I can see, okay,
+
+[Lee] 10:46:04
+and something that shows me it's not optimized enough.
+
+[Lee] 10:46:08
+So, you know, one thing…
+
+[Marcus Swift] 10:46:09
+So you need… you need a…
+
+[Jonathan Marcus] 10:46:10
+something like a scoring system on it?
+
+[Lee] 10:46:12
+Well, like, I have…
+
+[Lee] 10:46:15
+on the Jonathan site,
+
+[Lee] 10:46:17
+Ooh, I have? Let me see really quick, hold on.
+
+[Lee] 10:46:22
+I have on the Jonathan side…
+
+[Jonathan Marcus] 10:46:27
+What is Jonathan say?
+
+[Lee] 10:46:29
+Jonathan's Fine Jewelers.
+
+[Marcus Swift] 10:46:33
+We got two Marcuses now, two Jonathans, it's gonna get so confusing.
+
+[Lee] 10:46:38
+so confusing, I know. Y'all are just gonna have to change your names and shit.
+
+[Lee] 10:46:43
+Um…
+
+[Lee] 10:46:46
+I have… what am I using?
+
+[Lee] 10:46:50
+I am using…
+
+[Lee] 10:46:53
+Hold on, I'll tell you.
+
+[Marcus Swift] 10:46:55
+Okay, well, Lee, while you're doing that,
+
+[Marcus Swift] 10:46:58
+Jonathan, I think what we could do is just…
+
+[Marcus Swift] 10:47:01
+Um, as we're working
+
+[Lee] 10:47:02
+rank math.
+
+[Marcus Swift] 10:47:04
+Sorry?
+
+[Lee] 10:47:04
+That's what I used… I use rank math for my SEO on this website.
+
+[Jonathan Marcus] 10:47:10
+what's it called? Waze map? Spell it?
+
+[Marcus Swift] 10:47:12
+rank… rank that.
+
+[Lee] 10:47:13
+Right?
+
+[Lee] 10:47:14
+Rank Math.
+
+[Jonathan Marcus] 10:47:15
+Okay. Ranks, Matt.
+
+[Jonathan Marcus] 10:47:18
+Okay, but what does it do?
+
+[Lee] 10:47:20
+It… it basically lays out all your SEO, so it…
+
+[Lee] 10:47:25
+gives you a preview for the general, gives you a preview, it gives you… you can edit the snippet, you put in your focus keyword.
+
+[Lee] 10:47:32
+And then it tells you all your basic SEO, like, okay, yeah, you're using the focus keyword in the title, your focus keywords in the meta description. It's in the URL, it appears in 10% of the content, it's…
+
+[Lee] 10:47:45
+Found in the content. Tells you how long your content is.
+
+[Lee] 10:47:49
+tells you, you know, where your focus keyword is being used. It tells you if you've used it before.
+
+[Jonathan Marcus] 10:47:53
+Okay, so it's a specific plug-in.
+
+[Lee] 10:47:56
+So, it gives you…
+
+[Marcus Swift] 10:47:57
+it may… it may have an API, Jonathan, that we can just… we can just integrate and… and… and use it.
+
+[Jonathan Marcus] 10:48:04
+Yeah.
+
+[Jonathan Marcus] 10:48:06
+If not, I mean…
+
+[Jonathan Marcus] 10:48:08
+Terrific. Yeah.
+
+[Marcus Swift] 10:48:08
+We can replicate it, that sounds like, fairly simply.
+
+[Lee] 10:48:13
+I mean, I can make one of y'all a login if you want to my Jonathan Fine Jewelers site.
+
+[Lee] 10:48:20
+And you can kind of see that.
+
+[Marcus Swift] 10:48:21
+Yeah, that actually would be… would be helpful if you set Jonathan up.
+
+[Marcus Swift] 10:48:25
+as a… just so that we can kind of get a sense of what it's doing for you.
+
+[Lee] 10:48:27
+Yeah.
+
+[Lee] 10:48:30
+Yeah, I can do that.
+
+[Lee] 10:48:33
+That also gives you an idea, I guess, of some of the
+
+[Lee] 10:48:37
+various plugins that
+
+[Lee] 10:48:39
+I use that are kind of needed, you know?
+
+[Lee] 10:48:43
+Like, we need an anti-spam.
+
+[Lee] 10:48:45
+for, you know, if we have any comments, or even for people filling out, you know, the contact us.
+
+[Lee] 10:48:55
+stuff…
+
+[Jonathan Marcus] 10:48:55
+Well, the Contact Us is…
+
+[Jonathan Marcus] 10:48:57
+Yeah, never mind, you're right.
+
+[Lee] 10:49:00
+Um…
+
+[Marcus Swift] 10:49:01
+Yeah, we can… we can build that into the backend.
+
+[Lee] 10:49:03
+The forms, we're doing all the forms through Mailjet, correct?
+
+[Jonathan Marcus] 10:49:09
+Yes. No, all the emails go through MailJet. Forms?
+
+[Jonathan Marcus] 10:49:14
+what forms are you specifically talking about?
+
+[Lee] 10:49:16
+Well, I mean, at some point, we might…
+
+[Lee] 10:49:18
+have forms, like, for coaches to fill out if they want to have a partnership, or they want to do a white label.
+
+[Jonathan Marcus] 10:49:23
+We'd probably build that straight into the code.
+
+[Lee] 10:49:24
+that form gonna go?
+
+[Lee] 10:49:27
+Where's that form gonna go?
+
+[Jonathan Marcus] 10:49:29
+Well, we could create a layout for that, a page, a link.
+
+[Jonathan Marcus] 10:49:33
+That goes to a separate page for it, for each one that we want.
+
+[Lee] 10:49:37
+No, I know. Where does the form go once it's…
+
+[Lee] 10:49:40
+Filled in.
+
+[Jonathan Marcus] 10:49:41
+Oh, the data, the data from it?
+
+[Lee] 10:49:43
+Yeah.
+
+[Jonathan Marcus] 10:49:44
+It could be sent via… well, it could… it could actually just go straight into the backend. We don't… it doesn't need to send an email.
+
+[Marcus Swift] 10:49:50
+It could send you an alert, it could… we could integrate it, we can…
+
+[Marcus Swift] 10:49:54
+Yeah.
+
+[Jonathan Marcus] 10:49:55
+We could just have a table of whatever content we're collecting.
+
+[Marcus Swift] 10:50:03
+My staff is, uh, or my boss here has decided I need to cuddle him.
+
+[Marcus Swift] 10:50:11
+No boundaries.
+
+[Jonathan Marcus] 10:50:14
+you know, I generally get a close-up shot of his butt every day.
+
+[Lee] 10:50:18
+Is it a dog or cat?
+
+[Jonathan Marcus] 10:50:20
+Okay.
+
+[Marcus Swift] 10:50:20
+Uh, cat. Yeah. Very precocious orange cat.
+
+[Lee] 10:50:25
+Okay, I'm… do you want me to do the PK Souls?
+
+[Lee] 10:50:30
+Account, Jonathan?
+
+[Jonathan Marcus] 10:50:31
+Uh, yeah, sure.
+
+[Lee] 10:50:36
+It's just Pete… Jonathan at P-K-S-O-L-S dot com.
+
+[Jonathan Marcus] 10:50:41
+Yeah. Now, going back to… I want to…
+
+[Jonathan Marcus] 10:50:46
+I'd have to go back into the…
+
+[Jonathan Marcus] 10:50:49
+So, apparently, I… so…
+
+[Jonathan Marcus] 10:50:51
+I go to the, um…
+
+[Jonathan Marcus] 10:50:54
+documents into Roo. I asked it to create a gap analysis, and then implement it, and it apparently missed some things that she asked for, as far as photo of the placement.
+
+[Lee] 10:51:02
+Okay, I just… I just…
+
+[Marcus Swift] 10:51:04
+Okay.
+
+[Lee] 10:51:05
+added you, you should get an email.
+
+[Lee] 10:51:07
+But if you don't…
+
+[Marcus Swift] 10:51:10
+Yeah, Jonathan, you can always do a post.
+
+[Marcus Swift] 10:51:12
+whenever you do that, you can always do a post review,
+
+[Marcus Swift] 10:51:15
+saying, you know, has everything been done? And it's… it's not uncommon for it to miss some pieces in that.
+
+[Jonathan Marcus] 10:51:23
+Okay.
+
+[Marcus Swift] 10:51:26
+But what we're working on today as well, in terms of the task,
+
+[Marcus Swift] 10:51:30
+generator, um…
+
+[Marcus Swift] 10:51:34
+is, uh…
+
+[Marcus Swift] 10:51:37
+Yeah, I can see that being helpful for this.
+
+[Jonathan Marcus] 10:51:37
+To help.
+
+[Jonathan Marcus] 10:51:39
+Yeah. A project to manage projects.
+
+[Marcus Swift] 10:51:43
+Yeah, exactly.
+
+[Jonathan Marcus] 10:51:49
+Let me know when you're…
+
+[Jonathan Marcus] 10:51:52
+Focused.
+
+[Lee] 10:51:53
+I'm focused on just sending you…
+
+[Lee] 10:51:59
+Oops, it didn't fucking do that.
+
+[Lee] 10:52:07
+Did you… did you get, uh, email?
+
+[Jonathan Marcus] 10:52:12
+Um… does not appear to have…
+
+[Lee] 10:52:13
+I'm gonna send you a password reset.
+
+[Lee] 10:52:17
+So you can…
+
+[Jonathan Marcus] 10:52:17
+Wait a minute, wait a minute, I do have…
+
+[Jonathan Marcus] 10:52:21
+Zoom…
+
+[Jonathan Marcus] 10:52:22
+That's not it. Uh…
+
+[Lee] 10:52:25
+I just said… I just sent you a password reset.
+
+[Lee] 10:52:27
+So you can do your own password.
+
+[Lee] 10:52:32
+It's for JFJCo.com.
+
+[Jonathan Marcus] 10:52:45
+I have not… not yet. I will, uh…
+
+[Jonathan Marcus] 10:52:52
+Save, save…
+
+[Jonathan Marcus] 10:52:55
+Save, save…
+
+[Jonathan Marcus] 10:52:57
+Save, save…
+
+[Jonathan Marcus] 10:53:01
+Save, save…
+
+[Lee] 10:53:01
+I can tell you the nickname…
+
+[Jonathan Marcus] 10:53:16
+I still have nothing. Let me try checking my spam.
+
+[Lee] 10:53:26
+Hello! Did you get it all filmed?
+
+[Lee] 10:53:29
+I think so. Well, that's good. You sounded good.
+
+[Lee] 10:53:35
+mid, but we'll see. I would just watch them, and they looked fine enough, I think.
+
+[Lee] 10:53:40
+I'm gonna give it some time and rewatch later.
+
+[Lee] 10:53:43
+Um, before editing and sending it in.
+
+[Lee] 10:53:47
+Okay. Well, I don't know.
+
+[Lee] 10:53:52
+pretty good, like, I felt good enough.
+
+[Lee] 10:53:55
+I don't know.
+
+[Lee] 10:53:58
+I just actually really don't like singing this song.
+
+[Jonathan Marcus] 10:54:03
+nothing yet, Lee.
+
+[Lee] 10:54:05
+What?
+
+[Jonathan Marcus] 10:54:06
+nothing yet.
+
+[Lee] 10:54:07
+don't actually really like singing that song. No, I heard you always asking Jonathan what he was talking.
+
+[Lee] 10:54:12
+Oh, you're on the phone? I'm on Zoom. You're on Zoom?
+
+[Lee] 10:54:15
+Yeah, here.
+
+[Lee] 10:54:18
+I had no idea.
+
+[Lee] 10:54:20
+It's a Jonathan. Jonathan, have you met Devin?
+
+[Jonathan Marcus] 10:54:23
+Well, I have seen many of his videos.
+
+[Lee] 10:54:27
+Oh. Love it. Hello.
+
+[Jonathan Marcus] 10:54:28
+I'm an active follower of yours.
+
+[Lee] 10:54:30
+Oh, uh, thank you.
+
+[Jonathan Marcus] 10:54:33
+It's nice to meet you.
+
+[Lee] 10:54:34
+Nice to meet you as well. And this is Marcus's cat. Marcus is hiding somewhere behind the cat.
+
+[Marcus Swift] 10:54:41
+Yeah, the cat is demanding attention, sorry.
+
+[Lee] 10:54:43
+They're the ones that were doing BFA Tracker together. Oh, sweet.
+
+[Lee] 10:54:48
+Very cool.
+
+[Lee] 10:54:51
+I think they fall into them. Okay. Do you want?
+
+[Lee] 10:54:54
+Yes, I want, um, double decks, please. That's it? Yeah. Okay. Thank you.
+
+[Lee] 10:55:01
+Put it on the Discover.
+
+[Lee] 10:55:07
+Did you look in your, um…
+
+[Jonathan Marcus] 10:55:10
+Yes, I checked my spam, checked my junk.
+
+[Jonathan Marcus] 10:55:13
+Or whatever.
+
+[Jonathan Marcus] 10:55:16
+Which one did you send it to?
+
+[Lee] 10:55:18
+the PK Souls.
+
+[Jonathan Marcus] 10:55:20
+It's not there. Okay.
+
+[Lee] 10:55:23
+And I keep… let me come back over here.
+
+[Lee] 10:55:25
+I'm gonna set a password.
+
+[Jonathan Marcus] 10:55:27
+got an invitation from Marcus here.
+
+[Jonathan Marcus] 10:55:31
+to accept invitation…
+
+[Jonathan Marcus] 10:55:34
+Okay, I got that.
+
+[Lee] 10:55:36
+Okay, there. Here's your username, password, and then it's…
+
+[Lee] 10:55:46
+J, FJ…
+
+[Lee] 10:55:52
+Okay, Jonathan, I just sent you the login stuff.
+
+[Lee] 10:55:58
+So you can take a look. I mean, there's 8,000 posts.
+
+[Lee] 10:56:02
+I've been using… I was using…
+
+[Lee] 10:56:07
+something else. I was using, um…
+
+[Lee] 10:56:13
+Yoast SEO, but I like this one better.
+
+[Lee] 10:56:17
+Because it has more AI built into it.
+
+[Jonathan Marcus] 10:56:19
+Okay.
+
+[Jonathan Marcus] 10:56:23
+Um… there it goes, I got it here.
+
+[Lee] 10:56:34
+So…
+
+[Lee] 10:56:36
+If we want to sell more than just a subscription,
+
+[Lee] 10:56:41
+we can do that on the site.
+
+[Lee] 10:56:46
+Like, you can… you could build, like, a marketplace where we could sell stuff.
+
+[Marcus Swift] 10:56:50
+100%.
+
+[Jonathan Marcus] 10:56:51
+Yeah.
+
+[Jonathan Marcus] 10:57:05
+I feel like I should be getting some kind of, uh…
+
+[Jonathan Marcus] 10:57:09
+royalties on this, uh, this store.
+
+[Jonathan Marcus] 10:57:12
+Using my name.
+
+[Lee] 10:57:18
+Well, what's so interesting is Jonathan Siegel, who was the owner,
+
+[Lee] 10:57:23
+He started it with Sergio,
+
+[Lee] 10:57:25
+like, you know, 30 years ago.
+
+[Lee] 10:57:28
+And… now…
+
+[Lee] 10:57:31
+Jonathan retired this past year.
+
+[Lee] 10:57:33
+So now Sergio is running it.
+
+[Jonathan Marcus] 10:57:46
+neither. Okay, anyway, so how do I get, um…
+
+[Jonathan Marcus] 10:57:48
+Um… two…
+
+[Lee] 10:57:49
+Blog.
+
+[Jonathan Marcus] 10:57:53
+Yeah, but this is the front of it.
+
+[Lee] 10:57:54
+You're not logged in, though.
+
+[Jonathan Marcus] 10:57:55
+Right. Wait, hold on. I went to… but this is where it…
+
+[Jonathan Marcus] 10:58:01
+Why did it take me here when I…
+
+[Lee] 10:58:03
+Did you just… you must not have done WordPress admin.
+
+[Jonathan Marcus] 10:58:06
+Oh, I did. Here, and then…
+
+[Jonathan Marcus] 10:58:10
+paste…
+
+[Jonathan Marcus] 10:58:13
+That's right. Log in.
+
+[Jonathan Marcus] 10:58:18
+Why is it taking me here?
+
+[Lee] 10:58:21
+I have no idea.
+
+[Jonathan Marcus] 10:58:23
+He broke it.
+
+[Jonathan Marcus] 10:58:29
+Make sure you, uh…
+
+[Lee] 10:58:32
+I made you an editor, maybe I should make you an in-man?
+
+[Lee] 10:58:38
+Do you lost your password and see if…
+
+[Lee] 10:58:40
+That'll… you can then reset it.
+
+[Lee] 10:59:01
+I do the right address? Maybe I didn't do the right address.
+
+[Lee] 10:59:09
+dealers…
+
+[Lee] 10:59:14
+11, Marcus.
+
+[Lee] 10:59:16
+Jonathan at PKSOLS. dot com.
+
+[Jonathan Marcus] 10:59:20
+That is correct.
+
+[Lee] 10:59:41
+Can you just change you to an administrator?
+
+[Lee] 10:59:55
+You should be able to log in with that.
+
+[Lee] 11:00:00
+Try again.
+
+[Jonathan Marcus] 11:00:02
+Back. Refresh.
+
+[Jonathan Marcus] 11:00:06
+Paste.
+
+[Jonathan Marcus] 11:00:08
+Log in.
+
+[Jonathan Marcus] 11:00:12
+There we go.
+
+[Lee] 11:00:15
+Yeah.
+
+[Jonathan Marcus] 11:00:16
+Okay, and then go to, uh…
+
+[Lee] 11:00:20
+Well, you can go to any of the posts, and you can see kind of how I do them.
+
+[Jonathan Marcus] 11:00:27
+These are the… but these are all, uh…
+
+[Lee] 11:00:31
+We'll… doing… seeing it in draft is better. So, like, this one, I'm gonna… it's gonna go up on Friday, because I only post on… I only post articles on Fridays.
+
+[Jonathan Marcus] 11:00:40
+Oh, so hold on, let me go backwards. You said butch is better?
+
+[Lee] 11:00:43
+to see a draft.
+
+[Jonathan Marcus] 11:00:46
+see a draft. How do I do that?
+
+[Lee] 11:00:47
+Yeah, because when you're looking at… so… but if you look at, like, round diamond stud earrings, the timeless holiday diamond,
+
+[Lee] 11:00:53
+You can see, like, the SEO score is 88 out of 100. The only reason why I can't get it to 100 is because I don't like to use
+
+[Jonathan Marcus] 11:00:57
+Yeah.
+
+[Lee] 11:01:02
+that AI and rank math to, like, rewrite things, because it just adds all these lines to the bottom, as opposed to…
+
+[Lee] 11:01:10
+in the section, so I don't use that, and…
+
+[Lee] 11:01:14
+rank math gives you
+
+[Lee] 11:01:16
+SEO juice for listicles, and I don't do a lot of listicles on this event.
+
+[Jonathan Marcus] 11:01:19
+Okay, but essentially, though, what we're gonna do is replicate this functionality, so we have a scoring system,
+
+[Jonathan Marcus] 11:01:25
+Um, we have…
+
+[Jonathan Marcus] 11:01:28
+Can we go in here and look at all the stuff that you…
+
+[Lee] 11:01:31
+Yeah.
+
+[Jonathan Marcus] 11:01:32
+So, going to edit…
+
+[Jonathan Marcus] 11:01:35
+Okay, so… what do we have? Where's all the stuff where you said you put in…
+
+[Jonathan Marcus] 11:01:41
+your, um…
+
+[Lee] 11:01:42
+you see where it says 87 over 100?
+
+[Jonathan Marcus] 11:01:44
+Yeah. Given not just that.
+
+[Lee] 11:01:45
+And the green box, if you push that, that gives you the SEO.
+
+[Jonathan Marcus] 11:01:49
+We're… but we're… if I want to edit this, though, where's the… like, I don't seem to be…
+
+[Lee] 11:01:53
+you just edit it in… you're at a place where you can edit it.
+
+[Jonathan Marcus] 11:01:58
+I could just go in here and… oh.
+
+[Lee] 11:01:59
+Yeah, you just edit it in there.
+
+[Jonathan Marcus] 11:02:01
+Oh, I didn't realize that. But where… and where do you put your metadata and your tags and all that stuff?
+
+[Lee] 11:02:07
+And where this… go to the green box.
+
+[Jonathan Marcus] 11:02:09
+Here.
+
+[Lee] 11:02:09
+Yeah, click it.
+
+[Lee] 11:02:14
+So, focus keyword, and then you look at all this stuff, and then if you…
+
+[Lee] 11:02:19
+scroll up a little bit.
+
+[Lee] 11:02:23
+If you do go to Edit Snippet,
+
+[Lee] 11:02:30
+And so this is…
+
+[Lee] 11:02:32
+you know, has the title, you put in the permalink, you put in the description.
+
+[Lee] 11:02:37
+And then you can even add something for social if you want to, but I don't ever add for social. I always do that myself.
+
+[Jonathan Marcus] 11:02:45
+Okay, and then…
+
+[Jonathan Marcus] 11:02:48
+And then… but you want… but basically what you're saying as far as the HTML, um, on here, you…
+
+[Jonathan Marcus] 11:02:55
+want, um, like, a rich text editor, so you could do bold and bullet points and colors and all that kind of stuff.
+
+[Lee] 11:03:00
+Correct. Correct. Where I can put images in the middle of the things if I want.
+
+[Jonathan Marcus] 11:03:02
+Right, okay, and that's fine.
+
+[Jonathan Marcus] 11:03:06
+Right, that's… that's totally fine.
+
+[Lee] 11:03:07
+Where I…
+
+[Lee] 11:03:08
+Yeah.
+
+[Jonathan Marcus] 11:03:09
+Um, okay, I think we're… we're…
+
+[Jonathan Marcus] 11:03:12
+you know, I have a path to start… get started on this.
+
+[Lee] 11:03:16
+Okay.
+
+[Jonathan Marcus] 11:03:17
+And then I'll go and look and compare what we missed on… was it just pictures that you think got missed?
+
+[Lee] 11:03:23
+It was just pictures, no content. The content was fine. It was the picture.
+
+[Jonathan Marcus] 11:03:30
+Do you have any specific pictures you want it to use, or do you want me to…
+
+[Lee] 11:03:31
+more… what?
+
+[Jonathan Marcus] 11:03:34
+Generate some, okay.
+
+[Lee] 11:03:34
+No, no, I was looking this morning, but then I started working on the spreadsheet instead.
+
+[Lee] 11:03:39
+It's… it's, you know, more up… up-to-date pictures, more…
+
+[Jonathan Marcus] 11:03:46
+Okay.
+
+[Lee] 11:03:47
+pictures that people are gonna, like, be like, oh, I see.
+
+[Jonathan Marcus] 11:03:50
+Okay. I mean, yeah, that's fine.
+
+[Jonathan Marcus] 11:03:56
+Um, alright, I think that's… that answers everything we need to know for now.
+
+[Lee] 11:03:59
+Yeah, and like I said, it's totally fine to keep it on
+
+[Lee] 11:04:03
+the platform that it's on for the website and for the tracker.
+
+[Jonathan Marcus] 11:04:07
+Yeah, but we also want to create an interface where you can have access to edit it.
+
+[Lee] 11:04:08
+I just need to know that for the blog,
+
+[Lee] 11:04:12
+post… right, right. And here's something else, is that there's going to be pages I'm going to need to add, and I can give them to you.
+
+[Lee] 11:04:18
+But, like, I… they need to be marked whether they're cornerstone content, or evergreen content, because those are also Google signals.
+
+[Lee] 11:04:27
+to crawl your site.
+
+[Jonathan Marcus] 11:04:29
+What does that mean? Can you define what Cornerstone…
+
+[Lee] 11:04:31
+The Cornerstone content is, like, a main piece of content that Google will always scan and read, and then you can have
+
+[Lee] 11:04:38
+other pieces of content that go under the cornerstone content, and they all interlink, and…
+
+[Lee] 11:04:45
+lead back to each other.
+
+[Jonathan Marcus] 11:04:46
+And what's evergreen?
+
+[Lee] 11:04:48
+Evergreen is, like…
+
+[Lee] 11:04:51
+content that's nowhere else.
+
+[Jonathan Marcus] 11:04:54
+Okay.
+
+[Jonathan Marcus] 11:04:56
+And when you specify it as,
+
+[Jonathan Marcus] 11:04:59
+one or the other.
+
+[Jonathan Marcus] 11:05:01
+what does it sort of do?
+
+[Jonathan Marcus] 11:05:03
+under the hood.
+
+[Lee] 11:05:06
+I don't know what it is under the hood.
+
+[Lee] 11:05:09
+Other than gives a better SEO juice?
+
+[Lee] 11:05:13
+That's the only… that's the only thing I know it does under the hood. I know that it helps Google recognize the important pages,
+
+[Lee] 11:05:21
+to index, and…
+
+[Lee] 11:05:23
+That determines, like, how… where and how they're going to index them.
+
+[Lee] 11:05:27
+So if it's a cornerstone page, you know, usually you have, like, the home page, the about page, the blog, whatever.
+
+[Jonathan Marcus] 11:05:28
+All right.
+
+[Lee] 11:05:34
+the cornerstone pages could be indexed, so when you pull it up, you'll have that list of pages underneath.
+
+[Jonathan Marcus] 11:05:40
+Okay. Any other questions, Marcus?
+
+[Marcus Swift] 11:05:43
+No. No, I think we've got, uh, we've got some good insight in terms of what's needed.
+
+[Jonathan Marcus] 11:05:49
+Cool. All right.
+
+[Jonathan Marcus] 11:05:51
+Thankfully.
+
+[Lee] 11:05:52
+Is it working for you the way I'm giving you, like, the page layout?
+
+[Jonathan Marcus] 11:05:54
+Oh, yeah! Yeah, the only thing… the only thing… for some reason, the format that you're saving it in, I can't, like, copy and paste,
+
+[Lee] 11:05:56
+to build the pages.
+
+[Jonathan Marcus] 11:06:03
+Um, from. It's like, it literally just does not…
+
+[Lee] 11:06:05
+It's a Word document.
+
+[Jonathan Marcus] 11:06:06
+Yeah, I know, but for some reason, I don't know what it is, I haven't looked into it to understand why.
+
+[Jonathan Marcus] 11:06:10
+But it does not copy and paste the text.
+
+[Marcus Swift] 11:06:13
+Lee, would it be easier…
+
+[Lee] 11:06:14
+You want me to try a Google Doc instead?
+
+[Marcus Swift] 11:06:16
+Maybe. Would it be eas… would it be helpful if we added, like, a…
+
+[Marcus Swift] 11:06:22
+submission form in this backend that just said,
+
+[Marcus Swift] 11:06:25
+you know, I want this changed, I want that changed, and you could just submit it.
+
+[Marcus Swift] 11:06:29
+right from this admin panel.
+
+[Jonathan Marcus] 11:06:32
+Well, but the thing is that she's using AI to generate the…
+
+[Lee] 11:06:34
+Oh, no, okay, so I have… I have access to both of you whenever I want it.
+
+[Marcus Swift] 11:06:39
+Yeah, this is true.
+
+[Jonathan Marcus] 11:06:40
+But she's also using AI to generate the tasks, which puts it in a
+
+[Jonathan Marcus] 11:06:46
+like, it's very thorough, it's a lot better than if she were just to try to do it herself.
+
+[Lee] 11:06:49
+Yeah, it's very thorough.
+
+[Marcus Swift] 11:06:52
+Right, yeah, okay.
+
+[Jonathan Marcus] 11:06:55
+Okay. Alright, cool.
+
+[Marcus Swift] 11:06:56
+Well, if you're using AI to do it, then what we want it in is in a .MD format.
+
+[Marcus Swift] 11:07:02
+So, markdown format is ideal for us.
+
+[Lee] 11:07:06
+Okay, so… so to put it in an MD format…
+
+[Lee] 11:07:11
+what is… what do I have to do to do that?
+
+[Jonathan Marcus] 11:07:13
+just tell the AI, say, put this… no, just tell the AI, say… save it in an empty format.
+
+[Lee] 11:07:14
+text edit.
+
+[Lee] 11:07:19
+MD format? Okay.
+
+[Marcus Swift] 11:07:21
+Yeah.
+
+[Marcus Swift] 11:07:22
+Yeah, just to ask it to export it as an MD, and if it doesn't like that, then tell it to export it as a TXT.
+
+[Lee] 11:07:23
+Okay.
+
+[Jonathan Marcus] 11:07:31
+It won't look as pretty, but it doesn't matter.
+
+[Marcus Swift] 11:07:31
+just ultra-plain text is ideal.
+
+[Lee] 11:07:35
+Okay. I mean, I have a… the text edit on my computer, so it's easy enough to take it off of AI and just put it in the text set of Bria.
+
+[Marcus Swift] 11:07:42
+Right.
+
+[Jonathan Marcus] 11:07:42
+That's true.
+
+[Lee] 11:07:43
+And save it. That's fine.
+
+[Lee] 11:07:45
+whatever's… whatever format you want it in, I can give it to you.
+
+[Jonathan Marcus] 11:07:49
+Yeah. Okay.
+
+[Marcus Swift] 11:07:50
+Yeah.
+
+[Lee] 11:07:52
+I'm talented like that.
+
+[Jonathan Marcus] 11:07:54
+Alright, I'm kicking you out.
+
+[Marcus Swift] 11:07:55
+Excellent.
+
+[Lee] 11:07:57
+Huh?
+
+[Jonathan Marcus] 11:07:57
+or I'm instructing Marcus to kick you out now.
+
+[Lee] 11:07:59
+Okay, kick me out. Adios!
+
+[Jonathan Marcus] 11:08:02
+Okay, bye.
+
+[Lee] 11:08:03
+Bye
+
+[Jonathan Marcus] 11:08:07
+Okay.
+
+[Marcus Swift] 11:08:09
+Yeah, that's totally doable.
+
+[Jonathan Marcus] 11:08:11
+Yep.
+
+[Marcus Swift] 11:08:12
+I honestly think that we should try to get…
+
+[Marcus Swift] 11:08:16
+what was it, right math?
+
+[Marcus Swift] 11:08:20
+Um…
+
+[Marcus Swift] 11:08:22
+We should try to see if they've got an API. I bet you they do.
+
+[Jonathan Marcus] 11:08:26
+I do want the transcript of this, though.
+
+[Marcus Swift] 11:08:28
+I know, I've already saved it.
+
+[Jonathan Marcus] 11:08:29
+Okay.
+
+[Marcus Swift] 11:08:31
+Um… I thought of it…
+
+[Marcus Swift] 11:08:33
+later in the… in the dialogue, but I think I got…
+
+[Marcus Swift] 11:08:37
+all of the salient stuff.
+
+[Jonathan Marcus] 11:08:37
+Yeah. Yep.
+
+[Marcus Swift] 11:08:39
+Um…
+
+[Marcus Swift] 11:08:42
+Yeah, and I mean, at a high level, Jonathan, like,
+
+[Marcus Swift] 11:08:45
+you know, whether it's her or anybody else, and I'm sure you probably got the same
+
+[Marcus Swift] 11:08:50
+dynamic going on, but, you know, when the… when the question… the answer to the question, can we do…
+
+[Marcus Swift] 11:08:57
+is always yes. It's just a matter of, you know,
+
+[Jonathan Marcus] 11:08:57
+Yeah.
+
+[Marcus Swift] 11:08:59
+how is it worth it, and all those pieces, right? So…
+
+[Jonathan Marcus] 11:09:01
+Right, but her, her, her… she's been trained that
+
+[Jonathan Marcus] 11:09:06
+it's just easier to do it myself.
+
+[Marcus Swift] 11:09:08
+Right. Right.
+
+[Jonathan Marcus] 11:09:08
+So, she is in that mentality of, like, just let me do everything myself. I'll just get it done.
+
+[Marcus Swift] 11:09:13
+Right. Right, and exposing…
+
+[Marcus Swift] 11:09:16
+you know…
+
+[Marcus Swift] 11:09:19
+Exposing at a high level
+
+[Marcus Swift] 11:09:23
+uh… the user's ability to kind of adjust the look and feel and use AI to kind of do what we're doing.
+
+[Marcus Swift] 11:09:29
+I have to think about that, but…
+
+[Marcus Swift] 11:09:31
+Um…
+
+[Marcus Swift] 11:09:34
+Yeah, that was an intriguing idea.
+
+[Marcus Swift] 11:09:38
+Um… Alright, can we switch back to, uh…
+
+[Jonathan Marcus] 11:09:41
+Yeah. New project.
+
+[Marcus Swift] 11:09:42
+Evergreen… Everbound for just a minute here?
+
+[Jonathan Marcus] 11:09:45
+Oh, yep.
+
+[Marcus Swift] 11:09:46
+So, do you want to clone that, bring it down so that we can… I can… we can look at… or I can show you…
+
+[Marcus Swift] 11:09:52
+my code here, if you want me to share my screen.
+
+[Jonathan Marcus] 11:09:55
+I gotta do this anyway, so hang on.
+
+[Marcus Swift] 11:09:57
+You gotta do it anyways, yeah, so might as well.
+
+[Jonathan Marcus] 11:10:06
+Oh, except I always forget… oh, it puts it in Jonathan Users.
+
+[Jonathan Marcus] 11:10:10
+really not on fatal. Need to specify how to reconcile divergent branches.
+
+[Jonathan Marcus] 11:10:13
+What does that mean?
+
+[Marcus Swift] 11:10:14
+Well, because you're not in a… you're not in a clean folder.
+
+[Marcus Swift] 11:10:17
+So, uh, it looks like it failed, which is fine. You gotta go to the folder you wanna…
+
+[Marcus Swift] 11:10:24
+Or maybe it didn't.
+
+[Jonathan Marcus] 11:10:27
+Hold on, let's go to…
+
+[Jonathan Marcus] 11:10:31
+Here, users…
+
+[Jonathan Marcus] 11:10:34
+I don't see it here, so…
+
+[Marcus Swift] 11:10:36
+Oh, yeah, so go ahead and create yourself a…
+
+[Marcus Swift] 11:10:40
+So, the command in terminal is MKDIR, and you can create a folder, right?
+
+[Marcus Swift] 11:10:48
+You do MKDIR,
+
+[Marcus Swift] 11:10:51
+space. No, no space, uh, all one word. Yeah, you had it right the first time. Then a space, and now the name that you want the directory to be.
+
+[Jonathan Marcus] 11:10:51
+But, uh… but…
+
+[Jonathan Marcus] 11:10:52
+Or, no space.
+
+[Marcus Swift] 11:10:58
+So this will create a folder in that…
+
+[Marcus Swift] 11:11:01
+Right?
+
+[Marcus Swift] 11:11:03
+And then you can hit enter.
+
+[Marcus Swift] 11:11:05
+And then do CD…
+
+[Marcus Swift] 11:11:08
+Everbound backend.
+
+[Marcus Swift] 11:11:15
+Okay, now you're in that folder, now you can do…
+
+[Marcus Swift] 11:11:18
+now you need to do git init.
+
+[Jonathan Marcus] 11:11:22
+Why? What is it doing?
+
+[Marcus Swift] 11:11:24
+It's creating a .git file that will start saving all of your changes locally.
+
+[Marcus Swift] 11:11:36
+So it allows you to pull these files down,
+
+[Marcus Swift] 11:11:39
+and kind of get everything ready
+
+[Marcus Swift] 11:11:41
+Now you can do code,
+
+[Jonathan Marcus] 11:11:41
+But where did it put the…
+
+[Jonathan Marcus] 11:11:46
+Uh, here.
+
+[Marcus Swift] 11:11:47
+Everbound back in? Yeah. And there's all your stuff now.
+
+[Marcus Swift] 11:11:55
+Now, okay, hmm.
+
+[Jonathan Marcus] 11:11:58
+What?
+
+[Marcus Swift] 11:11:59
+go back to the… now, everything's kind of being driven by…
+
+[Marcus Swift] 11:12:03
+by the terminal now, if we… if we stay with Clock, right? So…
+
+[Marcus Swift] 11:12:07
+go back to the terminal that you had open.
+
+[Marcus Swift] 11:12:10
+Go back to Everbounds. Now it's on your desktop.
+
+[Marcus Swift] 11:12:14
+So now you need to CD Desktop.
+
+[Marcus Swift] 11:12:18
+And then CD Everbound.
+
+[Jonathan Marcus] 11:12:22
+the main… the front or back?
+
+[Marcus Swift] 11:12:24
+back end.
+
+[Marcus Swift] 11:12:29
+Okay? And now you can just type Claude.
+
+[Marcus Swift] 11:12:37
+Click yes.
+
+[Marcus Swift] 11:12:40
+Okay? Now you're… now…
+
+[Marcus Swift] 11:12:43
+you're authorized right now to the cloud… to Cloud API.
+
+[Marcus Swift] 11:12:47
+So you want to do slash login.
+
+[Marcus Swift] 11:12:53
+Click 1, hit enter.
+
+[Jonathan Marcus] 11:12:55
+I'm gonna have to remember.
+
+[Marcus Swift] 11:12:58
+Okay?
+
+[Marcus Swift] 11:13:03
+Yeah, click Authorize.
+
+[Marcus Swift] 11:13:07
+And now you can… now you can…
+
+[Marcus Swift] 11:13:09
+close that window.
+
+[Jonathan Marcus] 11:13:12
+Alright, okay.
+
+[Marcus Swift] 11:13:14
+Okay. Go back to the…
+
+[Marcus Swift] 11:13:18
+One behind it, click enter.
+
+[Marcus Swift] 11:13:22
+Okay?
+
+[Marcus Swift] 11:13:26
+It's still saying Cloud API, but you should be now authenticated for…
+
+[Marcus Swift] 11:13:32
+Um…
+
+[Marcus Swift] 11:13:34
+for your subscription.
+
+[Jonathan Marcus] 11:13:39
+Okay.
+
+[Marcus Swift] 11:13:39
+Okay?
+
+[Marcus Swift] 11:13:41
+So… now you can… you can also open…
+
+[Marcus Swift] 11:13:46
+open VS Code at the same time, if you want.
+
+[Marcus Swift] 11:13:49
+Uh, so that you can visualize it, or you can just have it open in your finder,
+
+[Marcus Swift] 11:13:54
+Um… I want to show you some things that have got going on in here.
+
+[Jonathan Marcus] 11:13:59
+Okay.
+
+[Marcus Swift] 11:14:02
+Oh, I haven't pushed. Son of a bitch. One second, let me push, and then I'll get you to pull.
+
+[Jonathan Marcus] 11:14:07
+Okay.
+
+[Marcus Swift] 11:14:25
+Okay. Uh, so now you should…
+
+[Marcus Swift] 11:14:28
+be able to…
+
+[Marcus Swift] 11:14:33
+Yep.
+
+[Jonathan Marcus] 11:14:42
+Don't ask again for git pull commands.
+
+[Jonathan Marcus] 11:14:44
+Oh, yes. I'll pull the latest changes.
+
+[Jonathan Marcus] 11:14:49
+Honking.
+
+[Jonathan Marcus] 11:14:57
+What is… okay, the current branch doesn't have tracking information set up. Let me check available.
+
+[Jonathan Marcus] 11:15:01
+remotes instead of tracking.
+
+[Jonathan Marcus] 11:15:03
+There are no remote repositories configured.
+
+[Jonathan Marcus] 11:15:07
+to use GitPill, you need to first add a remote repository. You can add a remote with Git Remote Origin…
+
+[Jonathan Marcus] 11:15:15
+Or, okay, should I do that?
+
+[Marcus Swift] 11:15:15
+Did you do… oh, you did get polled, didn't you? You didn't do get cloned.
+
+[Jonathan Marcus] 11:15:21
+Well, I had already done the clone.
+
+[Marcus Swift] 11:15:24
+No…
+
+[Marcus Swift] 11:15:28
+Okay, we're gonna have to… we're gonna have to close this… this…
+
+[Marcus Swift] 11:15:32
+terminal.
+
+[Marcus Swift] 11:15:35
+You're gonna have to delete Everbrown backend.
+
+[Jonathan Marcus] 11:15:38
+Do it again.
+
+[Marcus Swift] 11:15:39
+And do it again, yeah.
+
+[Jonathan Marcus] 11:15:42
+Do I refresh this here?
+
+[Jonathan Marcus] 11:15:44
+I don't know, it's the same URL.
+
+[Marcus Swift] 11:15:46
+Same URL, yeah.
+
+[Jonathan Marcus] 11:15:50
+So go back… so, I have to… okay, so don't tell me, I have to go MKDIR…
+
+[Marcus Swift] 11:15:55
+No, you've already… that's already there. First of all, there's no space.
+
+[Jonathan Marcus] 11:15:59
+All right.
+
+[Marcus Swift] 11:15:59
+That… that, oh yeah, no, you moved that folder, didn't you? So yes, you have to create the directory.
+
+[Jonathan Marcus] 11:16:04
+A DIR. Ever…
+
+[Jonathan Marcus] 11:16:08
+David Capital, ever…
+
+[Jonathan Marcus] 11:16:10
+bound… back.
+
+[Jonathan Marcus] 11:16:11
+And… now, how do I get it so that it doesn't do it in my user?
+
+[Jonathan Marcus] 11:16:17
+Can I go see the desktop first?
+
+[Marcus Swift] 11:16:19
+Absolutely.
+
+[Jonathan Marcus] 11:16:23
+Can I do it in the same command?
+
+[Marcus Swift] 11:16:25
+Sure. CD Desktop, and then… and then AND, and then space, and two ampersands?
+
+[Jonathan Marcus] 11:16:33
+Like…
+
+[Marcus Swift] 11:16:34
+Two of them, right beside each other.
+
+[Marcus Swift] 11:16:36
+That's 3 now with the space between them.
+
+[Jonathan Marcus] 11:16:37
+Oh,
+
+[Jonathan Marcus] 11:16:38
+So, just that.
+
+[Marcus Swift] 11:16:39
+Just that, and then Make Durr…
+
+[Marcus Swift] 11:16:43
+And then, I don't know if you want the first letter, uh, capitalized, I wouldn't, but it's up to you.
+
+[Jonathan Marcus] 11:16:48
+Okay.
+
+[Marcus Swift] 11:16:53
+Uh, and then…
+
+[Marcus Swift] 11:16:54
+And then you could do space, ampersand, ampersand, space, and it'll just string all those commands together, right?
+
+[Marcus Swift] 11:17:00
+So then you could do, like, uh… claud.
+
+[Marcus Swift] 11:17:03
+For example.
+
+[Jonathan Marcus] 11:17:04
+All right, and then it was login.
+
+[Marcus Swift] 11:17:05
+Or no, it would be, sorry, not Todd, it would be…
+
+[Marcus Swift] 11:17:09
+get clone, and then paste…
+
+[Jonathan Marcus] 11:17:11
+Oh, yeah.
+
+[Jonathan Marcus] 11:17:15
+Right, and then it was…
+
+[Marcus Swift] 11:17:15
+Now, in this case, because we're cloning, I don't know if we need to do the make dir.
+
+[Marcus Swift] 11:17:21
+I think we just… we can get rid of the maker, because the clone creates the…
+
+[Marcus Swift] 11:17:26
+directory. So…
+
+[Jonathan Marcus] 11:17:27
+But what about the… we need to get init.
+
+[Marcus Swift] 11:17:30
+Again, we won't if we're doing clones, so we can go back and get rid of the make dir, just go steady desktop,
+
+[Marcus Swift] 11:17:37
+git clone,
+
+[Marcus Swift] 11:17:43
+get clone, and end clog.
+
+[Jonathan Marcus] 11:17:46
+And login.
+
+[Marcus Swift] 11:17:48
+Uh, you shouldn't have to log in again, but we'll see.
+
+[Jonathan Marcus] 11:17:56
+There we go, on the background. Yes. Oh, good!
+
+[Jonathan Marcus] 11:18:01
+Wait, do I… so… should I?
+
+[Marcus Swift] 11:18:02
+So, now you see how it says BlogMax?
+
+[Jonathan Marcus] 11:18:05
+Yes.
+
+[Marcus Swift] 11:18:06
+Okay? So now you're logged into CloudMax.
+
+[Jonathan Marcus] 11:18:09
+Okay.
+
+[Marcus Swift] 11:18:09
+You're in your subscription, you're in this thing, you're ready to go.
+
+[Jonathan Marcus] 11:18:15
+Okay, ready to go.
+
+[Marcus Swift] 11:18:15
+Easy peasy, right? So now you can… you can double… you can take… if you want to see it in…
+
+[Jonathan Marcus] 11:18:18
+Right.
+
+[Marcus Swift] 11:18:22
+DS code, you can grab that folder, drop it on your VS Code,
+
+[Marcus Swift] 11:18:25
+we can open it up that way, and I'll show you a few things that…
+
+[Jonathan Marcus] 11:18:28
+Oh, I see what you're saying, okay. This here…
+
+[Marcus Swift] 11:18:29
+I've implemented, yeah, just… that's the only downside with this, is that you can't…
+
+[Marcus Swift] 11:18:35
+visualize the code in terms of what's there, right?
+
+[Jonathan Marcus] 11:18:38
+Yeah, but you, like you said, you could… there's a workaround here, so…
+
+[Marcus Swift] 11:18:41
+Yeah, exactly. So now click on the dot clarify folder.
+
+[Jonathan Marcus] 11:18:46
+Yeah.
+
+[Marcus Swift] 11:18:47
+Okay, and there's your click-on-task.json.
+
+[Marcus Swift] 11:18:52
+Okay, so here are…
+
+[Marcus Swift] 11:18:55
+The…
+
+[Marcus Swift] 11:18:57
+the tasks that… that…
+
+[Marcus Swift] 11:19:00
+Um…
+
+[Marcus Swift] 11:19:02
+that… that got created.
+
+[Marcus Swift] 11:19:03
+Okay, so this is when…
+
+[Marcus Swift] 11:19:06
+With the UI, what I want is the exact ability, like, what's happening with
+
+[Marcus Swift] 11:19:13
+Um…
+
+[Marcus Swift] 11:19:17
+Uh, with, uh, AutoClaude is…
+
+[Marcus Swift] 11:19:21
+I want you to connect to this Git repo, I want you to connect to this Git repo, right?
+
+[Marcus Swift] 11:19:26
+And… and the trick with the front end is the Git repo is actually going to act as our database.
+
+[Marcus Swift] 11:19:34
+So, all that we need
+
+[Marcus Swift] 11:19:36
+is… and I don't know if you've done this before, but if you could… if you tell it, I want…
+
+[Marcus Swift] 11:19:40
+a very small database,
+
+[Marcus Swift] 11:19:43
+in local storage,
+
+[Marcus Swift] 11:19:46
+to track what
+
+[Marcus Swift] 11:19:49
+projects we've connected to. That's really all it needs to track, right?
+
+[Marcus Swift] 11:19:54
+But this is going to be the… the code manager kind of front end that I'm gonna ask you to build.
+
+[Marcus Swift] 11:20:01
+I don't think it's gonna take you very long, an hour or two.
+
+[Marcus Swift] 11:20:04
+we should have it, right?
+
+[Marcus Swift] 11:20:06
+Uh, do you want me to turn on transcripts again so we capture this part of it?
+
+[Jonathan Marcus] 11:20:09
+Yeah.
+
+[Marcus Swift] 11:20:11
+Yeah, let's, uh…
+
+[Marcus Swift] 11:20:14
+Um, it's been… I don't know how to get it to stop and restart, because now it's gonna have all of…
+
+[Jonathan Marcus] 11:20:19
+No, no, no, no, what happens is… well, yes, it creates one when you… every time, from the beginning to wherever you're at, but it creates a new one each time.
+
+[Marcus Swift] 11:20:21
+leaves.
+
+[Marcus Swift] 11:20:27
+Right. But it's gonna have the whole history now.
+
+[Jonathan Marcus] 11:20:30
+Yeah, yeah. Alright.
+
+[Marcus Swift] 11:20:31
+So, um, I guess you just gotta tell AI to ignore
+
+[Marcus Swift] 11:20:35
+nor the conversations with it.
+
+[Marcus Swift] 11:20:38
+You know, basically, it's from…
+
+[Marcus Swift] 11:20:43
+Yeah, so from 1120 on, just tell it that, and we'll…
+
+[Marcus Swift] 11:20:47
+And, you know, ignore the conversation.
+
+[Marcus Swift] 11:20:50
+before 1120, that'll work. Alright, so transcribes are on. Okay, so…
+
+[Marcus Swift] 11:20:55
+when we're gonna look at this task, when… what I want the front end to do is to be able to say there's this… there's this, you know,
+
+[Marcus Swift] 11:21:03
+method where the user can say,
+
+[Marcus Swift] 11:21:05
+link to local repositories, and when it does that,
+
+[Marcus Swift] 11:21:11
+It saves the URL
+
+[Marcus Swift] 11:21:15
+or the local path to the…
+
+[Marcus Swift] 11:21:17
+project that we want to be able to interact with.
+
+[Marcus Swift] 11:21:21
+And it should do that in local storage.
+
+[Marcus Swift] 11:21:23
+So that we don't need to have a custom backend.
+
+[Marcus Swift] 11:21:26
+Essentially, that…
+
+[Marcus Swift] 11:21:29
+uh, GitHub repo, that local repo,
+
+[Marcus Swift] 11:21:32
+is going to act as our…
+
+[Marcus Swift] 11:21:35
+back end, if we need to save something, we need to persist something, we'll create a file in the back end, we'll do all those pieces. So that should be…
+
+[Marcus Swift] 11:21:43
+Bye.
+
+[Marcus Swift] 11:21:45
+Then when a project is linked,
+
+[Marcus Swift] 11:21:49
+The front end should look for a dot clarify,
+
+[Marcus Swift] 11:21:52
+folder. And inside the .clarify folder is a task.json, which is an array,
+
+[Marcus Swift] 11:21:59
+Oh, it looks like it's an object.
+
+[Marcus Swift] 11:22:01
+with a tasks array.
+
+[Marcus Swift] 11:22:04
+And it should render
+
+[Marcus Swift] 11:22:07
+the task?
+
+[Marcus Swift] 11:22:10
+in… in the most… leftmost Kanban lane.
+
+[Marcus Swift] 11:22:15
+Which is, you know, plan.
+
+[Marcus Swift] 11:22:17
+Let's call that lane planned. Planned are upcoming tasks that need to be
+
+[Marcus Swift] 11:22:22
+rendered. There are…
+
+[Marcus Swift] 11:22:25
+uh… things like status, and things like priority.
+
+[Marcus Swift] 11:22:30
+And, uh…
+
+[Jonathan Marcus] 11:22:32
+Are you able to pause the recording?
+
+[Jonathan Marcus] 11:22:34
+Or no.
+
+[Marcus Swift] 11:22:35
+The transcript? No.
+
+[Marcus Swift] 11:22:37
+I wish I could, I can't.
+
+[Jonathan Marcus] 11:22:37
+Okay.
+
+[Jonathan Marcus] 11:22:39
+The reason I don't want to get it confused, but in other words, the fact that we're doing this in Everbound is what confused me. I thought we were going to create a separate project entirely for this.
+
+[Marcus Swift] 11:22:47
+It is a separate project. This is… Everbound is our example project.
+
+[Jonathan Marcus] 11:22:51
+Okay.
+
+[Marcus Swift] 11:22:51
+It's… it's one of the projects that I've already configured, and the way I want it to be configured, so…
+
+[Marcus Swift] 11:22:58
+It can use it to say, oh, it's gonna find a doc, verify, it's gonna find a JSON…
+
+[Marcus Swift] 11:23:03
+a task.json, right?
+
+[Marcus Swift] 11:23:05
+And then, within the tasks array,
+
+[Marcus Swift] 11:23:08
+There are priorities.
+
+[Marcus Swift] 11:23:10
+And they sh… and then there are status.
+
+[Marcus Swift] 11:23:15
+If the status is complete, then it goes in the complete lane.
+
+[Marcus Swift] 11:23:18
+If the status is, um…
+
+[Marcus Swift] 11:23:23
+Oh, I can't scroll down. Scroll down for me, because the first one is completed.
+
+[Marcus Swift] 11:23:27
+So the second one is status…
+
+[Marcus Swift] 11:23:30
+is pending, then that goes in the pending column.
+
+[Marcus Swift] 11:23:35
+And then, um…
+
+[Marcus Swift] 11:23:40
+If you look… if you open up the dot clod,
+
+[Marcus Swift] 11:23:44
+folder, Jonathan?
+
+[Jonathan Marcus] 11:23:46
+Yeah.
+
+[Marcus Swift] 11:23:48
+And n.Claude,
+
+[Jonathan Marcus] 11:23:51
+where… I'm trying…
+
+[Marcus Swift] 11:23:52
+right below task, right the exact line, yeah, right there. If you click on…
+
+[Jonathan Marcus] 11:23:54
+Oh, there.
+
+[Marcus Swift] 11:23:58
+uh… task start, that command.
+
+[Marcus Swift] 11:24:03
+Okay? In the tasks,
+
+[Marcus Swift] 11:24:06
+In the project-task-start.nd,
+
+[Marcus Swift] 11:24:10
+You will see the various stages.
+
+[Marcus Swift] 11:24:13
+that it's…
+
+[Marcus Swift] 11:24:15
+that it, um…
+
+[Marcus Swift] 11:24:17
+that it… the statuses that get moved, but it looks like the second status, once a stat…
+
+[Marcus Swift] 11:24:23
+a, uh…
+
+[Jonathan Marcus] 11:24:24
+In progress.
+
+[Marcus Swift] 11:24:26
+a, uh, task is selected is in progress. So that'll be a…
+
+[Marcus Swift] 11:24:31
+a… a… a second column, so it will have it…
+
+[Marcus Swift] 11:24:36
+We'll have, so far, 3 columns, right? We'll have a, um…
+
+[Marcus Swift] 11:24:41
+Can't remember what the initial… can you click back on task.json?
+
+[Jonathan Marcus] 11:24:44
+planning, you said, was the first one?
+
+[Marcus Swift] 11:24:45
+Plant… planning, then in progress, then completed.
+
+[Marcus Swift] 11:24:49
+Right? And…
+
+[Marcus Swift] 11:24:53
+The, uh, front end should update its renderer
+
+[Jonathan Marcus] 11:24:56
+But…
+
+[Marcus Swift] 11:24:57
+when the task.json file changes,
+
+[Jonathan Marcus] 11:25:00
+Hold on, Tom, you also said something…
+
+[Marcus Swift] 11:25:01
+it should re-render.
+
+[Jonathan Marcus] 11:25:02
+It said status pending. Was that a fourth column, or was it…
+
+[Jonathan Marcus] 11:25:06
+is pending a…
+
+[Marcus Swift] 11:25:07
+So, pending is the… I think it's the initial… is the initial state.
+
+[Jonathan Marcus] 11:25:10
+Oh, okay. So, pending in progress.
+
+[Marcus Swift] 11:25:12
+pending, in progress.
+
+[Marcus Swift] 11:25:14
+And completed. We'll probably have additional lanes in there at some point, right? Like,
+
+[Marcus Swift] 11:25:19
+like, AI review or something like that.
+
+[Jonathan Marcus] 11:25:21
+Okay.
+
+[Marcus Swift] 11:25:21
+But for right now, um…
+
+[Marcus Swift] 11:25:26
+Um… actually, yeah, if the status is completed, put it in the review column.
+
+[Marcus Swift] 11:25:32
+And then there should be a finish… a finish poem, which we would call it, say, done.
+
+[Marcus Swift] 11:25:37
+And then the developer can…
+
+[Marcus Swift] 11:25:42
+uh… go in and review and move it over to done manually. And that's… that's basically the UI, right? When…
+
+[Marcus Swift] 11:25:48
+When the task, based on changes,
+
+[Marcus Swift] 11:25:52
+it, uh, should automatically render if a task gets kicked off,
+
+[Marcus Swift] 11:25:56
+should automatically render
+
+[Marcus Swift] 11:25:59
+Um…
+
+[Marcus Swift] 11:26:01
+And now move that task into the in-progress column, and when it's completed,
+
+[Marcus Swift] 11:26:07
+It should move it into the review column, right?
+
+[Jonathan Marcus] 11:26:10
+Yep.
+
+[Marcus Swift] 11:26:11
+Alright, so then there's a…
+
+[Marcus Swift] 11:26:15
+Um…
+
+[Marcus Swift] 11:26:18
+When a task is in the pending state, it should have a button,
+
+[Marcus Swift] 11:26:23
+attached to it that says start.
+
+[Marcus Swift] 11:26:26
+When we click start, what should happen…
+
+[Marcus Swift] 11:26:29
+is, um…
+
+[Marcus Swift] 11:26:32
+We need to… we need to…
+
+[Marcus Swift] 11:26:35
+open a terminal,
+
+[Marcus Swift] 11:26:37
+And, uh… CD to this project.
+
+[Marcus Swift] 11:26:44
+And then…
+
+[Marcus Swift] 11:26:47
+uh, type Claude.
+
+[Marcus Swift] 11:26:49
+and initialize… initialize everything so that Claude is available.
+
+[Marcus Swift] 11:26:53
+And then…
+
+[Marcus Swift] 11:26:57
+Um, we should execute the…
+
+[Marcus Swift] 11:27:02
+uh, project, task, start.
+
+[Marcus Swift] 11:27:05
+flash command with the…
+
+[Marcus Swift] 11:27:07
+title of the… the task that is going to be
+
+[Marcus Swift] 11:27:11
+activated. That should be all we should have to do from the front end, and then Claude will handle it from there.
+
+[Marcus Swift] 11:27:17
+In terms of updating the JSON,
+
+[Marcus Swift] 11:27:19
+Doing the… doing… doing all the fancy shit we needed to do.
+
+[Marcus Swift] 11:27:27
+Does that make sense, Jonathan?
+
+[Jonathan Marcus] 11:27:29
+Yep.
+
+[Marcus Swift] 11:27:30
+And now we've got a transcript of kind of what I'm thinking.
+
+[Jonathan Marcus] 11:27:33
+Yep.
+
+[Marcus Swift] 11:27:33
+Is this something you'd be willing to kind of
+
+[Jonathan Marcus] 11:27:36
+Yeah, just send me the transcript.
+
+[Marcus Swift] 11:27:37
+play out? Okay, let me…
+
+[Marcus Swift] 11:27:39
+Let me save this
+
