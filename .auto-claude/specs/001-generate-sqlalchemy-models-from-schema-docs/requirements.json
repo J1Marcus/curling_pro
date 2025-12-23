@@ -1,4 +1,0 @@
-{
-  "task_description": "Based on the contents of 'ai_docs/context/source_docs/schema/' generate the needed schema consistent with alembic. That is we will need SQLAlchemy models in 'app/database/' upon which we can run 'app/makemigration.sh' and 'app/migrate.sh'. Success will be achieved when models documented in the schema directory all exist in the local supabase. Server is running in docker",
-  "workflow_type": "feature"
-}

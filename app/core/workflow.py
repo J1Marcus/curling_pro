@@ -204,7 +204,10 @@ class Workflow(ABC):
 
                 while current_node_class:
                     if task_context.should_stop:
-                        logging.info("Stopping workflow execution")
+                        logging.info("Stopping workflow execution due to error")
+                        break
+                    if task_context.required_stop:
+                        logging.info("Stopping workflow execution by design (self-gating)")
                         break
 
                     current_node = self.nodes[current_node_class].node
@@ -278,7 +281,10 @@ class Workflow(ABC):
 
                 while current_node_class:
                     if task_context.should_stop:
-                        logging.info("Stopping workflow execution")
+                        logging.info("Stopping workflow execution due to error")
+                        break
+                    if task_context.required_stop:
+                        logging.info("Stopping workflow execution by design (self-gating)")
                         break
 
                     current_node = self.nodes[current_node_class].node
@@ -306,6 +312,14 @@ class Workflow(ABC):
                     current_node_class = await self._get_next_node_class(
                         current_node_class, task_context
                     )
+
+                # Set terminal status based on how workflow ended
+                if task_context.should_stop:
+                    task_context.status = "error"
+                elif task_context.required_stop:
+                    task_context.status = "stopped"
+                else:
+                    task_context.status = "completed"
 
                 workflow_span.update(
                     output=task_context.model_dump(exclude={"metadata": {"nodes"}})

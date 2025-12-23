@@ -29,7 +29,29 @@ Build a robust Python backend that orchestrates AI agents, manages complex workf
 
 - **Primary:** Individuals 65+ seeking to preserve their life stories with minimal technical friction
 - **Secondary:** 45-64 demographics creating memoirs for parents or themselves
-- **Tertiary:** Memorial/legacy services, senior living facilities
+- **Tertiary:** Memorial/legacy services, senior living facilities, funeral homes (B2B)
+
+### Key Role Distinctions
+
+**Critical:** The system must distinguish between three potentially different people:
+
+| Role | Definition | Example |
+|------|------------|---------|
+| **User** | Person who signs up and pays for the service | Adult child purchasing for parent |
+| **Storyteller** | Person who provides the stories via voice/text sessions | The parent being interviewed |
+| **Subject** | Person the book is about | Could be the storyteller, or someone the storyteller knew (e.g., a deceased spouse) |
+
+**Common Scenarios:**
+1. **Self-Memoir:** User = Storyteller = Subject (person tells their own story)
+2. **Gift Memoir:** User ≠ Storyteller = Subject (child purchases, parent tells their story)
+3. **Memorial Memoir:** User ≠ Storyteller ≠ Subject (child purchases, surviving parent tells stories about deceased spouse)
+
+**Implications:**
+- Onboarding must capture these relationships explicitly
+- Session agent sends invitations to Storyteller (if different from User)
+- Requirements and sessions are linked to Storyteller
+- Story content is about the Subject
+- User manages billing and receives final product
 
 ### Core Innovation
 
@@ -111,6 +133,19 @@ From existing process documentation, these principles guide all architectural de
 7. **Progressive depth, not sequential sections** - Users explore sections by deepening (factual → enriched), not by unlocking order
 8. **Global composition** - Living manuscript evolves continuously, not chapter-by-chapter batch processing
 
+### Terminology Clarification (Updated 2025-12-22)
+
+| Term | Phase | Definition |
+|------|-------|------------|
+| **Sections** (or "Subjects") | Story Capture | Life areas to explore (e.g., Childhood, Career, Relationships). User selects which sections to develop. |
+| **Chapters** | Composition | Narrative units in the final book. Structure is fluid and determined by natural story arcs, NOT by sections. |
+| **Lanes** | Story Capture | Technical term for the narrative development paths within each section. |
+
+**Key Distinction:**
+- During **capture**, users work on "sections" or "subjects" (topical life areas)
+- During **composition**, the system creates "chapters" (narrative structure)
+- A single chapter may draw from multiple sections; a section may contribute to multiple chapters
+
 ---
 
 ## MVP Scope Definition
@@ -186,6 +221,49 @@ The following features are **NOT** included in Core Complete MVP but documented 
 
 ---
 
+### Product Variants (Discussed 2025-12-22)
+
+The following product variants were discussed as potential future expansions:
+
+#### Obituary Product
+**Target:** Faster, simpler product for end-of-life situations
+
+| Aspect | Memoir | Obituary |
+|--------|--------|----------|
+| **Timeline** | Months | Days to weeks |
+| **Output Length** | 100+ pages | 5-20 pages |
+| **Archetype Tracking** | Multi-archetype, progressive | Single archetype or none |
+| **Sections** | Multiple life areas | Key highlights only |
+| **Price Point** | Higher (full product) | Lower (simplified) |
+
+**Implementation Notes:**
+- Same infrastructure, simplified flow
+- Can use `project_type: "obituary"` to gate complexity
+- Faster path through Trust Building → Capture → Composition
+
+#### B2B: Funeral Home Integration
+**Target:** White-label service for funeral homes
+
+**Value Proposition for Funeral Homes:**
+- Value-added service for their customers
+- Recurring revenue ($100k+/year unlimited use model discussed)
+- Enhanced memorial offerings beyond slideshows
+
+**Product Options:**
+1. **Memorial Video/Presentation** - AI-generated slideshow with narrative
+2. **Tribute Pamphlet** - 5-20 page printed memorial booklet
+3. **Digital Memorial Website** - Hosted for 2+ years
+
+**Technical Considerations:**
+- White-label branding capabilities
+- Bulk account management
+- API for integration with funeral home systems
+- Multi-storyteller support (family members contributing)
+
+**Status:** Future exploration - not in MVP scope
+
+---
+
 ## Success Criteria for MVP
 
 The Core Complete MVP is considered successful when:
@@ -231,7 +309,35 @@ The Core Complete MVP is considered successful when:
 
 ## Section 2: User Personas & Journeys
 
-### Primary User Persona: The Storyteller
+### Primary Persona: The User (Account Owner/Initiator)
+
+**Role:** Person who signs up, pays for the service, and receives the final product.
+
+**Demographics:**
+- **Age:** 45-70 years old (often adult children of storytellers)
+- **Tech Comfort:** Moderate to high
+- **Motivation:** Preserve family legacy, give meaningful gift to family
+- **Relationship to Storyteller:** Self, parent, spouse, or other family member
+
+**Goals:**
+1. Set up the memoir project for themselves or a loved one
+2. Manage subscription and billing
+3. Monitor progress without intruding on storyteller's experience
+4. Receive final memoir product
+
+**Key Flows:**
+- Account creation and payment
+- Storyteller invitation (if different person)
+- Progress dashboard access
+- Final product delivery
+
+**Authority Level:** Account management, billing, product delivery. Does NOT control story content if different from Storyteller.
+
+---
+
+### Primary Persona: The Storyteller
+
+**Role:** Person who provides the stories via voice/text sessions. May or may not be the same as User.
 
 **Demographics:**
 - **Age:** Primarily 65+ years old
@@ -264,7 +370,29 @@ The Core Complete MVP is considered successful when:
 - Simple, voice-first interaction
 - Professional guidance without judgment
 
-**Authority Level:** **HIGHEST** - Nothing proceeds without storyteller approval. System proposes, user decides.
+**Onboarding (if invited by User):**
+1. Receives email invitation from system
+2. Clicks link to accept and create storyteller profile
+3. Selects interaction preferences (phone, app, voice agent)
+4. Begins Trust Building with session agent
+
+**Authority Level:** **HIGHEST** for story content - Nothing proceeds without storyteller approval. System proposes, storyteller decides.
+
+---
+
+### Subject (Person the Book is About)
+
+**Role:** The individual whose life story is being captured. Often the same as Storyteller, but not always.
+
+**Scenarios:**
+- **Self-Memoir:** Subject = Storyteller (most common)
+- **Memorial/Tribute:** Subject is deceased; Storyteller shares memories about them
+- **Biography:** Subject may be interviewed separately or stories gathered from multiple storytellers
+
+**Data Implications:**
+- Subject information stored separately from Storyteller
+- Life events, themes, and archetypes relate to Subject
+- Storyteller provides the narrative voice and perspective
 
 ---
 
@@ -273,9 +401,9 @@ The Core Complete MVP is considered successful when:
 **Role:** Provide additional perspective on shared events (multi-user interviews)
 
 **Goals:**
-- Contribute memories about primary storyteller
+- Contribute memories about primary subject
 - Preserve own perspective on shared experiences
-- Honor storyteller's vision while adding depth
+- Honor subject's/storyteller's vision while adding depth
 
 **Needs:**
 - Consent workflows

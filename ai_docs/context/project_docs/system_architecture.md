@@ -340,9 +340,25 @@ def generate_pdf_export(story_id: str):
 - Alembic for migrations (`app/alembic/`)
 
 **Key Tables:** (See [schema/README.md](../source_docs/schema/README.md) for full details)
-- `storyteller`, `life_event`, `session`, `collection`, `story`
+
+**Core Entities (User/Storyteller/Subject Distinction):**
+- `user` - Account owner who signs up, pays, receives final product
+- `storyteller` - Person who provides stories (may be invited by user)
+- `subject` - Person the book is about (may differ from storyteller)
+
+**Relationships:**
+```
+user (1) ──creates──> (N) project
+project (1) ──has──> (1) storyteller
+project (1) ──about──> (1) subject
+storyteller (1) ──participates_in──> (N) session
+subject (1) ──has──> (N) life_event
+```
+
+**Story Capture Tables:**
+- `life_event`, `session`, `session_artifact`, `collection`, `story`
 - `requirement`, `edit_requirement` (Requirements Tables)
-- `archetype_analysis`, `session_artifact`
+- `archetype_analysis`
 
 ---
 
@@ -1851,6 +1867,80 @@ db.update_session(session.id, status="completed")
 
 ---
 
+## Frontend Architecture Concepts
+
+> **Note:** This section documents frontend page concepts discussed in the 2025-12-22 meeting. The frontend is intentionally simple - backend drives content, frontend renders.
+
+### Design Philosophy
+
+**Backend-Driven UI:** The backend pushes questions and content; the frontend is a thin rendering layer that:
+- Displays one question at a time
+- Accepts input based on storyteller's interaction preference
+- Renders progress dashboards from backend data
+
+### Core Frontend Pages
+
+#### 1. Session Page
+**Purpose:** Where storyteller interacts with the session agent
+
+**Behavior:**
+- Renders questions one at a time (pushed from backend)
+- Input mode adapts to storyteller preference:
+  - Voice agent reads question aloud (in_app_voice mode)
+  - Question displayed as text (in_app_text mode)
+  - Phone callback scheduled (phone_callback mode)
+- Minimal UI - question + input area + progress indicator
+
+#### 2. Story Arc Dashboard (Archetype Page)
+**Purpose:** Visualize story development once sufficient life events are captured
+
+**Features:**
+- Timeline visualization of life events
+- Story arc formation display
+- Beats, themes, and character development indicators
+- Section completion status
+- (Optional) Archetype reveal when resolved
+
+**When Available:** After sufficient material collected (gated by backend)
+
+#### 3. Manuscript Editing UI
+**Purpose:** Allow storyteller to interact with and edit the forming manuscript
+
+**Features:**
+- View synthesized chapters/sections
+- Request changes ("this feels too formal, make it warmer")
+- Approve/reject provisional drafts
+- See how stories are woven together
+
+#### 4. Resolution/Publishing Page
+**Purpose:** Finalize and export the completed memoir
+
+**Features:**
+- Final manuscript review
+- Chapter ordering adjustments
+- Export options (PDF for MVP)
+- Order printed copies (external service integration)
+
+### API Patterns for Frontend
+
+**Backend pushes content via:**
+```
+GET /api/v1/storytellers/{id}/next-question
+→ Returns: { question, input_type, context, progress }
+
+POST /api/v1/storytellers/{id}/submit-response
+→ Body: { question_id, response, transcript_segment }
+→ Triggers: Analyst Flow (real-time)
+
+GET /api/v1/storytellers/{id}/story-arc
+→ Returns: { life_events, themes, beats, arc_visualization }
+
+GET /api/v1/stories/{id}/manuscript
+→ Returns: { chapters, status, edit_requirements }
+```
+
+---
+
 ## Deployment Architecture
 
 ### Docker Compose Setup
@@ -2066,7 +2156,10 @@ class PrivacyService:
 **Milestone 1.1: Database & Models**
 
 1. **Implement Core Models**
-   - `app/database/models/storyteller.py`
+   - `app/database/models/user.py` (account owner)
+   - `app/database/models/project.py` (links user, storyteller, subject)
+   - `app/database/models/storyteller.py` (includes interaction_preferences)
+   - `app/database/models/subject.py` (person the book is about)
    - `app/database/models/life_event.py`
    - `app/database/models/session.py`
    - `app/database/models/requirement.py`

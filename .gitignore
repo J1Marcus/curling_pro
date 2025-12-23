@@ -102,6 +102,7 @@ app/google-service-account.json
 
 # Auto Claude data directory
 .auto-claude/
+.auto-claude-status
 
 # Git worktrees
 .worktrees/

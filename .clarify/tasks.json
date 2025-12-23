@@ -1,0 +1,897 @@
+{
+  "version": "1.0",
+  "generated_at": "2025-12-23",
+  "standing_constraints": [
+    "Do not overengineer. Handle rare edge cases as they come up, not during development. Develop for speed and for needs of 85% of users.",
+    "DRY - Do Not Repeat Yourself. Reuse existing code, patterns, and abstractions.",
+    "Do Not Roll-Your-Own. Leverage existing services, APIs, functions, libraries. If excellent libraries exist but are not implemented, use the library over custom code.",
+    "Post task execution: verify no hallucinated endpoints, function names, props, API fields, or value structures.",
+    "Tasks must update this JSON on completion.",
+    "No unit testing, integration testing, or E2E testing during development. Ensure code imports and compiles.",
+    "Follow GenAI Launchpad patterns: Workflow with WorkflowSchema, Nodes inherit from Node/AgentNode/BaseRouter, nodes implement async def process(self, task_context: TaskContext) -> TaskContext"
+  ],
+  "tasks": [
+    {
+      "id": "TASK-001",
+      "name": "Complete Trust Building Subflow Nodes",
+      "status": "completed",
+      "priority": "critical",
+      "requirements": [
+        "Complete SubjectClarificationNode in app/workflows/trust_building_subflow_nodes/subject_clarification_node.py",
+        "Complete GentleProfileNode in app/workflows/trust_building_subflow_nodes/gentle_profile_node.py",
+        "Wire nodes into TrustBuildingSubflow workflow schema",
+        "Update TrustBuildingRouter to route to new nodes"
+      ],
+      "constraints": [
+        "Follow existing IntroductionNode and ScopeSelectionNode patterns",
+        "Use StorytellerService for DB operations",
+        "Use RequirementService to create requirements for incomplete profile elements"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "app/workflows/trust_building_subflow_nodes/introduction_node.py",
+          "app/workflows/trust_building_subflow_nodes/scope_selection_node.py",
+          "ai_docs/context/project_docs/high_level_plan.md:186-356"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "RequirementService"
+        ],
+        "role_in_system": "Trust Building establishes comfort and rapport before story capture begins. Gathers scope, boundaries, and profile."
+      },
+      "implementation_notes": "Completed 2025-12-23. Created SubjectClarificationNode and GentleProfileNode following existing patterns. Updated TrustBuildingRouter with SubjectClarificationRoute and GentleProfileRoute. Updated workflow schema with all 4 step nodes. All files syntax-validated."
+    },
+    {
+      "id": "TASK-002",
+      "name": "Implement Contextual Grounding Subflow",
+      "status": "pending",
+      "priority": "critical",
+      "requirements": [
+        "Create app/workflows/contextual_grounding_subflow.py with WorkflowSchema",
+        "Create app/workflows/contextual_grounding_subflow_nodes/ directory",
+        "Implement ContextualGroundingGate node (self-gating check)",
+        "Implement ScopeDeterminationNode (determine required anchors based on scope)",
+        "Implement TimelineScaffoldingNode (gather birth year, locations, moves, work phases)",
+        "Implement MemoryAnchorsNode (establish chronological reference points)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Entry criteria gate: current_phase == 'history_building'",
+        "Use LifeEventService to create life_event records at Level 1 (factual timeline)",
+        "Create requirements for each missing anchor"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "ai_docs/context/project_docs/high_level_plan.md:360-398",
+          "ai_docs/context/project_docs/analyst_subflow_execution_pattern.md:210-267"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "LifeEventService",
+          "RequirementService",
+          "Trust Building Subflow (must be complete)"
+        ],
+        "role_in_system": "Establishes factual timeline scaffold before story capture. Memory retrieval anchors."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-003",
+      "name": "Implement Section Selection Subflow",
+      "status": "pending",
+      "priority": "critical",
+      "requirements": [
+        "Create app/workflows/section_selection_subflow.py with WorkflowSchema",
+        "Create app/workflows/section_selection_subflow_nodes/ directory",
+        "Implement SectionSelectionGate node (self-gating check)",
+        "Implement AvailableSectionsNode (determine available sections based on scope)",
+        "Implement UserSelectionNode (present sections for selection)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Entry criteria gate: current_phase == 'history_building' AND contextual_grounding_complete == TRUE",
+        "Use ProcessSection model for section definitions",
+        "Use StorytellerSectionSelection model to track selections"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "ai_docs/context/project_docs/high_level_plan.md:400-420",
+          "app/database/models/operations.py"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "RequirementService",
+          "Contextual Grounding Subflow"
+        ],
+        "role_in_system": "Allows storyteller to choose which life areas (sections) to develop."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-004",
+      "name": "Implement Lane Development Subflow (THE ENGINE)",
+      "status": "pending",
+      "priority": "critical",
+      "requirements": [
+        "Create app/workflows/lane_development_subflow.py with WorkflowSchema",
+        "Create app/workflows/lane_development_subflow_nodes/ directory",
+        "Implement LaneDevelopmentGate node (self-gating check)",
+        "Implement RequirementsLoadNode (load pending requirements for section)",
+        "Implement PromptGenerationNode (generate prompts from requirements)",
+        "Implement SessionPrepNode (prepare session context with prompts)",
+        "Implement StoryPointExtractionNode (AgentNode - LLM-powered extraction)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Entry criteria gate: current_phase == 'story_capture' AND sections_selected == TRUE",
+        "StoryPointExtractionNode must use AgentNode pattern for LLM calls",
+        "Generate requirements for: missing scenes, underdeveloped characters, missing emotions, thin themes"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "app/core/nodes/agent.py",
+          "ai_docs/context/project_docs/high_level_plan.md:401-422",
+          "ai_docs/context/project_docs/system_architecture.md:1095-1251"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "RequirementService",
+          "LifeEventService",
+          "SessionService",
+          "Section Selection Subflow"
+        ],
+        "role_in_system": "THE ENGINE - Story capture with prompt packs. Extracts story points from sessions."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-005",
+      "name": "Complete Analyst Flow SubflowRunner",
+      "status": "pending",
+      "priority": "critical",
+      "requirements": [
+        "Update app/workflows/analyst_flow_nodes/subflow_runner.py to invoke all 8 subflows",
+        "Each subflow must be invoked in sequence (Trust -> Grounding -> Selection -> Lane -> Archetype -> Synthesis -> Composition -> Editor)",
+        "Each subflow self-gates based on entry criteria",
+        "Collect results from all subflows"
+      ],
+      "constraints": [
+        "Do NOT selectively execute subflows - run ALL of them",
+        "Each subflow handles its own gating logic",
+        "Pass storyteller context to each subflow"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/analyst_flow.py",
+          "app/workflows/analyst_flow_nodes/subflow_runner.py",
+          "ai_docs/context/project_docs/analyst_subflow_execution_pattern.md"
+        ],
+        "dependencies": [
+          "All 8 subflows must be implemented"
+        ],
+        "role_in_system": "Central orchestrator that runs ALL subflows after each session interaction."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-006",
+      "name": "Implement VAPIService",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create app/services/vapi_service.py",
+        "Implement create_agent() method - create VAPI agent with system prompt and tools",
+        "Implement create_call() method - initiate outbound call or create web-callable session",
+        "Implement get_transcript() method - fetch transcript for completed call",
+        "Use httpx for async API calls"
+      ],
+      "constraints": [
+        "Use settings from app/core/config.py for API keys",
+        "Follow existing service patterns (storyteller_service.py)",
+        "Base URL: https://api.vapi.ai"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/storyteller_service.py",
+          "app/core/config.py",
+          "ai_docs/context/project_docs/system_architecture.md:1559-1700",
+          "ai_docs/context/source_docs/voice_architecture_vapi.md"
+        ],
+        "dependencies": [
+          "Config (VAPI_API_KEY, VAPI_SERVER_SECRET)"
+        ],
+        "role_in_system": "Voice conversation platform integration. Creates agents, initiates calls, processes transcripts."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-007",
+      "name": "Implement VAPI Webhook Endpoints",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create app/api/webhooks.py with VAPI webhook handlers",
+        "Implement POST /webhooks/vapi/transcript - receive transcript updates",
+        "Implement POST /webhooks/vapi/call-ended - receive call end notification",
+        "Implement POST /webhooks/vapi/function-call - handle save_story_segment tool",
+        "Add webhook routes to app/api/router.py"
+      ],
+      "constraints": [
+        "Queue webhook processing with Celery tasks for async handling",
+        "Validate webhook signatures when VAPI provides them"
+      ],
+      "context": {
+        "reference_files": [
+          "app/api/events.py",
+          "app/api/router.py",
+          "ai_docs/context/project_docs/system_architecture.md:1495-1555"
+        ],
+        "dependencies": [
+          "VAPIService",
+          "SessionService",
+          "Celery tasks"
+        ],
+        "role_in_system": "Receive real-time updates from VAPI during voice sessions."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-008",
+      "name": "Implement Celery Workflow Tasks",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create/update app/worker/workflow_tasks.py",
+        "Implement run_analyst_flow(storyteller_id, trigger_reason) task",
+        "Implement run_session_flow(storyteller_id, session_context) task",
+        "Implement submit_requirement_result(storyteller_id, requirement_id, transcript_segment, result_data) task",
+        "Submit_requirement_result must trigger Analyst Flow immediately after completion"
+      ],
+      "constraints": [
+        "Follow existing Celery task patterns in app/worker/tasks.py",
+        "Use @celery_app.task decorator",
+        "Enable tracing with enable_tracing=True"
+      ],
+      "context": {
+        "reference_files": [
+          "app/worker/tasks.py",
+          "app/worker/config.py",
+          "ai_docs/context/project_docs/system_architecture.md:203-330"
+        ],
+        "dependencies": [
+          "AnalystFlow",
+          "All subflows"
+        ],
+        "role_in_system": "Background task execution for workflow processing."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-009",
+      "name": "Implement ArchetypeService",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/services/archetype_service.py",
+        "Implement create_analysis() - create new archetype analysis record",
+        "Implement get_latest_analysis() - get most recent analysis for storyteller",
+        "Implement update_analysis() - update analysis with new candidates",
+        "Implement get_refinement_status() - exploring, narrowing, or resolved"
+      ],
+      "constraints": [
+        "Use ArchetypeAnalysis model from database.models.operations",
+        "Resolved status when confidence >= 0.85"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/storyteller_service.py",
+          "app/database/models/operations.py",
+          "ai_docs/context/project_docs/high_level_plan.md:587-623"
+        ],
+        "dependencies": [
+          "ArchetypeAnalysis model"
+        ],
+        "role_in_system": "Tracks multi-archetype analysis throughout story capture (exploring -> narrowing -> resolved)."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-010",
+      "name": "Implement Archetype Assessment Subflow",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/workflows/archetype_assessment_subflow.py with WorkflowSchema",
+        "Create app/workflows/archetype_assessment_subflow_nodes/ directory",
+        "Implement ArchetypeAssessmentGate node (self-gating: session_count >= 4 AND assessment_due)",
+        "Implement MultiArchetypeInferenceNode (AgentNode - LLM analysis)",
+        "Implement RefinementStatusNode (determine exploring/narrowing/resolved)",
+        "Implement StrategicRequirementsNode (lodge discriminating/validating/strengthening requirements)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Entry criteria: session_count >= 4 AND session_count % 3 == 0",
+        "Creates different requirement types based on refinement status",
+        "Use ArchetypeService for analysis operations"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "app/core/nodes/agent.py",
+          "ai_docs/context/project_docs/high_level_plan.md:587-600"
+        ],
+        "dependencies": [
+          "ArchetypeService",
+          "RequirementService"
+        ],
+        "role_in_system": "Progressive archetype narrowing with strategic requirements for discriminating between candidates."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-011",
+      "name": "Implement CollectionService",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/services/collection_service.py",
+        "Implement create_collection() - create collection from life events",
+        "Implement add_life_event() - add life event to collection",
+        "Implement get_collections_for_section() - get collections for a section",
+        "Implement assemble_collection() - assemble collection from related life events",
+        "Implement get_synthesis_candidates() - get collections ready for synthesis"
+      ],
+      "constraints": [
+        "Use Collection model and related models from database.models.collection",
+        "Follow existing service patterns"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/storyteller_service.py",
+          "app/database/models/collection.py",
+          "ai_docs/context/project_docs/high_level_plan.md:833-845"
+        ],
+        "dependencies": [
+          "Collection model"
+        ],
+        "role_in_system": "Organizes life events into collections for narrative assembly."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-012",
+      "name": "Implement Synthesis Subflow",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/workflows/synthesis_subflow.py with WorkflowSchema",
+        "Create app/workflows/synthesis_subflow_nodes/ directory",
+        "Implement SynthesisGate node (self-gating: any_section_has_sufficient_material)",
+        "Implement MaterialAssessmentNode (assess if section has enough material)",
+        "Implement ProvisionalDraftGenerationNode (AgentNode - generate draft from collections)",
+        "Implement UserVerificationNode (present draft for user approval)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Entry criteria: current_phase == 'story_capture' AND any_section_has_sufficient_material == TRUE",
+        "Generates provisional drafts - not final content",
+        "Must wait for user approval before proceeding"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "ai_docs/context/project_docs/high_level_plan.md:601-623"
+        ],
+        "dependencies": [
+          "CollectionService",
+          "StorytellerService"
+        ],
+        "role_in_system": "Creates provisional narrative drafts from captured material for user review."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-013",
+      "name": "Implement StoryService",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/services/story_service.py",
+        "Implement create_story() - create story record",
+        "Implement create_chapter() - create chapter within story",
+        "Implement get_chapters() - get all chapters for story",
+        "Implement update_chapter() - update chapter content",
+        "Implement save_chapter_score() - save quality assessment scores",
+        "Implement get_story_with_chapters() - full story with all chapters"
+      ],
+      "constraints": [
+        "Use Story, StoryChapter models from database.models.story",
+        "Follow existing service patterns"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/storyteller_service.py",
+          "app/database/models/story.py",
+          "ai_docs/context/project_docs/high_level_plan.md:845-875"
+        ],
+        "dependencies": [
+          "Story model",
+          "StoryChapter model"
+        ],
+        "role_in_system": "Manages story record, chapters, characters, themes."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-014",
+      "name": "Implement Composition Subflow",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/workflows/composition_subflow.py with WorkflowSchema",
+        "Create app/workflows/composition_subflow_nodes/ directory",
+        "Implement CompositionGate node (self-gating: all sufficiency gates pass)",
+        "Implement SufficiencyGatesNode (check archetype, material, character, thematic gates)",
+        "Implement StoryRecordCreationNode (create story record when gates pass)",
+        "Implement ChapterStructureDeterminationNode (AgentNode - determine narrative arcs)",
+        "Implement InitialChapterCompositionNode (AgentNode - generate chapters)",
+        "Implement GlobalUpdateNode (AgentNode - weave new material into existing chapters)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Sufficiency gates: archetype resolved >= 0.85, material threshold, character development, thematic coherence",
+        "Living manuscript - chapters evolve continuously, not batch processing",
+        "Use StoryService for story operations"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "ai_docs/context/project_docs/high_level_plan.md:626-720"
+        ],
+        "dependencies": [
+          "StoryService",
+          "ArchetypeService",
+          "CollectionService"
+        ],
+        "role_in_system": "Global composition model - living manuscript that evolves continuously."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-015",
+      "name": "Implement Editor Workflow",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/workflows/editor_workflow.py with WorkflowSchema",
+        "Create app/workflows/editor_workflow_nodes/ directory",
+        "Implement ChapterQualityNode (AgentNode - assess 6 criteria 0-10 scale)",
+        "Implement CoherenceCheckNode (character arcs, timeline consistency)",
+        "Implement PacingAnalysisNode (validate 70-80% scene-to-summary ratio)",
+        "Implement EditRequirementsNode (lodge edit requirements for issues)",
+        "Implement ApprovalGatingNode (approve or block for revision)",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Quality criteria: narrative coherence, pacing, character consistency, sensory details, thematic integration, emotional resonance",
+        "Blocking threshold: any score < 6 = blocking issue",
+        "Use EditRequirement model for tracking edit needs"
+      ],
+      "context": {
+        "reference_files": [
+          "app/workflows/trust_building_subflow.py",
+          "app/core/nodes/agent.py",
+          "ai_docs/context/project_docs/high_level_plan.md:722-803"
+        ],
+        "dependencies": [
+          "StoryService",
+          "EditRequirement model"
+        ],
+        "role_in_system": "Quality gate for composed narrative. Scores chapters and lodges edit requirements."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-016",
+      "name": "Implement Storytellers API Endpoints",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create app/api/storytellers.py",
+        "Implement POST /api/v1/storytellers/ - create storyteller, trigger Analyst",
+        "Implement GET /api/v1/storytellers/{id} - get storyteller details",
+        "Implement GET /api/v1/storytellers/{id}/progress - get progress dashboard",
+        "Implement PATCH /api/v1/storytellers/{id}/boundaries - update boundaries",
+        "Add routes to app/api/router.py"
+      ],
+      "constraints": [
+        "Creating a storyteller must trigger run_analyst_flow task",
+        "Use StorytellerService for all operations"
+      ],
+      "context": {
+        "reference_files": [
+          "app/api/events.py",
+          "app/api/router.py",
+          "app/services/storyteller_service.py",
+          "ai_docs/context/project_docs/system_architecture.md:1376-1422"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "Celery workflow_tasks"
+        ],
+        "role_in_system": "CRUD API for storyteller management."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-017",
+      "name": "Implement Sessions API Endpoints",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create app/api/sessions.py",
+        "Implement POST /api/v1/sessions/ - create and trigger session",
+        "Implement GET /api/v1/sessions/{id} - get session details with transcript",
+        "Implement POST /api/v1/sessions/{id}/verify - user verification",
+        "Add routes to app/api/router.py"
+      ],
+      "constraints": [
+        "Creating a session must trigger run_session_flow task",
+        "Verification must trigger run_analyst_flow task",
+        "Use SessionService for all operations"
+      ],
+      "context": {
+        "reference_files": [
+          "app/api/events.py",
+          "app/api/router.py",
+          "app/services/session_service.py",
+          "ai_docs/context/project_docs/system_architecture.md:1424-1470"
+        ],
+        "dependencies": [
+          "SessionService",
+          "Celery workflow_tasks"
+        ],
+        "role_in_system": "CRUD API for session management."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-018",
+      "name": "Implement Requirements API Endpoints",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/api/requirements.py",
+        "Implement GET /api/v1/storytellers/{id}/requirements - get requirements",
+        "Implement PATCH /api/v1/requirements/{id}/status - mark addressed/resolved",
+        "Add routes to app/api/router.py"
+      ],
+      "constraints": [
+        "Use RequirementService for all operations"
+      ],
+      "context": {
+        "reference_files": [
+          "app/api/events.py",
+          "app/api/router.py",
+          "app/services/requirement_service.py",
+          "ai_docs/context/project_docs/system_architecture.md:1472-1493"
+        ],
+        "dependencies": [
+          "RequirementService"
+        ],
+        "role_in_system": "API for viewing and updating requirements."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-019",
+      "name": "Create LLM Prompt Templates",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/prompts/ directory structure",
+        "Create app/prompts/analyst/gap_analysis_prompt.py",
+        "Create app/prompts/session/story_point_extraction_prompt.py",
+        "Create app/prompts/archetype/multi_archetype_inference_prompt.py",
+        "Create app/prompts/synthesis/draft_generation_prompt.py",
+        "Create app/prompts/composition/chapter_structure_prompt.py",
+        "Create app/prompts/composition/chapter_composition_prompt.py",
+        "Create app/prompts/editor/quality_assessment_prompt.py"
+      ],
+      "constraints": [
+        "Use format strings with clear variable placeholders",
+        "Define expected output schemas as Pydantic models",
+        "Prompts must check storyteller boundaries before generating"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/prompt_loader.py",
+          "ai_docs/context/project_docs/high_level_plan.md:949-985"
+        ],
+        "dependencies": [],
+        "role_in_system": "LLM prompts for all AgentNode implementations."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-020",
+      "name": "Implement PDFService",
+      "status": "pending",
+      "priority": "low",
+      "requirements": [
+        "Create app/services/pdf_service.py",
+        "Implement generate_memoir_pdf() - generate PDF from story",
+        "Standard formatting: 12pt serif, 1.5 line spacing, margins",
+        "Include cover page, table of contents, chapter assembly"
+      ],
+      "constraints": [
+        "Use existing PDF library (reportlab or weasyprint)",
+        "Follow existing service patterns"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/storyteller_service.py",
+          "ai_docs/context/project_docs/high_level_plan.md:871-877"
+        ],
+        "dependencies": [
+          "StoryService"
+        ],
+        "role_in_system": "Generate professional PDF memoir from completed story."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-021",
+      "name": "Implement Stories API Endpoints",
+      "status": "pending",
+      "priority": "low",
+      "requirements": [
+        "Create app/api/stories.py",
+        "Implement GET /api/v1/stories/{id} - get story with chapters",
+        "Implement GET /api/v1/stories/{id}/chapters/{chapter_id} - get specific chapter",
+        "Implement POST /api/v1/stories/{id}/export - trigger PDF generation",
+        "Add routes to app/api/router.py"
+      ],
+      "constraints": [
+        "Use StoryService for all operations",
+        "Export triggers async PDF generation task"
+      ],
+      "context": {
+        "reference_files": [
+          "app/api/events.py",
+          "app/api/router.py",
+          "ai_docs/context/project_docs/system_architecture.md"
+        ],
+        "dependencies": [
+          "StoryService",
+          "PDFService"
+        ],
+        "role_in_system": "API for viewing stories and triggering exports."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-022",
+      "name": "Implement Session Recovery Mechanisms",
+      "status": "pending",
+      "priority": "low",
+      "requirements": [
+        "Create app/core/nodes/session/no_answer_handler_node.py",
+        "Create app/core/nodes/session/call_drop_recovery_node.py",
+        "Create app/core/nodes/session/quality_failure_node.py",
+        "No answer: wait 5 mins -> callback attempt 1 -> wait 5 mins -> callback attempt 2 -> email",
+        "Call drop: fetch transcript from VAPI API after 20 min timeout, process partial session",
+        "Quality failure: detect short duration, low engagement, negative sentiment -> offer reschedule"
+      ],
+      "constraints": [
+        "Use Celery scheduled tasks for retry logic",
+        "Must notify user via email for recovery scenarios"
+      ],
+      "context": {
+        "reference_files": [
+          "ai_docs/context/project_docs/high_level_plan.md:988-1007"
+        ],
+        "dependencies": [
+          "VAPIService",
+          "SessionService",
+          "EmailService (if implemented)"
+        ],
+        "role_in_system": "Handle session failures gracefully - no answer, dropped calls, poor quality."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-023",
+      "name": "Implement Project Setup Flow",
+      "status": "pending",
+      "priority": "low",
+      "requirements": [
+        "Create app/workflows/project_setup_subflow.py with WorkflowSchema",
+        "Create app/workflows/project_setup_subflow_nodes/ directory",
+        "Implement ProjectCreationNode - create project linking user, storyteller, subject",
+        "Implement StorytellerInvitationNode - send email invitation if User != Storyteller",
+        "Implement InteractionPreferencesNode - capture how storyteller wants to interact"
+      ],
+      "constraints": [
+        "Handle User/Storyteller/Subject distinction",
+        "Invitation flow if storyteller is different from user",
+        "Interaction modes: phone_callback, in_app_voice, in_app_text"
+      ],
+      "context": {
+        "reference_files": [
+          "ai_docs/context/project_docs/high_level_plan.md:116-184",
+          "ai_docs/context/project_docs/prd.md:36-55"
+        ],
+        "dependencies": [
+          "StorytellerService",
+          "EmailService (if implemented)"
+        ],
+        "role_in_system": "Handle initial project setup and storyteller invitation."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-024",
+      "name": "Complete SessionService Implementation",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Review and complete app/services/session_service.py",
+        "Implement create_session() - create session record with VAPI context",
+        "Implement get_transcript() - get transcript for session",
+        "Implement save_story_points() - save extracted story points",
+        "Implement save_story_segment() - save individual story segment from VAPI tool",
+        "Implement get_session_details() - full session with transcript and artifacts"
+      ],
+      "constraints": [
+        "Use StorytellerSession model from database.models.session_models",
+        "Follow existing service patterns"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/session_service.py",
+          "app/services/storyteller_service.py",
+          "app/database/models/session_models.py"
+        ],
+        "dependencies": [
+          "StorytellerSession model"
+        ],
+        "role_in_system": "Manages VAPI sessions, transcripts, and artifacts."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-025",
+      "name": "Complete LifeEventService Implementation",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Review and complete app/services/life_event_service.py",
+        "Implement create_life_event() - create life event from story capture",
+        "Implement get_life_events() - get life events for storyteller",
+        "Implement get_contextual_anchors() - get factual timeline anchors",
+        "Implement update_life_event() - update with additional details",
+        "Implement get_events_for_section() - get events for a specific section"
+      ],
+      "constraints": [
+        "Use LifeEvent and related models from database.models.storyteller",
+        "Follow existing service patterns"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/life_event_service.py",
+          "app/services/storyteller_service.py",
+          "app/database/models/storyteller.py"
+        ],
+        "dependencies": [
+          "LifeEvent model"
+        ],
+        "role_in_system": "Manages life events - the core story material captured from sessions."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-026",
+      "name": "Implement EditRequirementService",
+      "status": "pending",
+      "priority": "medium",
+      "requirements": [
+        "Create app/services/edit_requirement_service.py",
+        "Implement create_edit_requirement() - create edit requirement from editor flow",
+        "Implement get_by_chapter() - get edit requirements for a specific chapter",
+        "Implement get_blocking_issues() - get requirements with blocking priority",
+        "Implement mark_resolved() - mark edit requirement as addressed",
+        "Implement get_by_story() - get all edit requirements for a story"
+      ],
+      "constraints": [
+        "Use EditRequirement model from database.models.story",
+        "Follow existing service patterns (RequirementService)"
+      ],
+      "context": {
+        "reference_files": [
+          "app/services/requirement_service.py",
+          "app/database/models/story.py",
+          "ai_docs/context/project_docs/high_level_plan.md:722-803"
+        ],
+        "dependencies": [
+          "EditRequirement model",
+          "StoryService"
+        ],
+        "role_in_system": "Tracks edit requirements lodged by Editor workflow for quality improvements."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-027",
+      "name": "Implement Session Workflow",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Create app/workflows/session_workflow.py with WorkflowSchema",
+        "Create app/workflows/session_workflow_nodes/ directory",
+        "Implement SessionPrepNode - load context, requirements, boundaries",
+        "Implement SubflowRouterNode - route to appropriate subflow node",
+        "Implement VAPIAgentConfigNode - configure VAPI agent with system prompt and tools",
+        "Implement QualityValidationNode - validate session quality after completion",
+        "Implement ProgressUpdateNode - update storyteller progress",
+        "Register in workflow_registry.py"
+      ],
+      "constraints": [
+        "Route to Trust Building, Contextual Grounding, or Lane Development based on subflow_type",
+        "VAPI agent receives prompts from requirements, boundaries from storyteller",
+        "Trigger Analyst Flow after each session via submit_requirement_result"
+      ],
+      "context": {
+        "reference_files": [
+          "ai_docs/context/project_docs/system_architecture.md:1009-1200",
+          "ai_docs/context/project_docs/high_level_plan.md:424-496",
+          "app/workflows/analyst_flow.py"
+        ],
+        "dependencies": [
+          "VAPIService",
+          "StorytellerService",
+          "RequirementService",
+          "SessionService"
+        ],
+        "role_in_system": "Executes story capture sessions, routes to appropriate subflow, extracts story points."
+      },
+      "implementation_notes": ""
+    },
+    {
+      "id": "TASK-028",
+      "name": "Implement Pydantic Event Schemas for Subflows",
+      "status": "pending",
+      "priority": "high",
+      "requirements": [
+        "Review and complete app/schemas/subflow_events.py",
+        "Create TrustBuildingEvent schema",
+        "Create ContextualGroundingEvent schema",
+        "Create SectionSelectionEvent schema",
+        "Create LaneDevelopmentEvent schema",
+        "Create ArchetypeAssessmentEvent schema",
+        "Create SynthesisEvent schema",
+        "Create CompositionEvent schema",
+        "Create EditorEvent schema"
+      ],
+      "constraints": [
+        "Each event schema must include storyteller_id",
+        "Use Pydantic BaseModel for all schemas",
+        "Include trigger_reason for audit trail"
+      ],
+      "context": {
+        "reference_files": [
+          "app/schemas/analyst_events.py",
+          "app/schemas/subflow_events.py",
+          "ai_docs/context/project_docs/system_architecture.md:500-550"
+        ],
+        "dependencies": [],
+        "role_in_system": "Type-safe event schemas for workflow invocation and tracing."
+      },
+      "implementation_notes": ""
+    }
+  ]
+}

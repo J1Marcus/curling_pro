@@ -113,12 +113,85 @@ For detailed execution flow with code examples, see [analyst_subflow_execution_p
 
 ---
 
-### 1.1 Trust Building Subflow (IMPLEMENT FIRST)
+### 1.0 Project Setup & Storyteller Invitation (IMPLEMENT FIRST)
+**Location:** `app/workflows/subflows/project_setup_workflow.py`
+**Priority:** 0 - Pre-requisite for all other flows
+
+**Purpose:** Handle the User/Storyteller/Subject distinction established in the meeting (2025-12-22):
+- User signs up and creates a project
+- If User ≠ Storyteller, system sends invitation email
+- Storyteller accepts invitation and sets interaction preferences
+- Session agent is activated immediately after consent
+
+**Event Schema:**
+```python
+class ProjectSetupEvent(BaseModel):
+    user_id: str
+    project_type: str  # "memoir", "obituary", "presentation"
+    storyteller_email: Optional[str]  # If different from user
+    subject_relationship: str  # "self", "parent", "spouse", "other"
+
+class StorytellerInvitationEvent(BaseModel):
+    project_id: str
+    storyteller_email: str
+    invitation_message: Optional[str]
+
+class StorytellerAcceptanceEvent(BaseModel):
+    invitation_token: str
+    storyteller_id: str
+```
+
+**Workflow Flow:**
+```
+User signs up → Project created →
+  ├─ If User = Storyteller:
+  │    → InteractionPreferencesNode → Trust Building begins
+  │
+  └─ If User ≠ Storyteller:
+       → StorytellerInvitationNode (email sent)
+       → [Wait for acceptance]
+       → StorytellerOnboardingNode
+       → InteractionPreferencesNode
+       → Trust Building begins
+```
+
+**Key Node: InteractionPreferencesNode**
+```python
+class InteractionPreferencesNode(Node):
+    """Capture HOW the storyteller wants to interact BEFORE Trust Building."""
+
+    class OutputType(BaseModel):
+        interaction_mode: str  # "phone_callback", "in_app_voice", "in_app_text"
+        voice_agent_reads: bool  # Agent reads questions aloud vs displays them
+        scheduling_preference: str  # "on_demand", "scheduled"
+        preferred_session_length: int  # minutes (8, 12, 15)
+        phone_number: Optional[str]  # If phone_callback mode
+
+    async def process(self, task_context: TaskContext) -> TaskContext:
+        # UI-based collection of preferences
+        # These preferences drive all subsequent session behavior
+        pass
+```
+
+**Tasks:**
+- [ ] Create `app/workflows/subflows/project_setup_workflow.py`
+- [ ] Create `app/workflows/subflows/project_setup_nodes/project_creation_node.py`
+- [ ] Create `app/workflows/subflows/project_setup_nodes/storyteller_invitation_node.py`
+- [ ] Create `app/workflows/subflows/project_setup_nodes/interaction_preferences_node.py`
+- [ ] Create email template for storyteller invitation
+- [ ] Create acceptance landing page flow
+
+---
+
+### 1.1 Trust Building Subflow (IMPLEMENT SECOND)
 **Location:** `app/workflows/subflows/trust_building_workflow.py`
 **Priority:** 1 - Required by Analyst Flow
 
+**Pre-requisite:** Storyteller has accepted invitation (if invited) and set interaction preferences
+
 **Entry Criteria (Gate):**
 - `current_phase IN [NULL, 'trust_building']`
+- `interaction_preferences_set == TRUE`
 - If gate not met → return early (no-op)
 - If gate met → execute workflow
 
@@ -127,6 +200,7 @@ For detailed execution flow with code examples, see [analyst_subflow_execution_p
 class TrustBuildingEvent(BaseModel):
     storyteller_id: str
     trigger_reason: str  # "initialization"
+    interaction_mode: str  # from preferences
 ```
 
 **Workflow Definition:**
@@ -139,8 +213,13 @@ class TrustBuildingWorkflow(Workflow):
         nodes=[
             NodeConfig(
                 node=IntroductionNode,
-                connections=[ScopeSelectionNode],
+                connections=[SubjectClarificationNode],
                 description="Set user expectations"
+            ),
+            NodeConfig(
+                node=SubjectClarificationNode,
+                connections=[ScopeSelectionNode],
+                description="Clarify: Is this book about you or someone else?"
             ),
             NodeConfig(
                 node=ScopeSelectionNode,
@@ -250,9 +329,26 @@ class GentleProfileNode(Node):
         return task_context
 ```
 
+**SubjectClarificationNode** (NEW - Added per 2025-12-22 meeting)
+```python
+class SubjectClarificationNode(Node):
+    """Clarify who the book is about - may differ from storyteller."""
+
+    class OutputType(BaseModel):
+        subject_is_storyteller: bool
+        subject_name: Optional[str]  # If different from storyteller
+        subject_relationship: Optional[str]  # "spouse", "parent", "friend", etc.
+
+    async def process(self, task_context: TaskContext) -> TaskContext:
+        # Ask: "Is this memoir about your life, or about someone else?"
+        # If someone else: "Tell me about them - what's their name and relationship to you?"
+        pass
+```
+
 **Tasks:**
 - [ ] Create `app/workflows/subflows/trust_building_workflow.py`
 - [ ] Create `app/workflows/subflows/trust_building_nodes/introduction_node.py`
+- [ ] Create `app/workflows/subflows/trust_building_nodes/subject_clarification_node.py` (NEW)
 - [ ] Create `app/workflows/subflows/trust_building_nodes/scope_selection_node.py`
 - [ ] Create `app/workflows/subflows/trust_building_nodes/gentle_profile_node.py`
 - [ ] Create event JSON: `requests/events/trust_building_event.json`
@@ -261,7 +357,7 @@ class GentleProfileNode(Node):
 
 ---
 
-### 1.2 Contextual Grounding Subflow (IMPLEMENT SECOND)
+### 1.2 Contextual Grounding Subflow (IMPLEMENT THIRD)
 **Location:** `app/workflows/subflows/contextual_grounding_workflow.py`
 **Priority:** 2 - Required by Analyst Flow
 

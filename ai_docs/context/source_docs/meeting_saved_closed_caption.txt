@@ -1,0 +1,1065 @@
+[Jonathan Marcus] 07:56:22
+Fucking kidding me!
+
+[Marcus Swift] 07:56:24
+Hi, sorry, man.
+
+[Jonathan Marcus] 07:56:25
+I thought it's on by default!
+
+[Marcus Swift] 07:56:27
+No, I have to turn it on.
+
+[Jonathan Marcus] 07:56:30
+Shit. Don't bother now.
+
+[Marcus Swift] 07:56:31
+Yeah. Well, I can… I can sit and dictate this to all… well, I have this document, my flow, documented.
+
+[Marcus Swift] 07:56:39
+in… in the back end, so, um…
+
+[Jonathan Marcus] 07:56:42
+So I'd almost like to do it the other way, like I said, you know, instead of saying create a…
+
+[Jonathan Marcus] 07:56:47
+a backend requirement based on the front end, do it the other way around. It's a…
+
+[Marcus Swift] 07:56:49
+do a front-end requirement based on the back end, yeah.
+
+[Marcus Swift] 07:56:53
+Well, transcripts are on now, so, uh, let me… let me say…
+
+[Marcus Swift] 07:56:58
+When…
+
+[Jonathan Marcus] 07:56:59
+Oh, gosh, when I listened to this whole thing,
+
+[Jonathan Marcus] 07:57:02
+This is gonna go on.
+
+[Marcus Swift] 07:57:04
+Uh, well, it only starts from the moment I turn it on, so, uh…
+
+[Marcus Swift] 07:57:10
+Uh, okay, so…
+
+[Jonathan Marcus] 07:57:11
+Right. Okay.
+
+[Marcus Swift] 07:57:13
+Um…
+
+[Marcus Swift] 07:57:15
+I think your onboarding process is…
+
+[Marcus Swift] 07:57:19
+pretty bang on.
+
+[Marcus Swift] 07:57:20
+Uh, we just need to start
+
+[Marcus Swift] 07:57:23
+interjecting the session agent sooner in the process.
+
+[Marcus Swift] 07:57:27
+So, when the…
+
+[Marcus Swift] 07:57:30
+When the person signs up,
+
+[Marcus Swift] 07:57:32
+We get their initial consent,
+
+[Marcus Swift] 07:57:35
+And then immediately they get a UI that says,
+
+[Marcus Swift] 07:57:38
+How do you want to do your data collection?
+
+[Marcus Swift] 07:57:42
+Do we want to do it right, like, here, with…
+
+[Marcus Swift] 07:57:46
+I don't know the language, but UI-based, or…?
+
+[Jonathan Marcus] 07:57:47
+So, one of the questions we need to modify
+
+[Jonathan Marcus] 07:57:50
+So one of the questions I think we need to modify is we're kind of assuming right now, based on the way the front end is,
+
+[Jonathan Marcus] 07:57:56
+is that the person that the user is the subject of the book.
+
+[Jonathan Marcus] 07:58:01
+And…
+
+[Marcus Swift] 07:58:01
+Not necessarily, right? So that's where…
+
+[Marcus Swift] 07:58:05
+That's why I think the onboarding of the user
+
+[Jonathan Marcus] 07:58:06
+No, that's the way it currently is, I'm saying.
+
+[Marcus Swift] 07:58:09
+Right, right, right, right.
+
+[Jonathan Marcus] 07:58:09
+That's what needs to be modified.
+
+[Marcus Swift] 07:58:11
+Yeah, that's right, because I think the onboarding of the user is…
+
+[Marcus Swift] 07:58:15
+Where you basically sign up for the service, and then the storyteller
+
+[Marcus Swift] 07:58:20
+could very well be a different person.
+
+[Jonathan Marcus] 07:58:23
+Yes. But…
+
+[Marcus Swift] 07:58:23
+Right? It could be, I'm… I'm signing up my mom, because I want this for me.
+
+[Marcus Swift] 07:58:29
+And so I want to, you know, so then…
+
+[Marcus Swift] 07:58:32
+then there needs to be…
+
+[Marcus Swift] 07:58:35
+a, uh, the session agent
+
+[Marcus Swift] 07:58:39
+then says, okay, I've been activated, oh, nothing's been done. My first step.
+
+[Marcus Swift] 07:58:44
+is to reach out to the storyteller,
+
+[Marcus Swift] 07:58:47
+probably through an email, saying, this is what's been initiated,
+
+[Marcus Swift] 07:58:52
+Uh, click the link to accept, and start the process.
+
+[Jonathan Marcus] 07:58:54
+Yes, but also acknowledging the fact that the storyteller, even the storyteller, isn't necessarily the subject of the book. That it could be about someone else.
+
+[Marcus Swift] 07:59:02
+Exactly. Exactly, right? And so then, when a storyteller comes in,
+
+[Jonathan Marcus] 07:59:03
+Correct.
+
+[Marcus Swift] 07:59:08
+kicks off the session agent. The session agent says, what are… what are… what are on the requirements?
+
+[Marcus Swift] 07:59:14
+And the session…
+
+[Marcus Swift] 07:59:16
+would need to… the requirements, this is new, so I'm glad we got the transcripts on, the requirements would need to be linked to the story… to a storyteller.
+
+[Marcus Swift] 07:59:23
+So, what are the requirements that are needed for this storyteller?
+
+[Jonathan Marcus] 07:59:27
+Right.
+
+[Marcus Swift] 07:59:28
+And then… and then the session starts, right? So when the UI would become… would be coming up for the storyteller for the first time, it would be like, great,
+
+[Marcus Swift] 07:59:37
+Here's a video describing what we're doing from… from the team, or here's a…
+
+[Marcus Swift] 07:59:44
+orientation flow of some kind.
+
+[Marcus Swift] 07:59:46
+And we… and we get consent to record
+
+[Marcus Swift] 07:59:50
+to persist and to… and we do the same kind of onboard… or no, sorry, so then…
+
+[Marcus Swift] 07:59:56
+We get all that kind of consent, okay, we're good.
+
+[Marcus Swift] 07:59:59
+And then this session starts, and the session can be…
+
+[Marcus Swift] 08:00:02
+Do you want to schedule a callback?
+
+[Marcus Swift] 08:00:04
+So we could do that over the phone. Do we want to do it…
+
+[Marcus Swift] 08:00:08
+Um, right here in the app.
+
+[Jonathan Marcus] 08:00:10
+Yes.
+
+[Marcus Swift] 08:00:10
+very simple A-B test, right? Great, I want to do it in the app, great.
+
+[Marcus Swift] 08:00:15
+Do you want to… do you want to be able to just dictate your answers? Do you want us to…
+
+[Marcus Swift] 08:00:21
+read out our questions to you, or do you want to read them yourself, right? So, do we activate a voice agent?
+
+[Marcus Swift] 08:00:26
+Or do you, right, boom. Okay, great. And then the session kicks off.
+
+[Marcus Swift] 08:00:31
+Right? And the session…
+
+[Marcus Swift] 08:00:33
+does it such any things? It says, here's the next question, and the UI is designed to accept
+
+[Marcus Swift] 08:00:39
+One question at a time.
+
+[Marcus Swift] 08:00:41
+It renders the question,
+
+[Marcus Swift] 08:00:43
+And it allows for the input based on the user's preference.
+
+[Marcus Swift] 08:00:47
+So, if it's…
+
+[Marcus Swift] 08:00:49
+If they selected a phone call, it's like, great, do you want us to call you right now? Do you want to schedule your next… the phone call to happen?
+
+[Marcus Swift] 08:00:57
+If they say, I want to do it on the app, this is great. Do you want us to read out the question, or do you want us to…
+
+[Marcus Swift] 08:01:02
+draw the… write the… write the question out on the… on the app.
+
+[Marcus Swift] 08:01:05
+They select, and it fires the next question.
+
+[Jonathan Marcus] 08:01:08
+So, one of the things that we…
+
+[Marcus Swift] 08:01:09
+the user inputs in the way that they want.
+
+[Jonathan Marcus] 08:01:11
+One of the things we also talked about is sort of during the initial onboarding, um, establishing what the product options are,
+
+[Jonathan Marcus] 08:01:19
+Uh, explaining to them what the…
+
+[Jonathan Marcus] 08:01:22
+time commitment is of each one, and the expectations from them, and then also guidance on terms of, like, you know, when you're doing this, make sure you're in a quiet room, you know, so there's no background noise, stuff like that.
+
+[Marcus Swift] 08:01:24
+Yeah.
+
+[Marcus Swift] 08:01:25
+Yeah, but that's…
+
+[Marcus Swift] 08:01:31
+Yeah.
+
+[Jonathan Marcus] 08:01:34
+Um, that kind of thing.
+
+[Marcus Swift] 08:01:34
+Yeah. But that could all be part of the trust-building flow, right? So… so… so we don't need to pre-design the UI to have that.
+
+[Jonathan Marcus] 08:01:38
+Yeah.
+
+[Marcus Swift] 08:01:42
+the back end will start firing off those questions, and those protocols
+
+[Jonathan Marcus] 08:01:47
+Okay.
+
+[Marcus Swift] 08:01:47
+as they're relevant and necessary, right? So the…
+
+[Jonathan Marcus] 08:01:49
+I just want to have it for the sake of the transcript, to kind of have everything in here. The other thing…
+
+[Marcus Swift] 08:01:52
+Yeah. Yeah, yeah, yeah.
+
+[Jonathan Marcus] 08:01:55
+we talked about is changing it from, like, chapters to subjects.
+
+[Marcus Swift] 08:01:58
+Right.
+
+[Jonathan Marcus] 08:01:59
+Um, talking about more character development, uh, cognitive anchoring, we talked about.
+
+[Marcus Swift] 08:02:03
+Yeah.
+
+[Jonathan Marcus] 08:02:04
+Um, so just kind of mentioning things, again, for the sake of the transcript here.
+
+[Marcus Swift] 08:02:07
+Sure.
+
+[Marcus Swift] 08:02:09
+From a UI front-end perspective,
+
+[Marcus Swift] 08:02:13
+Um…
+
+[Marcus Swift] 08:02:15
+the way I envision it right now is it's… it… it could very well be a very…
+
+[Marcus Swift] 08:02:21
+very simple UI, because a lot of what needs to get rendered is going to get pushed from the back end.
+
+[Marcus Swift] 08:02:26
+And it's just going to be a very static kind of…
+
+[Marcus Swift] 08:02:30
+Question and input.
+
+[Marcus Swift] 08:02:32
+Great question and input. Once they're into the pro step of actually generating,
+
+[Marcus Swift] 08:02:37
+Then the whole thing around
+
+[Marcus Swift] 08:02:39
+How do they… how do we present the story arc?
+
+[Marcus Swift] 08:02:43
+So, once they get to the point where there's enough life events,
+
+[Marcus Swift] 08:02:47
+That we've got a story arc.
+
+[Marcus Swift] 08:02:49
+and the beats, and the themes, and the character development, how does that all get rendered to the user?
+
+[Marcus Swift] 08:02:55
+And again, whether they're voice-based and they're doing it on the phone,
+
+[Marcus Swift] 08:03:00
+This is… is app-based. It has to be app-based, right? They need to be able to visually see
+
+[Marcus Swift] 08:03:05
+the story development, and if a storyteller never wants to see that, they don't have to.
+
+[Marcus Swift] 08:03:11
+But they can go in and they can see, okay, this is the arc that's forming,
+
+[Marcus Swift] 08:03:15
+Here's how it's starting to get organized.
+
+[Marcus Swift] 08:03:17
+Here's… here's the formation of the memoir and how it's starting to take shape, and they can
+
+[Marcus Swift] 08:03:23
+edit, they can interact with the memoir, they can…
+
+[Marcus Swift] 08:03:26
+You can do pieces in that.
+
+[Marcus Swift] 08:03:28
+As well, right? So…
+
+[Marcus Swift] 08:03:31
+you know, initial onboarding, the session,
+
+[Marcus Swift] 08:03:37
+a page where the session gets managed.
+
+[Marcus Swift] 08:03:41
+archetype Age, where the archetype is
+
+[Marcus Swift] 08:03:43
+is more like a dashboard for the story process.
+
+[Marcus Swift] 08:03:46
+And then in editing UI where they can interact with the manuscript and start to…
+
+[Marcus Swift] 08:03:54
+give it shape and all that. And then a resolution, a finishing, a, okay, yeah, this is great.
+
+[Marcus Swift] 08:04:01
+let's, um…
+
+[Marcus Swift] 08:04:04
+let's publish it, and what are they publishing options, and all those pieces, right?
+
+[Marcus Swift] 08:04:09
+That's what I'm seeing as kind of some fundamental front-end stuff that we can start building now.
+
+[Jonathan Marcus] 08:04:19
+Okay?
+
+[Marcus Swift] 08:04:20
+What do you think? What do you thinkin'?
+
+[Jonathan Marcus] 08:04:27
+Nothing.
+
+[Marcus Swift] 08:04:28
+Okay, alright.
+
+[Marcus Swift] 08:04:30
+Um…
+
+[Marcus Swift] 08:04:33
+And at some point here, Jonathan, I may… I may get you
+
+[Marcus Swift] 08:04:37
+into working on some of the back-end processes as well, once the front end is kind of…
+
+[Jonathan Marcus] 08:04:40
+Sure.
+
+[Marcus Swift] 08:04:41
+done, because this is… this project, I think, is going to be back-end heavy.
+
+[Marcus Swift] 08:04:45
+Um, and…
+
+[Marcus Swift] 08:04:47
+And certainly…
+
+[Marcus Swift] 08:04:49
+Uh, the biggest…
+
+[Marcus Swift] 08:04:51
+kicker in this… in this… and this is partly why I was thinking Kickstarter as well.
+
+[Marcus Swift] 08:04:56
+is, um…
+
+[Marcus Swift] 08:04:59
+It may take it 6 to 8 months to get to the point where we've got a product that we can actually
+
+[Marcus Swift] 08:05:04
+put in front of people and start billing money for, right? Because…
+
+[Jonathan Marcus] 08:05:07
+Which is… I know, which is the…
+
+[Jonathan Marcus] 08:05:11
+Um…
+
+[Jonathan Marcus] 08:05:13
+We're trying to set a deadline here of, like,
+
+[Jonathan Marcus] 08:05:16
+5 months, like, 5 to 6 months, right?
+
+[Marcus Swift] 08:05:19
+And I don't know if we've got 5 to 6 months of runway.
+
+[Marcus Swift] 08:05:22
+So… it…
+
+[Jonathan Marcus] 08:05:23
+No, that's what I mean. I'm trying to base it on the runway, yeah.
+
+[Marcus Swift] 08:05:26
+Yeah, so, you know, if we've got that much run rate, then great, because I think it… with concerted effort,
+
+[Marcus Swift] 08:05:32
+we could probably get something out the door that starts billing.
+
+[Marcus Swift] 08:05:36
+in 5 to 6 months, for sure.
+
+[Marcus Swift] 08:05:39
+Um, well, not for sure, but that seems reasonable to me.
+
+[Marcus Swift] 08:05:42
+Uh, to do it in a month or two, and say, you know, and we gotta start billing on this?
+
+[Marcus Swift] 08:05:47
+Um, maybe if we focus just on the obituary side of it, we could make it a tighter…
+
+[Marcus Swift] 08:05:53
+process. We don't have to deal with multiple archetypes, there's only one.
+
+[Marcus Swift] 08:05:57
+Um, it's not…
+
+[Marcus Swift] 08:05:58
+the memoir isn't as long.
+
+[Jonathan Marcus] 08:05:59
+Let me… let me ask you a question. For Judy, how did you do your obituary?
+
+[Marcus Swift] 08:06:04
+Uh, her sister did it.
+
+[Jonathan Marcus] 08:06:05
+Okay, and where was it published?
+
+[Marcus Swift] 08:06:09
+It was a part of the, uh…
+
+[Marcus Swift] 08:06:12
+memorial home.
+
+[Marcus Swift] 08:06:15
+Um, and I don't know if it was a service they offered, but what happened was…
+
+[Marcus Swift] 08:06:20
+The funeral was livestreamed.
+
+[Marcus Swift] 08:06:23
+And prior to…
+
+[Marcus Swift] 08:06:25
+the livestream, the video link went out, and people could go and watch the video,
+
+[Marcus Swift] 08:06:31
+Um, or prior to or post the memorial, they could… they could watch the video, and at any point after the funeral, they could…
+
+[Marcus Swift] 08:06:38
+They could watch the funeral service as well.
+
+[Jonathan Marcus] 08:06:45
+Um, you just gave me a totally interesting idea.
+
+[Jonathan Marcus] 08:06:49
+So, the reason I was originally asking you, and then I'll go into my idea, um…
+
+[Jonathan Marcus] 08:06:55
+But the…
+
+[Jonathan Marcus] 08:06:58
+The reason I was… because normally obituaries, you think about just, like, newspaper…
+
+[Marcus Swift] 08:07:02
+Sure.
+
+[Jonathan Marcus] 08:07:03
+kind of things. But I think that's sort of out, right? Nobody's… like, who even subscribes to a newspaper in order to get an obituary?
+
+[Marcus Swift] 08:07:09
+Right.
+
+[Jonathan Marcus] 08:07:09
+Right, so what other… so how, like…
+
+[Jonathan Marcus] 08:07:12
+how do you even do an obituary? Where do you even send it to? Is it, like… I mean, I know there's, like, websites of stuff, but…
+
+[Jonathan Marcus] 08:07:19
+really, who the hell's going on those things, looking at that? I mean, it's kind of… so where's the value? Who's gonna spend money to write… to have that done? That's where I sort of disagree a little bit with the…
+
+[Jonathan Marcus] 08:07:31
+Would the value proposition of what you're saying on there.
+
+[Jonathan Marcus] 08:07:34
+But… but…
+
+[Jonathan Marcus] 08:07:36
+I know that I've been to funerals where they do have, like, while you're sitting before, like, you're sitting in the gathering area, before you go into the
+
+[Jonathan Marcus] 08:07:44
+into the ceremony area, there's the videos, right? What if we sell the… is there a product that could be sold to the funeral homes to help them generate a more… not just a slideshow?
+
+[Marcus Swift] 08:07:45
+Exactly.
+
+[Marcus Swift] 08:07:51
+Exactly. Exactly.
+
+[Marcus Swift] 08:07:55
+Yeah. Exactly.
+
+[Jonathan Marcus] 08:07:55
+But a more engaged…
+
+[Marcus Swift] 08:07:57
+Yeah, we white-label this as something that the funeral home has paid for and is branded for… it's an internal service for their customers.
+
+[Marcus Swift] 08:08:07
+that, that, you know,
+
+[Marcus Swift] 08:08:09
+They… they sell.
+
+[Jonathan Marcus] 08:08:09
+But how… what's the product there? Like, how can… if we were to sell to a funeral home, basically a product that would help them enhance their… their video packaging kind of thing, right? It's totally different than what we're doing here, because it's not a prose, right?
+
+[Jonathan Marcus] 08:08:22
+It's… there might be…
+
+[Marcus Swift] 08:08:23
+It is and it isn't. I mean, it's not that much different than a PowerPoint presentation.
+
+[Marcus Swift] 08:08:27
+So, it's just tuning the AI to generate a PowerPoint presentation, rather than a
+
+[Marcus Swift] 08:08:33
+than a memoir, right? It's just a different archetype.
+
+[Jonathan Marcus] 08:08:38
+Hold on just a second. Emerick, where… how do you… my daughter's sitting on the other side working, and she sent me a text saying, I look at obituaries.
+
+[Jonathan Marcus] 08:08:45
+Um, like, how? What do you…
+
+[Jonathan Marcus] 08:08:48
+Oh, you're on video, by the way, so just…
+
+[Jonathan Marcus] 08:08:51
+I googled them, I looked at Alans.
+
+[Jonathan Marcus] 08:08:53
+You Google them? They're fine.
+
+[Marcus Swift] 08:08:56
+Are they on… what, sorry, what's your daughter's name?
+
+[Jonathan Marcus] 08:08:58
+I can't open this door. Put one at a time.
+
+[Jonathan Marcus] 08:09:03
+Yes. Okay, yeah.
+
+[Marcus Swift] 08:09:06
+What's your daughter's name?
+
+[Jonathan Marcus] 08:09:07
+Amber?
+
+[Marcus Swift] 08:09:08
+Amber. Amber, do… are they websites that you're looking at?
+
+[Jonathan Marcus] 08:09:12
+Yeah.
+
+[Marcus Swift] 08:09:13
+Okay, alright, so they, they are… because that was my thought as well, Jonathan, is that we tie this into our…
+
+[Marcus Swift] 08:09:19
+our web service, where we, like,
+
+[Marcus Swift] 08:09:21
+We produce a website for you.
+
+[Marcus Swift] 08:09:24
+That is a memorial, it lends for 2 years, or, you know, or as long as…
+
+[Marcus Swift] 08:09:29
+You want to keep paying for us to host the website, and we host the website that is a multimedia
+
+[Marcus Swift] 08:09:35
+Living Memorial, a digital tombstone.
+
+[Marcus Swift] 08:09:38
+of the person in their life.
+
+[Jonathan Marcus] 08:09:40
+That's a totally different… I mean, it could be a part of this product, but it's something we haven't discussed yet, and it's sort of an idea. But I'm just thinking,
+
+[Marcus Swift] 08:09:43
+Yeah.
+
+[Marcus Swift] 08:09:46
+Correct.
+
+[Jonathan Marcus] 08:09:48
+Again, we're talking the business-to-consumer versus business-to-business. I like the idea of being able to sell business to business, and so the idea of going to, um…
+
+[Marcus Swift] 08:09:52
+Right.
+
+[Jonathan Marcus] 08:09:59
+to funeral homes, because they're… you know, then they get to use it over and over and over. So the value for them is much higher. It's a more expensive product we could sell, right? So…
+
+[Marcus Swift] 08:10:07
+Right.
+
+[Jonathan Marcus] 08:10:09
+But what is the product? Like, how do we… how do we give them something… enough value, more than what they
+
+[Marcus Swift] 08:10:16
+Well, my pushback on that is the product is…
+
+[Marcus Swift] 08:10:20
+is right now, they say to their… their people, I'm assuming,
+
+[Marcus Swift] 08:10:25
+you know, we've got to upload the videos, upload… you develop it.
+
+[Marcus Swift] 08:10:30
+We'll present it to…
+
+[Marcus Swift] 08:10:32
+the attendees, right? Whereas this is…
+
+[Marcus Swift] 08:10:35
+We assist in your…
+
+[Marcus Swift] 08:10:37
+family members in developing this.
+
+[Marcus Swift] 08:10:41
+Um, obituary in a way that is respectful, that is delightful, that is…
+
+[Marcus Swift] 08:10:47
+That is… that is well…
+
+[Marcus Swift] 08:10:50
+written based on their lived experiences,
+
+[Marcus Swift] 08:10:52
+Um, and we also then offer them an upsell of a short storybook of the person's life, and uh, right?
+
+[Jonathan Marcus] 08:10:59
+Okay, so you're saying a totally new product that doesn't exist right now. You go to a funeral, you almost get, like, a program.
+
+[Jonathan Marcus] 08:11:08
+Like, but not just that has, like, a little bio about the person,
+
+[Jonathan Marcus] 08:11:14
+But, like, sort of a pamphlet, a 5-, 6-page pamphlet,
+
+[Jonathan Marcus] 08:11:18
+that tells a story, a full story about that person.
+
+[Marcus Swift] 08:11:24
+Possibly, I hadn't seen it that way, but, um…
+
+[Marcus Swift] 08:11:27
+I was seeing it more as…
+
+[Marcus Swift] 08:11:29
+the PowerPoint presentation that gets presented at the funeral about their life.
+
+[Marcus Swift] 08:11:35
+But we could easily then produce that as a…
+
+[Marcus Swift] 08:11:38
+as a memorial,
+
+[Marcus Swift] 08:11:41
+token that gets handed out or ordered by individuals
+
+[Marcus Swift] 08:11:45
+Uh, that is a…
+
+[Marcus Swift] 08:11:48
+5 to 20 page…
+
+[Marcus Swift] 08:11:51
+Beautifully bound book that they can order.
+
+[Marcus Swift] 08:11:54
+That is memorializing the person's life.
+
+[Marcus Swift] 08:12:00
+It's not a memoir.
+
+[Marcus Swift] 08:12:02
+But it… it's a collection of stories and images that they could per… like… like a yearbook.
+
+[Jonathan Marcus] 08:12:03
+No, no.
+
+[Jonathan Marcus] 08:12:05
+No.
+
+[Marcus Swift] 08:12:07
+But for a person's life.
+
+[Jonathan Marcus] 08:12:07
+Yes, but I think… I think we're sort of… we're going down parallel, but different roads here, because again, you're talking business-to-consumer versus business-to-business. I'm thinking this is a service we sell to the…
+
+[Marcus Swift] 08:12:12
+Sure, okay.
+
+[Jonathan Marcus] 08:12:17
+to the funeral home, because it's a value-added to the consumer, but they're the ones
+
+[Marcus Swift] 08:12:21
+Yes.
+
+[Jonathan Marcus] 08:12:21
+taking on the obligation of
+
+[Jonathan Marcus] 08:12:23
+putting it all together.
+
+[Marcus Swift] 08:12:24
+Yes. Yeah. But that would be what we would be selling to the funeral home, is the service is…
+
+[Marcus Swift] 08:12:31
+to your family members,
+
+[Jonathan Marcus] 08:12:34
+Right.
+
+[Marcus Swift] 08:12:35
+our service can produce the following things. We can white label it, you can subscribe,
+
+[Marcus Swift] 08:12:40
+you know, it's $100,000 a year,
+
+[Marcus Swift] 08:12:43
+And you get unlimited use. Boom.
+
+[Marcus Swift] 08:12:46
+Off you go, right?
+
+[Jonathan Marcus] 08:12:47
+Ooh, even better, yes.
+
+[Jonathan Marcus] 08:12:51
+Um…
+
+[Jonathan Marcus] 08:12:52
+Oops, uh…
+
+[Jonathan Marcus] 08:12:54
+Hold on, I have to respond to a text here.
+
+[Marcus Swift] 08:12:56
+Sure. Again, I don't want to spend too much of our time this morning talking about this, because this is always…
+
+[Marcus Swift] 08:13:03
+This is likely going to change, and I think Jake needs to be…
+
+[Marcus Swift] 08:13:06
+This… this… this is something that…
+
+[Marcus Swift] 08:13:09
+I don't know how to tune him in around this, but it's like, look, if we're gonna spend the time doing this, do you need to get serious about
+
+[Marcus Swift] 08:13:15
+putting some people behind…
+
+[Marcus Swift] 08:13:18
+making this happen? Or Jonathan and I are just gonna run with this idea without you.
+
+[Marcus Swift] 08:13:24
+You know, because it's like, you know, this is gonna become our idea, then great. If he wants to be in it, I'm not interested in possibly creating wealth.
+
+[Marcus Swift] 08:13:30
+for someone else. I'm just not.
+
+[Jonathan Marcus] 08:13:31
+Exactly, exactly.
+
+[Marcus Swift] 08:13:32
+You know? So, you need to get in the game.
+
+[Jonathan Marcus] 08:13:36
+But again, my point right now is that we can't be… we can't play that hardball game right now
+
+[Marcus Swift] 08:13:41
+Not yet.
+
+[Jonathan Marcus] 08:13:41
+Because we don't…
+
+[Jonathan Marcus] 08:13:43
+it's very… the messaging is what's most important for the next 4 months.
+
+[Marcus Swift] 08:13:47
+Yeah, no, I hear you. I hear you. And…
+
+[Marcus Swift] 08:13:51
+Um…
+
+[Marcus Swift] 08:13:53
+Again, I think he's done a couple of things that…
+
+[Marcus Swift] 08:13:56
+you know, the therapist to me says I can understand it, the business person to me says,
+
+[Marcus Swift] 08:14:01
+shake it off and get going, you know? I don't do sales, the fuck you don't.
+
+[Jonathan Marcus] 08:14:05
+Right.
+
+[Marcus Swift] 08:14:05
+You want this thing to work? Figure it out, buddy. That's what we're doing.
+
+[Jonathan Marcus] 08:14:08
+Yeah, exactly. But I just don't want him to…
+
+[Marcus Swift] 08:14:09
+Um, so get off your ass and start selling.
+
+[Jonathan Marcus] 08:14:12
+I don't want that to cost me, you know,
+
+[Marcus Swift] 08:14:14
+Yeah, no, exactly. That's why I didn't say anything.
+
+[Jonathan Marcus] 08:14:15
+$30,000 or $40,000.
+
+[Jonathan Marcus] 08:14:17
+Yeah.
+
+[Marcus Swift] 08:14:18
+And that's why I'm saying it to you, is that… but that message needs to be communicated to Jake. The fact that I've reached out to him
+
+[Marcus Swift] 08:14:25
+This morning, and I didn't hear from him.
+
+[Marcus Swift] 08:14:27
+is… annoying.
+
+[Jonathan Marcus] 08:14:29
+Yeah. I mean, he's 2 hours ahead of you.
+
+[Marcus Swift] 08:14:30
+You know, uh, we're taking this serious.
+
+[Marcus Swift] 08:14:32
+Exactly. I knew that, so I reached out to him at 8.30.
+
+[Jonathan Marcus] 08:14:37
+Right.
+
+[Marcus Swift] 08:14:37
+you know, it's now 10.15 his time.
+
+[Marcus Swift] 08:14:41
+Still haven't heard from you.
+
+[Jonathan Marcus] 08:14:42
+Right.
+
+[Marcus Swift] 08:14:43
+So… how serious is he about this?
+
+[Marcus Swift] 08:14:47
+I don't know.
+
+[Jonathan Marcus] 08:14:49
+Right.
+
+[Marcus Swift] 08:14:49
+Doesn't encourage me. So, you know, Jake needs to get tuned in a little bit around this, but…
+
+[Jonathan Marcus] 08:14:52
+I might have that conversation with him, actually, to… to… to sort of…
+
+[Jonathan Marcus] 08:14:57
+Yes, set some expectations that this is not SureGuard.
+
+[Marcus Swift] 08:15:01
+Yeah. This is survival, man, so start acting like that.
+
+[Jonathan Marcus] 08:15:05
+Right. Right, exactly.
+
+[Marcus Swift] 08:15:07
+You know, there is nothing off the table. There is…
+
+[Marcus Swift] 08:15:10
+I'm not available for 2 weeks. There…
+
+[Marcus Swift] 08:15:13
+I don't do sales.
+
+[Marcus Swift] 08:15:17
+That's the role we need you to play right now, man.
+
+[Jonathan Marcus] 08:15:19
+Right, exactly.
+
+[Marcus Swift] 08:15:21
+So, we got an idea,
+
+[Marcus Swift] 08:15:23
+You need to get off your ass, either hire people or start talking to funeral homes, tell us if this is gonna be viable.
+
+[Marcus Swift] 08:15:29
+It is? Great! Let's keep going down that road.
+
+[Jonathan Marcus] 08:15:32
+Right.
+
+[Marcus Swift] 08:15:32
+How do we turn this into a viable product? That's not on you and me.
+
+[Jonathan Marcus] 08:15:36
+Right.
+
+[Marcus Swift] 08:15:36
+That's on him.
+
+[Marcus Swift] 08:15:39
+Right? We'll execute the plan.
+
+[Marcus Swift] 08:15:42
+that… that he thinks is sellable.
+
+[Jonathan Marcus] 08:15:46
+Again, it's just very careful, gotta be careful.
+
+[Marcus Swift] 08:15:48
+Yeah, that's why I… that's why you're saying it, not me, because I… I… I… I…
+
+[Jonathan Marcus] 08:15:52
+Right. Even I gotta think about how to do it and be really careful not to…
+
+[Marcus Swift] 08:15:54
+I have… I have the therapist voice that can say hard things to people, and…
+
+[Jonathan Marcus] 08:16:00
+Yeah.
+
+[Marcus Swift] 08:16:00
+And not activate the defenses, but uh… I also don't have a relationship with him, so…
+
+[Marcus Swift] 08:16:05
+as much as you and Adam do, so…
+
+[Jonathan Marcus] 08:16:08
+Yeah, I have to… I don't want to…
+
+[Marcus Swift] 08:16:08
+Yeah.
+
+[Jonathan Marcus] 08:16:10
+start a conversation, and then all of a sudden get my foot in my mouth.
+
+[Marcus Swift] 08:16:14
+Sure. Understood.
+
+[Marcus Swift] 08:16:18
+Okay, uh, can we pivot?
+
+[Jonathan Marcus] 08:16:18
+Okay.
+
+[Jonathan Marcus] 08:16:20
+Yeah, I want to see this thing you're excited to show me.
+
+[Marcus Swift] 08:16:23
+Yeah, man.
+
+[Jonathan Marcus] 08:16:23
+And we can probably turn off the transcript if you want.
+
+[Jonathan Marcus] 08:16:26
+Or save it at this point.
+
+[Marcus Swift] 08:16:26
+Uh, once I've started it, I don't know how to stop it,
+

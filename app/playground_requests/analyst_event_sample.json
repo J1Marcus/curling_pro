@@ -1,0 +1,41 @@
+{
+  "storyteller_id": "550e8400-e29b-41d4-a716-446655440001",
+  "session_id": null,
+  "trigger_type": "manual",
+  "trigger_data": {
+    "reason": "Initial analysis for new storyteller"
+  },
+  "storyteller_context": {
+    "storyteller": {
+      "id": "550e8400-e29b-41d4-a716-446655440001",
+      "first_name": "Margaret",
+      "last_name": "Thompson",
+      "preferred_name": "Maggie",
+      "birth_year": 1948,
+      "is_living": true,
+      "consent_given": true
+    },
+    "boundary": {
+      "comfortable_discussing_romance": true,
+      "comfortable_discussing_intimacy": false,
+      "comfortable_discussing_loss": true,
+      "comfortable_discussing_trauma": false,
+      "off_limit_topics": ["father's death"],
+      "maximum_tier_comfortable": 2
+    },
+    "preference": {
+      "preferred_input_method": "voice",
+      "session_length_preference": "medium",
+      "desired_book_tone": "conversational"
+    },
+    "progress": {
+      "current_phase": "trust_setup",
+      "phase_status": "not_started",
+      "overall_completion_percentage": 0
+    }
+  },
+  "session_context": null,
+  "pending_requirements": [],
+  "current_phase": "trust_setup",
+  "phases_completed": []
+}
