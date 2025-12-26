@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CurlingPro" />
+    <meta name="theme-color" content="#1a1a2e" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/curlingpro.png" />
+    <title>CurlingPro</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        background: #1a1a2e;
+      }
+      canvas {
+        display: block;
+      }
+      #ui {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 16px;
+        pointer-events: none;
+        text-shadow: none;
+      }
+      #scoreboard {
+        background: #222;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-bottom: 10px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+        border: 1px solid #444;
+      }
+      #score-table {
+        border-collapse: collapse;
+        font-size: 12px;
+        font-weight: bold;
+      }
+      #score-table th, #score-table td {
+        padding: 4px 8px;
+        text-align: center;
+        min-width: 24px;
+        border: 1px solid #444;
+      }
+      #score-table thead th {
+        background: #333;
+        color: #aaa;
+        font-weight: normal;
+        font-size: 11px;
+      }
+      #score-table .team-col {
+        min-width: 40px;
+        font-weight: bold;
+      }
+      #score-table .team-red {
+        background: #dc2626;
+        color: white;
+      }
+      #score-table .team-yellow {
+        background: #fbbf24;
+        color: #333;
+      }
+      #score-table .hammer-col {
+        min-width: 20px;
+        background: #2a2a2a;
+      }
+      #score-table .total-col {
+        min-width: 36px;
+        background: #1a1a1a;
+        font-size: 14px;
+      }
+      #score-table tbody td {
+        background: #2d2d2d;
+        color: #ccc;
+      }
+      #score-table tbody td.scored {
+        font-weight: bold;
+        color: white;
+      }
+      #score-table tbody td.scored-red {
+        background: linear-gradient(135deg, #dc2626, #b91c1c);
+        color: white;
+      }
+      #score-table tbody td.scored-yellow {
+        background: linear-gradient(135deg, #fbbf24, #d97706);
+        color: #333;
+      }
+      #score-table .hammer-indicator {
+        color: #4ade80;
+        font-size: 14px;
+      }
+      #score-table .current-end {
+        box-shadow: inset 0 0 0 2px #4ade80;
+      }
+      #power-display {
+        margin-top: 10px;
+        padding: 10px;
+        background: rgba(0,0,0,0.5);
+        border-radius: 8px;
+        display: none;
+      }
+      #phase-text {
+        color: #4ade80;
+        margin-bottom: 8px;
+        font-weight: bold;
+      }
+      #power-bar {
+        width: 200px;
+        height: 20px;
+        background: #333;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 5px;
+      }
+      #power-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #4ade80, #fbbf24, #ef4444);
+        transition: width 0.05s;
+      }
+      #hold-warning {
+        color: #fbbf24;
+        margin-top: 5px;
+        display: none;
+        font-weight: bold;
+      }
+      #curl-display {
+        margin-top: 10px;
+        padding: 10px;
+      }
+      #curl-direction {
+        font-size: 14px;
+      }
+      .curl-buttons {
+        margin-top: 8px;
+        display: flex;
+        gap: 10px;
+        pointer-events: auto;
+      }
+      @keyframes pulse-btn {
+        0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.5); }
+        50% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.9); }
+      }
+      .curl-btn {
+        padding: 8px 16px;
+        border: 2px solid #666;
+        background: #333;
+        color: white;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: all 0.2s;
+      }
+      .curl-btn:hover {
+        background: #444;
+      }
+      .curl-btn.active {
+        border-color: #4ade80;
+        background: #2d5a3d;
+      }
+      #instructions {
+        position: fixed;
+        bottom: 20px;
+        left: 20px;
+        color: white;
+        font-family: 'Segoe UI', sans-serif;
+        font-size: 14px;
+        background: rgba(0,0,0,0.5);
+        padding: 15px;
+        padding-top: 25px;
+        border-radius: 8px;
+        pointer-events: auto;
+        line-height: 1.6;
+      }
+      #sweep-indicator {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #4ade80;
+        font-size: 32px;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        display: none;
+        pointer-events: none;
+      }
+      #marker-hint {
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        color: #fbbf24;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 16px;
+        font-weight: 500;
+        padding: 12px 24px;
+        border-radius: 30px;
+        border: 2px solid #fbbf24;
+        display: none;
+        pointer-events: none;
+        z-index: 100;
+        animation: pulse-hint 2s ease-in-out infinite;
+        text-align: center;
+      }
+      @keyframes pulse-hint {
+        0%, 100% { opacity: 0.9; transform: translateX(-50%) scale(1); }
+        50% { opacity: 1; transform: translateX(-50%) scale(1.02); }
+      }
+      /* Score announcement overlay */
+      #score-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.85);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #score-overlay.visible {
+        opacity: 1;
+      }
+      #score-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 20px;
+        padding: 40px 60px;
+        text-align: center;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 100px rgba(74, 222, 128, 0.1);
+        transform: scale(0.8);
+        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        border: 2px solid #334155;
+      }
+      #score-overlay.visible #score-card {
+        transform: scale(1);
+      }
+      #score-card h2 {
+        font-size: 18px;
+        color: #94a3b8;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 3px;
+      }
+      #score-team {
+        font-size: 48px;
+        font-weight: bold;
+        margin: 15px 0;
+        text-transform: uppercase;
+        text-shadow: 0 4px 20px currentColor;
+      }
+      #score-team.red { color: #ef4444; }
+      #score-team.yellow { color: #fbbf24; }
+      #score-team.blank { color: #64748b; }
+      #score-points {
+        font-size: 120px;
+        font-weight: bold;
+        color: white;
+        line-height: 1;
+        margin: 20px 0;
+        text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
+      }
+      #score-points-label {
+        font-size: 24px;
+        color: #94a3b8;
+        margin-bottom: 20px;
+      }
+      #score-totals {
+        display: flex;
+        justify-content: center;
+        gap: 40px;
+        margin-top: 30px;
+        padding-top: 30px;
+        border-top: 1px solid #334155;
+      }
+      .score-total {
+        text-align: center;
+      }
+      .score-total-label {
+        font-size: 14px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 5px;
+      }
+      .score-total-value {
+        font-size: 36px;
+        font-weight: bold;
+      }
+      .score-total-value.red { color: #ef4444; }
+      .score-total-value.yellow { color: #fbbf24; }
+      #score-continue {
+        margin-top: 30px;
+        padding: 15px 40px;
+        font-size: 16px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      #score-continue:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
+      }
+      #score-stones-display {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        margin: 20px 0;
+      }
+      .score-stone {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        animation: stonePop 0.3s ease backwards;
+      }
+      .score-stone.red { background: #ef4444; border-color: #fca5a5; }
+      .score-stone.yellow { background: #fbbf24; border-color: #fde68a; }
+      @keyframes stonePop {
+        from { transform: scale(0); opacity: 0; }
+        to { transform: scale(1); opacity: 1; }
+      }
+      /* Game Over overlay */
+      #gameover-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.9);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.5s ease;
+      }
+      #gameover-overlay.visible {
+        opacity: 1;
+      }
+      #gameover-card {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 20px;
+        padding: 50px 80px;
+        text-align: center;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+        transform: scale(0.8);
+        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        border: 3px solid #4ade80;
+      }
+      #gameover-overlay.visible #gameover-card {
+        transform: scale(1);
+      }
+      #gameover-title {
+        font-size: 24px;
+        color: #94a3b8;
+        margin-bottom: 20px;
+        text-transform: uppercase;
+        letter-spacing: 4px;
+      }
+      #gameover-winner {
+        font-size: 56px;
+        font-weight: bold;
+        margin: 20px 0;
+        text-transform: uppercase;
+        text-shadow: 0 4px 30px currentColor;
+      }
+      #gameover-winner.red { color: #ef4444; }
+      #gameover-winner.yellow { color: #fbbf24; }
+      #gameover-winner.tie { color: #a78bfa; }
+      #gameover-subtitle {
+        font-size: 28px;
+        color: white;
+        margin-bottom: 30px;
+      }
+      #gameover-final-scores {
+        display: flex;
+        justify-content: center;
+        gap: 60px;
+        margin: 30px 0;
+      }
+      .final-score {
+        text-align: center;
+      }
+      .final-score-label {
+        font-size: 16px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 10px;
+      }
+      .final-score-value {
+        font-size: 64px;
+        font-weight: bold;
+      }
+      .final-score-value.red { color: #ef4444; }
+      .final-score-value.yellow { color: #fbbf24; }
+      #gameover-restart {
+        margin-top: 30px;
+        padding: 18px 50px;
+        font-size: 18px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        color: #000;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+      #gameover-restart:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Splash Screen -->
+    <div id="splash-screen" style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+      transition: opacity 0.5s ease;
+    ">
+      <div style="text-align: center;">
+        <img src="/curlingpro.png" alt="CurlingPro" style="
+          width: 150px;
+          height: auto;
+          margin-bottom: 20px;
+          filter: drop-shadow(0 4px 20px rgba(74, 222, 128, 0.3));
+        ">
+        <h1 style="
+          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-size: 48px;
+          font-weight: bold;
+          color: white;
+          margin: 0 0 10px 0;
+          text-shadow: 0 4px 20px rgba(74, 222, 128, 0.3);
+        ">CurlingPro</h1>
+        <p style="
+          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-size: 18px;
+          color: #94a3b8;
+          margin: 0 0 40px 0;
+        ">The Ultimate Curling Experience</p>
+        <div id="loading-bar" style="
+          width: 200px;
+          height: 4px;
+          background: #333;
+          border-radius: 2px;
+          overflow: hidden;
+          margin: 0 auto 20px auto;
+        ">
+          <div id="loading-progress" style="
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            transition: width 0.3s ease;
+          "></div>
+        </div>
+        <p id="loading-text" style="
+          font-family: 'Segoe UI', system-ui, sans-serif;
+          font-size: 14px;
+          color: #64748b;
+        ">Loading...</p>
+      </div>
+      <div style="
+        position: absolute;
+        bottom: 30px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 12px;
+        color: #475569;
+      ">v1.0.0</div>
+    </div>
+
+    <div id="ui">
+      <div id="scoreboard">
+        <table id="score-table">
+          <thead>
+            <tr>
+              <th class="team-col"></th>
+              <th class="hammer-col">H</th>
+              <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th style="display:none">9</th><th style="display:none">10</th>
+              <th class="total-col">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr id="red-score-row">
+              <td class="team-col team-red">RED</td>
+              <td class="hammer-col" id="red-hammer"></td>
+              <td id="red-end-1"></td><td id="red-end-2"></td><td id="red-end-3"></td><td id="red-end-4"></td>
+              <td id="red-end-5"></td><td id="red-end-6"></td><td id="red-end-7"></td><td id="red-end-8"></td>
+              <td id="red-end-9" style="display:none"></td><td id="red-end-10" style="display:none"></td>
+              <td class="total-col" id="red-total">0</td>
+            </tr>
+            <tr id="yellow-score-row">
+              <td class="team-col team-yellow">YEL</td>
+              <td class="hammer-col" id="yellow-hammer"></td>
+              <td id="yellow-end-1"></td><td id="yellow-end-2"></td><td id="yellow-end-3"></td><td id="yellow-end-4"></td>
+              <td id="yellow-end-5"></td><td id="yellow-end-6"></td><td id="yellow-end-7"></td><td id="yellow-end-8"></td>
+              <td id="yellow-end-9" style="display:none"></td><td id="yellow-end-10" style="display:none"></td>
+              <td class="total-col" id="yellow-total">0</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Turn and Stone Count Row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+        <div id="turn" style="margin: 0;">End 1 - Red's Turn</div>
+        <div id="stone-count" style="
+          display: flex;
+          gap: 12px;
+          font-size: 12px;
+          margin-left: 20px;
+        ">
+          <div id="red-stones" style="display: flex; align-items: center; gap: 3px;">
+            <span style="color: #dc2626; font-weight: bold;">R:</span>
+            <div id="red-stone-icons" style="display: flex; gap: 2px;"></div>
+          </div>
+          <div id="yellow-stones" style="display: flex; align-items: center; gap: 3px;">
+            <span style="color: #fbbf24; font-weight: bold;">Y:</span>
+            <div id="yellow-stone-icons" style="display: flex; gap: 2px;"></div>
+          </div>
+        </div>
+      </div>
+      <!-- Career Display -->
+      <div id="career-display" style="
+        margin-bottom: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 12px;
+      ">
+        <span style="color: #94a3b8;">Level:</span>
+        <span id="career-level" style="font-weight: bold;">Club</span>
+        <span id="career-difficulty" style="font-size: 11px; color: #94a3b8;">(Beginner)</span>
+        <span id="career-progress" style="font-size: 11px; color: #64748b;">0/2 wins</span>
+      </div>
+      <!-- Curl Direction -->
+      <div id="curl-display" style="margin-top: 0; padding: 8px;">
+        <div id="curl-direction" style="color: #f59e0b; font-size: 13px;">Curl: Select Curl Direction</div>
+        <div class="curl-buttons">
+          <button class="curl-btn" id="curl-out" onclick="window.setCurl(-1)">OUT</button>
+          <button class="curl-btn" id="curl-in" onclick="window.setCurl(1)">IN</button>
+        </div>
+      </div>
+      <div id="power-display">
+        <div id="phase-text">Pull back to set power...</div>
+        <div>Effort: <span id="power-value">0</span>%</div>
+        <div id="shot-type" style="font-weight: bold; font-size: 18px; margin: 5px 0;">Ultra Light Guard</div>
+        <div id="power-bar"><div id="power-fill"></div></div>
+        <div id="hold-warning">Must release before hog line!</div>
+      </div>
+    </div>
+    <div id="sweep-indicator">SWEEPING!</div>
+    <div id="marker-hint">Click on the ice to set your target</div>
+    <button id="return-to-throw" onclick="window.returnToThrowView()">READY</button>
+    <style>
+      #return-to-throw {
+        position: fixed;
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 20px 50px;
+        font-size: 32px;
+        font-weight: bold;
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+        color: #fff;
+        border: 3px solid #4ade80;
+        border-radius: 50px;
+        cursor: pointer;
+        display: none;
+        z-index: 100;
+        box-shadow: 0 4px 20px rgba(74, 222, 128, 0.5), 0 0 40px rgba(74, 222, 128, 0.3);
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        letter-spacing: 2px;
+        animation: pulse-glow 2s ease-in-out infinite;
+        transition: all 0.2s ease;
+      }
+      #return-to-throw:hover {
+        transform: translateX(-50%) scale(1.05);
+        box-shadow: 0 6px 30px rgba(74, 222, 128, 0.7), 0 0 50px rgba(74, 222, 128, 0.4);
+        background: linear-gradient(135deg, #4ade80 0%, #22c55e 50%, #16a34a 100%);
+      }
+      #return-to-throw:active {
+        transform: translateX(-50%) scale(0.98);
+      }
+      @keyframes pulse-glow {
+        0%, 100% { box-shadow: 0 4px 20px rgba(74, 222, 128, 0.5), 0 0 40px rgba(74, 222, 128, 0.3); }
+        50% { box-shadow: 0 4px 30px rgba(74, 222, 128, 0.7), 0 0 60px rgba(74, 222, 128, 0.5); }
+      }
+    </style>
+    <div id="split-time" style="
+      position: fixed;
+      top: 50%;
+      right: 30px;
+      transform: translateY(-50%);
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 28px;
+      font-weight: bold;
+      background: rgba(0,0,0,0.7);
+      padding: 15px 25px;
+      border-radius: 10px;
+      display: none;
+      pointer-events: none;
+    "></div>
+    <!-- Score Announcement Overlay -->
+    <div id="score-overlay">
+      <div id="score-card">
+        <h2 id="score-end-label">End 1 Complete</h2>
+        <div id="score-team" class="red">RED</div>
+        <div id="score-stones-display"></div>
+        <div id="score-points">2</div>
+        <div id="score-points-label">Points Scored</div>
+        <div id="score-totals">
+          <div class="score-total">
+            <div class="score-total-label">Red</div>
+            <div class="score-total-value red" id="score-total-red">0</div>
+          </div>
+          <div class="score-total">
+            <div class="score-total-label">Yellow</div>
+            <div class="score-total-value yellow" id="score-total-yellow">0</div>
+          </div>
+        </div>
+        <button id="score-continue" onclick="window.continueGame()">Continue</button>
+      </div>
+    </div>
+    <!-- Game Over Overlay -->
+    <div id="gameover-overlay">
+      <div id="gameover-card">
+        <div id="gameover-title">Game Over</div>
+        <div id="gameover-winner" class="red">RED</div>
+        <div id="gameover-subtitle">WINS!</div>
+        <div id="gameover-final-scores">
+          <div class="final-score">
+            <div class="final-score-label">Red</div>
+            <div class="final-score-value red" id="gameover-red">0</div>
+          </div>
+          <div class="final-score">
+            <div class="final-score-label">Yellow</div>
+            <div class="final-score-value yellow" id="gameover-yellow">0</div>
+          </div>
+        </div>
+        <div id="gameover-career-message" style="
+          margin-top: 20px;
+          font-size: 18px;
+          font-weight: bold;
+          display: none;
+        "></div>
+        <button id="gameover-restart" onclick="window.restartGame()">Play Again</button>
+      </div>
+    </div>
+    <!-- Settings Modal -->
+    <div id="settings-overlay" onclick="if(event.target === this) window.closeSettings()" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    ">
+      <div id="settings-modal" onclick="event.stopPropagation()" style="
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 3px solid #4a5568;
+        border-radius: 16px;
+        cursor: default;
+        padding: 30px;
+        min-width: 320px;
+        max-width: 400px;
+        max-height: 85vh;
+        overflow-y: auto;
+        color: white;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+          <h2 style="margin: 0; font-size: 24px;">⚙️ Settings</h2>
+          <button onclick="window.closeSettings()" style="
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+          ">&times;</button>
+        </div>
+
+        <!-- Game Mode Setting -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Game Mode
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <button class="mode-btn" id="mode-1p" data-mode="1player" onclick="window.setGameMode('1player')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #4ade80;
+              background: #2d5a3d;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">1 Player</button>
+            <button class="mode-btn" id="mode-2p" data-mode="2player" onclick="window.setGameMode('2player')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">2 Player</button>
+          </div>
+        </div>
+
+        <!-- Game Length Setting -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Game Length
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <button class="ends-btn" data-ends="4" onclick="window.setGameLength(4)" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">4 Ends</button>
+            <button class="ends-btn active" data-ends="8" onclick="window.setGameLength(8)" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #4ade80;
+              background: #2d5a3d;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">8 Ends</button>
+            <button class="ends-btn" data-ends="10" onclick="window.setGameLength(10)" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">10 Ends</button>
+          </div>
+          <p id="ends-description" style="margin: 10px 0 0 0; font-size: 12px; color: #718096;">
+            Standard game length
+          </p>
+        </div>
+
+        <!-- Difficulty Setting -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Difficulty
+          </label>
+          <div style="display: flex; gap: 8px;">
+            <button class="difficulty-btn" data-difficulty="easy" onclick="window.setDifficulty('easy')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">Easy</button>
+            <button class="difficulty-btn active" data-difficulty="medium" onclick="window.setDifficulty('medium')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #4ade80;
+              background: #2d5a3d;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">Medium</button>
+            <button class="difficulty-btn" data-difficulty="hard" onclick="window.setDifficulty('hard')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 14px;
+              transition: all 0.2s;
+            ">Hard</button>
+          </div>
+          <p id="difficulty-description" style="margin: 10px 0 0 0; font-size: 12px; color: #718096;">
+            Computer makes occasional mistakes
+          </p>
+        </div>
+
+        <!-- Sound Setting -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="sound-toggle" onchange="window.toggleSound(this.checked)" style="
+              width: 20px;
+              height: 20px;
+              cursor: pointer;
+            ">
+            <span style="font-weight: bold; color: #a0aec0;">Sound Effects</span>
+          </label>
+          <p style="margin: 8px 0 0 28px; font-size: 12px; color: #718096;">
+            Stone sliding, collisions, sweeping, and more
+          </p>
+        </div>
+
+        <!-- Career Progress -->
+        <div style="margin-bottom: 25px;">
+          <div style="font-weight: bold; color: #a0aec0; margin-bottom: 10px;">Career Progress</div>
+          <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div>
+                <span style="font-size: 12px; color: #64748b;">Current Level:</span>
+                <span id="settings-career-level" style="font-weight: bold; margin-left: 8px;">Club</span>
+                <span id="settings-career-difficulty" style="font-size: 12px; color: #94a3b8;">(Beginner)</span>
+              </div>
+              <span id="settings-career-progress" style="font-size: 12px; color: #64748b;">0/2 wins</span>
+            </div>
+            <div style="display: flex; gap: 4px; margin-bottom: 10px;">
+              <div class="level-pip" data-level="1" style="flex:1;height:6px;background:#6b7280;border-radius:3px;"></div>
+              <div class="level-pip" data-level="2" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="3" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="4" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="5" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="6" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="7" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+              <div class="level-pip" data-level="8" style="flex:1;height:6px;background:#333;border-radius:3px;"></div>
+            </div>
+            <button onclick="window.showResetConfirm()" style="
+              width: 100%;
+              padding: 8px;
+              background: rgba(239, 68, 68, 0.2);
+              border: 1px solid #ef4444;
+              border-radius: 4px;
+              color: #fca5a5;
+              font-size: 12px;
+              cursor: pointer;
+            ">Reset Career</button>
+          </div>
+        </div>
+
+        <!-- How to Play -->
+        <div style="margin-bottom: 25px;">
+          <div style="font-weight: bold; color: #a0aec0; margin-bottom: 10px;">How to Play</div>
+          <div style="font-size: 13px; color: #94a3b8; line-height: 1.6; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px;">
+            <strong style="color: #4ade80;">Throwing:</strong><br>
+            1. Set curl direction (IN/OUT buttons)<br>
+            2. Click and drag DOWN to set effort<br>
+            3. Move LEFT/RIGHT to aim<br>
+            4. Release to push off from hack<br>
+            5. Click to release the stone<br>
+            6. Swipe back and forth to sweep<br>
+            <br>
+            <strong style="color: #fbbf24;">Split Times (T-line to Hog):</strong><br>
+            <span style="color:#34d399">4.3-4.8s Guard</span> |
+            <span style="color:#fbbf24">3.6-4.2s Draw</span><br>
+            <span style="color:#f97316">2.9-3.5s Takeout</span> |
+            <span style="color:#ef4444">2.2-2.8s Peel</span>
+          </div>
+        </div>
+
+        <!-- Feedback -->
+        <div style="margin-bottom: 25px;">
+          <div style="font-weight: bold; color: #a0aec0; margin-bottom: 10px;">Feedback</div>
+          <div style="display: flex; gap: 10px;">
+            <button onclick="window.submitFeedback('bug')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #ef4444;
+              background: rgba(239, 68, 68, 0.2);
+              color: #fca5a5;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 13px;
+              transition: all 0.2s;
+            ">Report Bug</button>
+            <button onclick="window.submitFeedback('feature')" style="
+              flex: 1;
+              padding: 10px;
+              border: 2px solid #3b82f6;
+              background: rgba(59, 130, 246, 0.2);
+              color: #93c5fd;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 13px;
+              transition: all 0.2s;
+            ">Request Feature</button>
+          </div>
+          <p style="margin: 10px 0 0 0; font-size: 11px; color: #718096; text-align: center;">
+            Opens email with pre-filled subject
+          </p>
+        </div>
+
+        <!-- Close Button -->
+        <button onclick="window.closeSettings()" style="
+          width: 100%;
+          padding: 12px;
+          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">Done</button>
+      </div>
+    </div>
+    <!-- Feedback Form Modal -->
+    <div id="feedback-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 3000;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div id="feedback-modal" style="
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 3px solid #4a5568;
+        border-radius: 16px;
+        padding: 30px;
+        width: 90%;
+        max-width: 450px;
+        color: white;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <h2 id="feedback-title" style="margin: 0; font-size: 22px;">Report Bug</h2>
+          <button onclick="window.closeFeedback()" style="
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 28px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+          ">&times;</button>
+        </div>
+
+        <form id="feedback-form" onsubmit="window.sendFeedback(event)">
+          <input type="hidden" id="feedback-type" value="bug">
+
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Name (optional)</label>
+            <input type="text" id="feedback-name" placeholder="Your name" style="
+              width: 100%;
+              padding: 10px;
+              border: 2px solid #4a5568;
+              background: #2d3748;
+              color: white;
+              border-radius: 6px;
+              font-size: 14px;
+              box-sizing: border-box;
+            ">
+          </div>
+
+          <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Email (optional, for follow-up)</label>
+            <input type="email" id="feedback-email" placeholder="your@email.com" style="
+              width: 100%;
+              padding: 10px;
+              border: 2px solid #4a5568;
+              background: #2d3748;
+              color: white;
+              border-radius: 6px;
+              font-size: 14px;
+              box-sizing: border-box;
+            ">
+          </div>
+
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Message *</label>
+            <textarea id="feedback-message" required placeholder="Describe the issue or feature..." style="
+              width: 100%;
+              padding: 10px;
+              border: 2px solid #4a5568;
+              background: #2d3748;
+              color: white;
+              border-radius: 6px;
+              font-size: 14px;
+              min-height: 120px;
+              resize: vertical;
+              box-sizing: border-box;
+            "></textarea>
+          </div>
+
+          <div style="display: flex; gap: 10px;">
+            <button type="button" onclick="window.closeFeedback()" style="
+              flex: 1;
+              padding: 12px;
+              background: #4a5568;
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+            ">Cancel</button>
+            <button type="submit" id="feedback-submit" style="
+              flex: 1;
+              padding: 12px;
+              background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+              border: none;
+              border-radius: 8px;
+              color: #000;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+            ">Send</button>
+          </div>
+
+          <p id="feedback-status" style="margin: 15px 0 0 0; text-align: center; font-size: 14px; display: none;"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 4000;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div id="confirm-modal" style="
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 2px solid #ef4444;
+        border-radius: 16px;
+        padding: 30px;
+        width: 90%;
+        max-width: 360px;
+        text-align: center;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        box-shadow: 0 10px 40px rgba(239, 68, 68, 0.2);
+      ">
+        <div style="font-size: 40px; margin-bottom: 15px;">&#9888;</div>
+        <h3 id="confirm-title" style="color: white; margin: 0 0 10px 0; font-size: 20px;">Reset Career?</h3>
+        <p id="confirm-message" style="color: #94a3b8; margin: 0 0 25px 0; font-size: 14px; line-height: 1.5;">
+          This will reset your progress back to Club level. This action cannot be undone.
+        </p>
+        <div style="display: flex; gap: 12px;">
+          <button onclick="window.hideConfirm()" style="
+            flex: 1;
+            padding: 12px;
+            background: #374151;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+          ">Cancel</button>
+          <button onclick="window.confirmAction()" style="
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+          ">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confetti container -->
+    <div id="confetti-container"></div>
+    <style>
+      #confetti-container {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9999;
+        overflow: hidden;
+      }
+      .confetti {
+        position: absolute;
+        top: -20px;
+        width: 10px;
+        height: 10px;
+        animation: confetti-fall linear forwards;
+      }
+      @keyframes confetti-fall {
+        0% {
+          transform: translateY(0) rotate(0deg);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(100vh) rotate(720deg);
+          opacity: 0;
+        }
+      }
+      @keyframes rain-fall {
+        0% {
+          transform: translateY(0);
+          opacity: 0.7;
+        }
+        100% {
+          transform: translateY(100vh);
+          opacity: 0.3;
+        }
+      }
+    </style>
+
+    <!-- Settings button (upper right) -->
+    <button id="settings-btn-top" onclick="window.openSettings()" style="
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #666;
+      border-radius: 8px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.2s;
+    " title="Settings">&#9881;</button>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

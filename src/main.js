@@ -1,0 +1,3585 @@
+import * as THREE from 'three';
+import Matter from 'matter-js';
+import { soundManager } from './sounds.js';
+
+// ============================================
+// SPLASH SCREEN / LOADING
+// ============================================
+window.splashStartTime = Date.now();
+
+function updateLoadingProgress(percent, text) {
+  const progressBar = document.getElementById('loading-progress');
+  const loadingText = document.getElementById('loading-text');
+  if (progressBar) progressBar.style.width = percent + '%';
+  if (loadingText) loadingText.textContent = text;
+}
+
+function hideSplashScreen() {
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    splash.style.opacity = '0';
+    setTimeout(() => {
+      splash.style.display = 'none';
+    }, 500);
+  }
+}
+
+updateLoadingProgress(10, 'Initializing...');
+
+// ============================================
+// GAME CONSTANTS (from mycurling.com)
+// ============================================
+// Sheet dimensions
+const SHEET_LENGTH = 44.5;    // meters (146 ft)
+const SHEET_WIDTH = 4.75;     // meters (15 ft 7 in max)
+
+// House ring radii (diameters / 2)
+const RING_12FT = 1.83;       // 12ft ring = 3.66m diameter
+const RING_8FT = 1.22;        // 8ft ring = 2.44m diameter
+const RING_4FT = 0.61;        // 4ft ring = 1.22m diameter
+const BUTTON_RADIUS = 0.15;   // Button (center)
+
+// Key positions (from hack end)
+const HACK_Z = 0;
+const BACK_LINE_NEAR = 1.5;           // Near back line
+const TEE_LINE_NEAR = 3.33;           // Near tee (1.83m from back)
+const HOG_LINE_NEAR = 9.73;           // Near hog line (6.4m from tee)
+const HOG_LINE_FAR = 34.67;           // Far hog line (24.94m between hog lines)
+const TEE_LINE_FAR = 41.07;           // Far tee (6.4m from far hog)
+const BACK_LINE_FAR = 42.9;           // Far back line (1.83m from tee)
+const OUT_OF_PLAY_Z = 45.0;           // Behind back wall where out-of-play stones are placed
+
+// Stone specs
+const STONE_RADIUS = 0.145;   // ~29cm circumference = ~9.2cm radius, but visually use 14.5cm
+const STONE_MASS = 20;        // ~20kg (44 lbs)
+
+// Physics scale: 1 Three.js unit = 1 meter, Matter.js uses pixels (100px = 1m)
+const PHYSICS_SCALE = 100;
+
+// Realistic physics - stone takes ~2s to hog line, ~5-8s total travel
+// frictionAir in Matter.js acts as a velocity dampening factor
+// Tuned so draw weight stops in the house, guard stops short
+const ICE_FRICTION = 0.0015;      // Friction on ice (tuned for realistic stopping)
+const SWEEP_FRICTION = 0.0009;    // Reduced friction when sweeping
+
+// Velocities based on real curling timing (T-line to hog = 6.4m)
+// Guard: 4.3-4.8s, Draw: 3.6-4.2s, Takeout: 2.9-3.5s, Peel: 2.2-2.8s
+const MIN_SLIDE_SPEED = 2.2;      // Ultra-light guard
+const MAX_SLIDE_SPEED = 5.0;      // Peel weight
+
+// Camera positions
+const THROWER_CAM = { x: 0, y: 1.5, z: -2, lookAt: { x: 0, y: 0, z: 25 } };
+const OVERHEAD_CAM = { x: 0, y: 12, z: 28, lookAt: { x: 0, y: 0, z: 40 } };
+
+// Hog line positions (physics units)
+const HOG_LINE_Y = HOG_LINE_NEAR * PHYSICS_SCALE;    // Near hog line
+const FAR_HOG_LINE_Y = HOG_LINE_FAR * PHYSICS_SCALE; // Far hog line
+const HOUSE_CENTER_Y = TEE_LINE_FAR * PHYSICS_SCALE; // Far house center (target)
+
+// Shot type thresholds (effort 0-100)
+const SHOT_TYPES = {
+  ULTRA_LIGHT: { min: 0, max: 29, name: 'Ultra Light Guard', color: '#60a5fa' },
+  GUARD: { min: 30, max: 49, name: 'Guard', color: '#34d399' },
+  DRAW: { min: 50, max: 69, name: 'Draw', color: '#fbbf24' },
+  TAKEOUT: { min: 70, max: 84, name: 'Takeout', color: '#f97316' },
+  PEEL: { min: 85, max: 100, name: 'Peel / Big Weight', color: '#ef4444' }
+};
+
+function getShotType(effort) {
+  if (effort <= 29) return SHOT_TYPES.ULTRA_LIGHT;
+  if (effort <= 49) return SHOT_TYPES.GUARD;
+  if (effort <= 69) return SHOT_TYPES.DRAW;
+  if (effort <= 84) return SHOT_TYPES.TAKEOUT;
+  return SHOT_TYPES.PEEL;
+}
+
+// ============================================
+// GAME STATE
+// ============================================
+const gameState = {
+  // Game mode: '1player' or '2player'
+  gameMode: '1player',
+  computerTeam: 'yellow',  // Computer plays yellow in 1-player mode
+
+  // Phases: 'aiming' -> 'charging' -> 'sliding' -> 'throwing' -> 'sweeping' -> 'waiting'
+  phase: 'aiming',
+  currentTeam: 'red',
+  end: 1,
+  scores: { red: 0, yellow: 0 },
+  endScores: { red: [null, null, null, null, null, null, null, null, null, null], yellow: [null, null, null, null, null, null, null, null, null, null] },
+  hammer: 'yellow',  // Team with last stone advantage (typically starts with team throwing second)
+  stonesThrown: { red: 0, yellow: 0 },
+  stones: [],
+
+  // Throwing state
+  pullStart: null,
+  pullCurrent: null,
+  maxPower: 0,
+  slideStartTime: null,
+  currentPower: 0,
+  aimAngle: 0,
+
+  // Curl direction: 1 = clockwise (in-turn for right-hander), -1 = counter-clockwise (out-turn), null = not selected
+  curlDirection: null,
+  playerCurlDirection: null,  // Remember player's preferred curl direction
+
+  // Sweeping
+  isSweeping: false,
+  sweepEffectiveness: 0,  // 0-1 based on swipe speed/intensity
+  sweepDirection: 0,      // -1 = left bias, 0 = balanced, 1 = right bias
+  sweepTouches: [],       // Track recent touch positions for speed calc
+  lastSweepTime: 0,
+  activeStone: null,
+
+  // Preview stone shown during aiming
+  previewStone: null,
+
+  // Timing (for split time display)
+  tLineCrossTime: null,
+  splitTime: null,
+
+  // Stored slide speed for consistent velocity
+  slideSpeed: 0,
+
+  // Preview camera state
+  lastMousePos: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
+  previewHeight: 0,  // 0 = thrower view, 1 = max height overhead
+  previewLocked: false,  // When true, panning is disabled
+
+  // Target marker
+  targetMarker: null,
+  targetPosition: null,
+
+  // Aiming line
+  aimLine: null,
+
+  // Preview stone at hack (visual only)
+  previewStone: null,
+
+  // Settings
+  settings: {
+    difficulty: 'medium',  // easy, medium, hard
+    soundEnabled: false,
+    gameLength: 8  // number of ends
+  },
+
+  // Career mode
+  career: {
+    level: 1,  // 1-8
+    wins: 0,
+    losses: 0
+  }
+};
+
+// Level definitions
+const CAREER_LEVELS = [
+  { id: 1, name: 'Club', difficulty: 0.30, winsToAdvance: 2, color: '#6b7280', difficultyLabel: 'Beginner' },
+  { id: 2, name: 'Regional', difficulty: 0.22, winsToAdvance: 2, color: '#3b82f6', difficultyLabel: 'Beginner' },
+  { id: 3, name: 'Provincial', difficulty: 0.16, winsToAdvance: 3, color: '#8b5cf6', difficultyLabel: 'Easy' },
+  { id: 4, name: 'National', difficulty: 0.12, winsToAdvance: 3, color: '#ef4444', difficultyLabel: 'Medium' },
+  { id: 5, name: 'International', difficulty: 0.09, winsToAdvance: 3, color: '#f59e0b', difficultyLabel: 'Medium' },
+  { id: 6, name: 'World Championship', difficulty: 0.06, winsToAdvance: 4, color: '#10b981', difficultyLabel: 'Hard' },
+  { id: 7, name: 'Olympic Trials', difficulty: 0.045, winsToAdvance: 4, color: '#ec4899', difficultyLabel: 'Expert' },
+  { id: 8, name: 'Olympics', difficulty: 0.035, winsToAdvance: null, color: '#ffd700', difficultyLabel: 'Elite' }  // Final level
+];
+
+// Career helper functions
+function getCurrentLevel() {
+  return CAREER_LEVELS[gameState.career.level - 1] || CAREER_LEVELS[0];
+}
+
+function loadCareer() {
+  try {
+    const saved = localStorage.getItem('curlingpro_career');
+    if (saved) {
+      const data = JSON.parse(saved);
+      gameState.career.level = data.level || 1;
+      gameState.career.wins = data.wins || 0;
+      gameState.career.losses = data.losses || 0;
+    }
+  } catch (e) {
+    console.warn('Could not load career data:', e);
+  }
+  updateCareerDisplay();
+}
+
+function saveCareer() {
+  try {
+    localStorage.setItem('curlingpro_career', JSON.stringify(gameState.career));
+  } catch (e) {
+    console.warn('Could not save career data:', e);
+  }
+}
+
+function handleCareerResult(won) {
+  if (gameState.gameMode !== '1player') return null;
+
+  const level = getCurrentLevel();
+  let result = { advanced: false, demoted: false, message: '' };
+
+  if (won) {
+    gameState.career.wins++;
+
+    // Check for advancement
+    if (level.winsToAdvance && gameState.career.wins >= level.winsToAdvance) {
+      if (gameState.career.level < 8) {
+        gameState.career.level++;
+        gameState.career.wins = 0;
+        gameState.career.losses = 0;
+        result.advanced = true;
+        result.message = `Advanced to ${getCurrentLevel().name}!`;
+      } else {
+        result.message = 'Olympic Champion!';
+      }
+    } else if (level.winsToAdvance) {
+      const remaining = level.winsToAdvance - gameState.career.wins;
+      result.message = `${remaining} more win${remaining > 1 ? 's' : ''} to advance`;
+    }
+  } else {
+    gameState.career.losses++;
+
+    // Check for demotion (after 3 losses at a level, drop down)
+    if (gameState.career.losses >= 3 && gameState.career.level > 1) {
+      gameState.career.level--;
+      gameState.career.wins = 0;
+      gameState.career.losses = 0;
+      result.demoted = true;
+      result.message = `Dropped to ${getCurrentLevel().name}`;
+    }
+  }
+
+  saveCareer();
+  updateCareerDisplay();
+
+  // Update arena if level changed
+  if (result.advanced || result.demoted) {
+    updateArenaForLevel();
+  }
+
+  return result;
+}
+
+function updateCareerDisplay() {
+  const level = getCurrentLevel();
+
+  // Update main display
+  const levelDisplay = document.getElementById('career-level');
+  const progressDisplay = document.getElementById('career-progress');
+  const difficultyDisplay = document.getElementById('career-difficulty');
+
+  if (levelDisplay) {
+    levelDisplay.textContent = level.name;
+    levelDisplay.style.color = level.color;
+  }
+
+  if (difficultyDisplay) {
+    difficultyDisplay.textContent = `(${level.difficultyLabel})`;
+  }
+
+  if (progressDisplay) {
+    if (level.winsToAdvance) {
+      progressDisplay.textContent = `${gameState.career.wins}/${level.winsToAdvance} wins`;
+    } else {
+      progressDisplay.textContent = 'Final Level';
+    }
+  }
+
+  // Update settings display
+  const settingsLevel = document.getElementById('settings-career-level');
+  const settingsProgress = document.getElementById('settings-career-progress');
+  const settingsDifficulty = document.getElementById('settings-career-difficulty');
+
+  if (settingsLevel) {
+    settingsLevel.textContent = level.name;
+    settingsLevel.style.color = level.color;
+  }
+
+  if (settingsDifficulty) {
+    settingsDifficulty.textContent = `(${level.difficultyLabel})`;
+  }
+
+  if (settingsProgress) {
+    if (level.winsToAdvance) {
+      settingsProgress.textContent = `${gameState.career.wins}/${level.winsToAdvance} wins`;
+    } else {
+      settingsProgress.textContent = 'Final Level';
+    }
+  }
+
+  // Update level pips
+  const pips = document.querySelectorAll('.level-pip');
+  pips.forEach(pip => {
+    const pipLevel = parseInt(pip.getAttribute('data-level'));
+    if (pipLevel <= gameState.career.level) {
+      pip.style.background = CAREER_LEVELS[pipLevel - 1].color;
+    } else {
+      pip.style.background = '#333';
+    }
+  });
+}
+
+function resetCareer() {
+  gameState.career.level = 1;
+  gameState.career.wins = 0;
+  gameState.career.losses = 0;
+  saveCareer();
+  updateCareerDisplay();
+  updateArenaForLevel();  // Reset arena to Club level
+}
+
+window.resetCareer = resetCareer;
+
+// Custom confirm modal
+let confirmCallback = null;
+
+window.showResetConfirm = function() {
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    confirmCallback = () => {
+      resetCareer();
+      window.hideConfirm();
+    };
+  }
+};
+
+window.hideConfirm = function() {
+  const overlay = document.getElementById('confirm-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+  confirmCallback = null;
+};
+
+window.confirmAction = function() {
+  if (confirmCallback) {
+    confirmCallback();
+  }
+};
+
+// ============================================
+// THREE.JS SETUP
+// ============================================
+updateLoadingProgress(20, 'Setting up renderer...');
+const scene = new THREE.Scene();
+// Dark arena background - makes the white ice pop
+scene.background = new THREE.Color(0x0d1117);
+// Add fog for depth
+scene.fog = new THREE.Fog(0x0d1117, 30, 60);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+camera.position.set(THROWER_CAM.x, THROWER_CAM.y, THROWER_CAM.z);
+camera.lookAt(THROWER_CAM.lookAt.x, THROWER_CAM.lookAt.y, THROWER_CAM.lookAt.z);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+// Lighting - simulating indoor arena lighting
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+scene.add(ambientLight);
+
+// Main overhead light (center)
+const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+mainLight.position.set(0, 25, SHEET_LENGTH / 2);
+mainLight.castShadow = true;
+mainLight.shadow.mapSize.width = 2048;
+mainLight.shadow.mapSize.height = 2048;
+scene.add(mainLight);
+
+// Additional overhead lights along the sheet
+const light1 = new THREE.PointLight(0xffffff, 0.4, 30);
+light1.position.set(0, 12, 10);
+scene.add(light1);
+
+const light2 = new THREE.PointLight(0xffffff, 0.4, 30);
+light2.position.set(0, 12, 25);
+scene.add(light2);
+
+const light3 = new THREE.PointLight(0xffffff, 0.4, 30);
+light3.position.set(0, 12, 38);
+scene.add(light3);
+
+// Soft fill light from sides
+const fillLeft = new THREE.PointLight(0xf8f8ff, 0.2, 40);
+fillLeft.position.set(-8, 8, SHEET_LENGTH / 2);
+scene.add(fillLeft);
+
+const fillRight = new THREE.PointLight(0xf8f8ff, 0.2, 40);
+fillRight.position.set(8, 8, SHEET_LENGTH / 2);
+scene.add(fillRight);
+
+// Hemisphere light for realistic ambient
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0xe0e0e0, 0.3);
+scene.add(hemiLight);
+
+// ============================================
+// ARENA / SPECTATOR STANDS
+// ============================================
+let arenaGroup = null;  // Group to hold all arena elements for easy updates
+
+function createArena(level = 1) {
+  // Remove existing arena if present
+  if (arenaGroup) {
+    scene.remove(arenaGroup);
+    arenaGroup = null;
+  }
+
+  arenaGroup = new THREE.Group();
+
+  // Arena configuration based on level
+  // Level 1 (Club): Small venue, few spectators
+  // Level 8 (Olympics): Full arena, packed house
+  const arenaConfig = {
+    1: { rows: 2, fillPercent: 0.15, standHeight: 2, bgColor: 0x1a1a2e, name: 'Club' },
+    2: { rows: 2, fillPercent: 0.25, standHeight: 2.5, bgColor: 0x1a1a2e, name: 'Regional' },
+    3: { rows: 3, fillPercent: 0.35, standHeight: 3, bgColor: 0x16213e, name: 'Provincial' },
+    4: { rows: 3, fillPercent: 0.50, standHeight: 3.5, bgColor: 0x16213e, name: 'National' },
+    5: { rows: 4, fillPercent: 0.60, standHeight: 4, bgColor: 0x0f3460, name: 'International' },
+    6: { rows: 5, fillPercent: 0.75, standHeight: 5, bgColor: 0x0f3460, name: 'World' },
+    7: { rows: 6, fillPercent: 0.85, standHeight: 6, bgColor: 0x1a1a4e, name: 'Trials' },
+    8: { rows: 7, fillPercent: 0.95, standHeight: 7, bgColor: 0x1a1a4e, name: 'Olympics' }
+  };
+
+  const config = arenaConfig[level] || arenaConfig[1];
+
+  // Update scene background
+  scene.background = new THREE.Color(config.bgColor);
+  scene.fog = new THREE.Fog(config.bgColor, 30, 70);
+
+  // Stand dimensions
+  const standLength = SHEET_LENGTH + 10;
+  const standOffset = SHEET_WIDTH / 2 + 2;  // Distance from ice edge
+  const rowDepth = 1.2;
+  const rowHeight = 0.8;
+
+  // Create stands on both sides
+  [-1, 1].forEach(side => {
+    for (let row = 0; row < config.rows; row++) {
+      const xPos = side * (standOffset + row * rowDepth);
+      const yPos = row * rowHeight + 0.5;
+
+      // Stand platform (bleacher row)
+      const standGeometry = new THREE.BoxGeometry(rowDepth - 0.1, 0.3, standLength);
+      const standMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2d2d3d,
+        roughness: 0.8
+      });
+      const stand = new THREE.Mesh(standGeometry, standMaterial);
+      stand.position.set(xPos, yPos, SHEET_LENGTH / 2);
+      stand.receiveShadow = true;
+      arenaGroup.add(stand);
+
+      // Add spectators to this row
+      const spectatorSpacing = 0.6;
+      const spectatorsPerRow = Math.floor(standLength / spectatorSpacing);
+
+      for (let i = 0; i < spectatorsPerRow; i++) {
+        // Random chance to place spectator based on fill percent
+        if (Math.random() > config.fillPercent) continue;
+
+        const zPos = (i - spectatorsPerRow / 2) * spectatorSpacing + SHEET_LENGTH / 2;
+
+        // Create spectator (simple colored cylinder for body + sphere for head)
+        const spectatorGroup = new THREE.Group();
+
+        // Body (cylinder)
+        const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.18, 0.5, 8);
+        // Random clothing colors
+        const colors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316];
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+          color: colors[Math.floor(Math.random() * colors.length)],
+          roughness: 0.7
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.55;
+        spectatorGroup.add(body);
+
+        // Head (sphere)
+        const headGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642];
+        const headMaterial = new THREE.MeshStandardMaterial({
+          color: skinTones[Math.floor(Math.random() * skinTones.length)],
+          roughness: 0.6
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 0.95;
+        spectatorGroup.add(head);
+
+        spectatorGroup.position.set(xPos, yPos, zPos);
+
+        // Slight random rotation for variety
+        spectatorGroup.rotation.y = (Math.random() - 0.5) * 0.3;
+
+        arenaGroup.add(spectatorGroup);
+      }
+    }
+  });
+
+  // Back wall behind far house (for higher levels, add more seating)
+  if (level >= 4) {
+    const backRows = Math.min(level - 2, 5);
+    for (let row = 0; row < backRows; row++) {
+      const zPos = BACK_LINE_FAR + 3 + row * rowDepth;
+      const yPos = row * rowHeight + 0.5;
+
+      // Stand platform
+      const standGeometry = new THREE.BoxGeometry(SHEET_WIDTH + 8, 0.3, rowDepth - 0.1);
+      const standMaterial = new THREE.MeshStandardMaterial({
+        color: 0x2d2d3d,
+        roughness: 0.8
+      });
+      const stand = new THREE.Mesh(standGeometry, standMaterial);
+      stand.position.set(0, yPos, zPos);
+      stand.receiveShadow = true;
+      arenaGroup.add(stand);
+
+      // Spectators
+      const spectatorSpacing = 0.6;
+      const spectatorsPerRow = Math.floor((SHEET_WIDTH + 6) / spectatorSpacing);
+
+      for (let i = 0; i < spectatorsPerRow; i++) {
+        if (Math.random() > config.fillPercent) continue;
+
+        const xPos = (i - spectatorsPerRow / 2) * spectatorSpacing;
+
+        const spectatorGroup = new THREE.Group();
+
+        const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.18, 0.5, 8);
+        const colors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316];
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+          color: colors[Math.floor(Math.random() * colors.length)],
+          roughness: 0.7
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.55;
+        spectatorGroup.add(body);
+
+        const headGeometry = new THREE.SphereGeometry(0.12, 8, 8);
+        const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642];
+        const headMaterial = new THREE.MeshStandardMaterial({
+          color: skinTones[Math.floor(Math.random() * skinTones.length)],
+          roughness: 0.6
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 0.95;
+        spectatorGroup.add(head);
+
+        spectatorGroup.position.set(xPos, yPos, zPos);
+        spectatorGroup.rotation.y = Math.PI + (Math.random() - 0.5) * 0.3;  // Face the ice
+
+        arenaGroup.add(spectatorGroup);
+      }
+    }
+  }
+
+  // Add arena lights for bigger venues (level 5+)
+  if (level >= 5) {
+    const lightPositions = [
+      { x: -8, z: 15 }, { x: 8, z: 15 },
+      { x: -8, z: 30 }, { x: 8, z: 30 }
+    ];
+
+    if (level >= 7) {
+      lightPositions.push({ x: 0, z: 10 }, { x: 0, z: 35 });
+    }
+
+    lightPositions.forEach(pos => {
+      // Light fixture
+      const fixtureGeometry = new THREE.BoxGeometry(1.5, 0.3, 1.5);
+      const fixtureMaterial = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.5
+      });
+      const fixture = new THREE.Mesh(fixtureGeometry, fixtureMaterial);
+      fixture.position.set(pos.x, 15, pos.z);
+      arenaGroup.add(fixture);
+
+      // Glowing light panel
+      const panelGeometry = new THREE.PlaneGeometry(1.2, 1.2);
+      const panelMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffee,
+        transparent: true,
+        opacity: 0.8
+      });
+      const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+      panel.rotation.x = Math.PI / 2;
+      panel.position.set(pos.x, 14.8, pos.z);
+      arenaGroup.add(panel);
+    });
+  }
+
+  scene.add(arenaGroup);
+}
+
+// Update arena when career level changes
+function updateArenaForLevel() {
+  const level = gameState.gameMode === '1player' ? gameState.career.level : 4;
+  createArena(level);
+}
+
+// ============================================
+// MATTER.JS PHYSICS SETUP
+// ============================================
+const engine = Matter.Engine.create();
+engine.gravity.y = 0; // Top-down, no gravity
+const world = engine.world;
+
+// Track side walls for collision detection
+let leftWall, rightWall;
+
+// ============================================
+// CREATE CURLING SHEET
+// ============================================
+function createSheet() {
+  // Ice surface - bright white with realistic reflections
+  const iceGeometry = new THREE.PlaneGeometry(SHEET_WIDTH, SHEET_LENGTH);
+
+  // Create ice texture with realistic appearance
+  const iceCanvas = document.createElement('canvas');
+  iceCanvas.width = 512;
+  iceCanvas.height = 4096;  // Longer for full sheet detail
+  const iceCtx = iceCanvas.getContext('2d');
+
+  // Base bright white ice color
+  iceCtx.fillStyle = '#ffffff';
+  iceCtx.fillRect(0, 0, iceCanvas.width, iceCanvas.height);
+
+  // Add very subtle cool tint variation
+  const baseGradient = iceCtx.createLinearGradient(0, 0, 0, iceCanvas.height);
+  baseGradient.addColorStop(0, 'rgba(240, 248, 255, 0.15)');
+  baseGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0)');
+  baseGradient.addColorStop(1, 'rgba(240, 248, 255, 0.1)');
+  iceCtx.fillStyle = baseGradient;
+  iceCtx.fillRect(0, 0, iceCanvas.width, iceCanvas.height);
+
+  // Add subtle vertical light streaks (overhead light reflections)
+  for (let i = 0; i < 5; i++) {
+    const x = (iceCanvas.width / 6) * (i + 1) + (Math.random() - 0.5) * 20;
+    const streakGradient = iceCtx.createLinearGradient(x - 10, 0, x + 10, 0);
+    streakGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+    streakGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.1)');
+    streakGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.15)');
+    streakGradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.1)');
+    streakGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+    iceCtx.fillStyle = streakGradient;
+    iceCtx.fillRect(x - 12, 0, 24, iceCanvas.height);
+  }
+
+  // Add subtle pebble texture (very fine, barely visible)
+  for (let i = 0; i < 1500; i++) {
+    const x = Math.random() * iceCanvas.width;
+    const y = Math.random() * iceCanvas.height;
+    const brightness = 250 + Math.random() * 5;
+    iceCtx.fillStyle = `rgba(${brightness}, ${brightness}, ${brightness}, 0.3)`;
+    iceCtx.beginPath();
+    iceCtx.arc(x, y, 0.5 + Math.random() * 1, 0, Math.PI * 2);
+    iceCtx.fill();
+  }
+
+  // Add subtle overhead light reflection spots
+  for (let row = 0; row < 8; row++) {
+    const y = (iceCanvas.height / 8) * row + iceCanvas.height / 16;
+    for (let col = 0; col < 2; col++) {
+      const x = (iceCanvas.width / 3) * (col + 1);
+      const size = 15 + Math.random() * 10;
+
+      // Very soft, subtle glow for light reflection
+      const lightGradient = iceCtx.createRadialGradient(x, y, 0, x, y, size);
+      lightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+      lightGradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.08)');
+      lightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+      iceCtx.fillStyle = lightGradient;
+      iceCtx.beginPath();
+      iceCtx.arc(x, y, size, 0, Math.PI * 2);
+      iceCtx.fill();
+    }
+  }
+
+  // Add occasional bright sparkle points
+  for (let i = 0; i < 80; i++) {
+    const x = Math.random() * iceCanvas.width;
+    const y = Math.random() * iceCanvas.height;
+    const size = 1 + Math.random() * 2;
+
+    iceCtx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    iceCtx.beginPath();
+    iceCtx.arc(x, y, size, 0, Math.PI * 2);
+    iceCtx.fill();
+  }
+
+  const iceTexture = new THREE.CanvasTexture(iceCanvas);
+  iceTexture.wrapS = THREE.ClampToEdgeWrapping;
+  iceTexture.wrapT = THREE.ClampToEdgeWrapping;
+
+  const iceMaterial = new THREE.MeshStandardMaterial({
+    map: iceTexture,
+    roughness: 0.08,  // Very smooth/glossy
+    metalness: 0.02,
+    color: 0xffffff,
+    envMapIntensity: 0.3
+  });
+  const ice = new THREE.Mesh(iceGeometry, iceMaterial);
+  ice.rotation.x = -Math.PI / 2;
+  ice.position.z = SHEET_LENGTH / 2;
+  ice.receiveShadow = true;
+  scene.add(ice);
+
+  // Side borders (dark edges like real rinks)
+  const borderMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1a1a2e,
+    roughness: 0.8
+  });
+  const borderGeometry = new THREE.BoxGeometry(0.1, 0.15, SHEET_LENGTH);
+
+  const leftBorder = new THREE.Mesh(borderGeometry, borderMaterial);
+  leftBorder.position.set(-SHEET_WIDTH / 2 - 0.05, 0.075, SHEET_LENGTH / 2);
+  scene.add(leftBorder);
+
+  const rightBorder = new THREE.Mesh(borderGeometry, borderMaterial);
+  rightBorder.position.set(SHEET_WIDTH / 2 + 0.05, 0.075, SHEET_LENGTH / 2);
+  scene.add(rightBorder);
+
+  // === LOGOS ON ICE ===
+  const textureLoader = new THREE.TextureLoader();
+  textureLoader.load('/curlingpro.png', (logoTexture) => {
+    // Logo material with transparency
+    const logoMaterial = new THREE.MeshBasicMaterial({
+      map: logoTexture,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide
+    });
+
+    // Logo size (adjust as needed)
+    const logoWidth = 3.0;
+    const logoHeight = 2.5;
+    const logoGeometry = new THREE.PlaneGeometry(logoWidth, logoHeight);
+
+    // Near side logo (right side of sheet, between hog lines)
+    // Positioned on right side, facing outward (toward right wall)
+    const nearLogo = new THREE.Mesh(logoGeometry, logoMaterial);
+    nearLogo.rotation.x = -Math.PI / 2;  // Lay flat on ice
+    nearLogo.rotation.z = Math.PI / 2;   // Face outward (toward right)
+    nearLogo.position.set(SHEET_WIDTH / 6, 0.01, (HOG_LINE_NEAR + HOG_LINE_FAR) / 2 - 6);  // Near side
+    scene.add(nearLogo);
+
+    // Far side logo (left side of sheet, between hog lines)
+    // Positioned on left side, facing outward (toward left wall)
+    const farLogo = new THREE.Mesh(logoGeometry, logoMaterial);
+    farLogo.rotation.x = -Math.PI / 2;  // Lay flat on ice
+    farLogo.rotation.z = -Math.PI / 2;  // Face outward (toward left)
+    farLogo.position.set(-SHEET_WIDTH / 6, 0.01, (HOG_LINE_NEAR + HOG_LINE_FAR) / 2 + 6);  // Far side
+    scene.add(farLogo);
+
+    console.log('Logos loaded and added to ice');
+  }, undefined, (error) => {
+    console.warn('Could not load curlingpro.png - please add it to the public folder');
+  });
+
+  // === FAR HOUSE (target end) ===
+  createHouse(TEE_LINE_FAR);
+
+  // === NEAR HOUSE (throwing end) ===
+  createHouse(TEE_LINE_NEAR);
+
+  // Tee lines (horizontal through house centers)
+  createLine(-SHEET_WIDTH/2, TEE_LINE_FAR, SHEET_WIDTH/2, TEE_LINE_FAR, 0x333333);
+  createLine(-SHEET_WIDTH/2, TEE_LINE_NEAR, SHEET_WIDTH/2, TEE_LINE_NEAR, 0x333333);
+
+  // Back lines
+  createLine(-SHEET_WIDTH/2, BACK_LINE_FAR, SHEET_WIDTH/2, BACK_LINE_FAR, 0x333333);
+  createLine(-SHEET_WIDTH/2, BACK_LINE_NEAR, SHEET_WIDTH/2, BACK_LINE_NEAR, 0x333333);
+
+  // Center line (down the middle of entire sheet)
+  createLine(0, BACK_LINE_NEAR, 0, BACK_LINE_FAR, 0x333333);
+
+  // Hog lines (red)
+  createLine(-SHEET_WIDTH/2, HOG_LINE_NEAR, SHEET_WIDTH/2, HOG_LINE_NEAR, 0xcc0000);
+  createLine(-SHEET_WIDTH/2, HOG_LINE_FAR, SHEET_WIDTH/2, HOG_LINE_FAR, 0xcc0000);
+
+  // Hack (foot hold) - where thrower stands
+  // Center plate (white/light gray)
+  const centerPlateGeometry = new THREE.BoxGeometry(0.2, 0.02, 0.25);
+  const centerPlateMaterial = new THREE.MeshStandardMaterial({ color: 0xe0e0e0, roughness: 0.5 });
+  const centerPlate = new THREE.Mesh(centerPlateGeometry, centerPlateMaterial);
+  centerPlate.position.set(0, 0.01, HACK_Z);
+  scene.add(centerPlate);
+
+  // Left foot hold (rubber block)
+  const footHoldGeometry = new THREE.BoxGeometry(0.15, 0.06, 0.3);
+  const footHoldMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+
+  const leftFootHold = new THREE.Mesh(footHoldGeometry, footHoldMaterial);
+  leftFootHold.position.set(-0.22, 0.03, HACK_Z + 0.05);
+  leftFootHold.rotation.x = -0.15;  // Tilted back
+  scene.add(leftFootHold);
+
+  // Left foot hold - rubber texture ridges
+  for (let i = 0; i < 4; i++) {
+    const ridgeGeometry = new THREE.BoxGeometry(0.14, 0.015, 0.02);
+    const ridge = new THREE.Mesh(ridgeGeometry, footHoldMaterial);
+    ridge.position.set(-0.22, 0.06, HACK_Z + 0.12 - i * 0.06);
+    scene.add(ridge);
+  }
+
+  // Right foot hold (rubber block)
+  const rightFootHold = new THREE.Mesh(footHoldGeometry, footHoldMaterial);
+  rightFootHold.position.set(0.22, 0.03, HACK_Z + 0.05);
+  rightFootHold.rotation.x = -0.15;  // Tilted back
+  scene.add(rightFootHold);
+
+  // Right foot hold - rubber texture ridges
+  for (let i = 0; i < 4; i++) {
+    const ridgeGeometry = new THREE.BoxGeometry(0.14, 0.015, 0.02);
+    const ridge = new THREE.Mesh(ridgeGeometry, footHoldMaterial);
+    ridge.position.set(0.22, 0.06, HACK_Z + 0.12 - i * 0.06);
+    scene.add(ridge);
+  }
+
+  // Metal frame connecting the pieces
+  const frameMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.4, metalness: 0.3 });
+  const frameGeometry = new THREE.BoxGeometry(0.55, 0.015, 0.05);
+  const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+  frame.position.set(0, 0.005, HACK_Z - 0.12);
+  scene.add(frame);
+
+  // Sheet boundaries (physics walls)
+  const wallOptions = { isStatic: true, restitution: 0.5 };
+
+  // Back wall (behind far house) - stones hitting this are out of play
+  const backWall = Matter.Bodies.rectangle(0, BACK_LINE_FAR * PHYSICS_SCALE + 50, SHEET_WIDTH * PHYSICS_SCALE, 10, { ...wallOptions, label: 'backWall' });
+
+  // Side walls - stones hitting these are out of play
+  leftWall = Matter.Bodies.rectangle(-SHEET_WIDTH/2 * PHYSICS_SCALE - 5, SHEET_LENGTH/2 * PHYSICS_SCALE, 10, SHEET_LENGTH * PHYSICS_SCALE, { ...wallOptions, label: 'sideWall' });
+  rightWall = Matter.Bodies.rectangle(SHEET_WIDTH/2 * PHYSICS_SCALE + 5, SHEET_LENGTH/2 * PHYSICS_SCALE, 10, SHEET_LENGTH * PHYSICS_SCALE, { ...wallOptions, label: 'sideWall' });
+
+  Matter.Composite.add(world, [backWall, leftWall, rightWall]);
+
+  // Collision detection for side walls
+  Matter.Events.on(engine, 'collisionStart', handleCollision);
+}
+
+// Create a complete house (all rings) at a given Z position
+function createHouse(teeZ) {
+  // Create house with gradient rings using a single canvas texture
+  const houseSize = RING_12FT * 2 + 0.1;
+  const canvasSize = 512;
+  const houseCanvas = document.createElement('canvas');
+  houseCanvas.width = canvasSize;
+  houseCanvas.height = canvasSize;
+  const ctx = houseCanvas.getContext('2d');
+
+  const centerX = canvasSize / 2;
+  const centerY = canvasSize / 2;
+  const scale = canvasSize / houseSize;
+
+  // 12ft ring - blue gradient (outermost)
+  const blueGradient = ctx.createRadialGradient(
+    centerX, centerY, RING_8FT * scale,
+    centerX, centerY, RING_12FT * scale
+  );
+  blueGradient.addColorStop(0, '#0088ee');
+  blueGradient.addColorStop(0.3, '#0066cc');
+  blueGradient.addColorStop(0.7, '#0055bb');
+  blueGradient.addColorStop(1, '#003d99');
+  ctx.fillStyle = blueGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, RING_12FT * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 8ft ring - white gradient
+  const whiteGradient = ctx.createRadialGradient(
+    centerX, centerY, RING_4FT * scale,
+    centerX, centerY, RING_8FT * scale
+  );
+  whiteGradient.addColorStop(0, '#ffffff');
+  whiteGradient.addColorStop(0.5, '#f8f8f8');
+  whiteGradient.addColorStop(1, '#e8e8e8');
+  ctx.fillStyle = whiteGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, RING_8FT * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4ft ring - red gradient
+  const redGradient = ctx.createRadialGradient(
+    centerX, centerY, BUTTON_RADIUS * scale,
+    centerX, centerY, RING_4FT * scale
+  );
+  redGradient.addColorStop(0, '#ff4444');
+  redGradient.addColorStop(0.3, '#dd2222');
+  redGradient.addColorStop(0.7, '#cc0000');
+  redGradient.addColorStop(1, '#990000');
+  ctx.fillStyle = redGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, RING_4FT * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Button - white center with subtle gradient
+  const buttonGradient = ctx.createRadialGradient(
+    centerX - BUTTON_RADIUS * scale * 0.3, centerY - BUTTON_RADIUS * scale * 0.3, 0,
+    centerX, centerY, BUTTON_RADIUS * scale
+  );
+  buttonGradient.addColorStop(0, '#ffffff');
+  buttonGradient.addColorStop(0.7, '#f0f0f0');
+  buttonGradient.addColorStop(1, '#e0e0e0');
+  ctx.fillStyle = buttonGradient;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, BUTTON_RADIUS * scale, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Add ring outlines for definition
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+  ctx.lineWidth = 2;
+  [RING_12FT, RING_8FT, RING_4FT, BUTTON_RADIUS].forEach(radius => {
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius * scale, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  // Create texture from canvas
+  const houseTexture = new THREE.CanvasTexture(houseCanvas);
+
+  // Create house mesh
+  const houseGeometry = new THREE.PlaneGeometry(houseSize, houseSize);
+  const houseMaterial = new THREE.MeshBasicMaterial({
+    map: houseTexture,
+    transparent: true,
+    side: THREE.DoubleSide
+  });
+  const house = new THREE.Mesh(houseGeometry, houseMaterial);
+  house.rotation.x = -Math.PI / 2;
+  house.position.set(0, 0.005, teeZ);
+  scene.add(house);
+}
+
+// Track next out-of-play position (spread them out along the back wall)
+let outOfPlayCount = 0;
+
+// Move a stone to the out-of-play area behind the back wall
+function moveStoneOutOfPlay(stone, reason) {
+  if (stone.outOfPlay) return; // Already out of play
+
+  // Mark as out of play
+  stone.outOfPlay = true;
+
+  // Calculate position along the back wall (spread them out)
+  const xOffset = (outOfPlayCount % 8 - 3.5) * (STONE_RADIUS * 2.5);
+  outOfPlayCount++;
+
+  // Stop the stone's physics body
+  Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+  Matter.Body.setAngularVelocity(stone.body, 0);
+
+  // Move to back wall area
+  Matter.Body.setPosition(stone.body, {
+    x: xOffset * PHYSICS_SCALE,
+    y: OUT_OF_PLAY_Z * PHYSICS_SCALE
+  });
+
+  // Update the 3D mesh position
+  stone.mesh.position.x = xOffset;
+  stone.mesh.position.z = OUT_OF_PLAY_Z;
+
+  // Make the stone semi-transparent to indicate it's out of play
+  stone.mesh.traverse((child) => {
+    if (child.isMesh && child.material) {
+      child.material = child.material.clone();
+      child.material.transparent = true;
+      child.material.opacity = 0.5;
+    }
+  });
+
+  console.log(`Stone out of play - ${reason}`);
+}
+
+// Reset out-of-play stones for new end
+function resetOutOfPlayStones() {
+  outOfPlayCount = 0;
+}
+
+// Handle collisions - move stones to back wall when they hit side or back walls
+function handleCollision(event) {
+  const pairs = event.pairs;
+
+  for (const pair of pairs) {
+    const bodyA = pair.bodyA;
+    const bodyB = pair.bodyB;
+
+    // Check if one body is a side wall or back wall
+    const isSideWallA = bodyA.label === 'sideWall';
+    const isSideWallB = bodyB.label === 'sideWall';
+    const isBackWallA = bodyA.label === 'backWall';
+    const isBackWallB = bodyB.label === 'backWall';
+
+    const isWallCollision = isSideWallA || isSideWallB || isBackWallA || isBackWallB;
+
+    // Check for stone-to-stone collision
+    const stoneA = gameState.stones.find(s => s.body === bodyA);
+    const stoneB = gameState.stones.find(s => s.body === bodyB);
+    if (stoneA && stoneB) {
+      // Calculate collision intensity based on relative velocity
+      const relVelX = bodyA.velocity.x - bodyB.velocity.x;
+      const relVelY = bodyA.velocity.y - bodyB.velocity.y;
+      const relSpeed = Math.sqrt(relVelX * relVelX + relVelY * relVelY);
+      const intensity = Math.min(1, relSpeed / 5);  // Normalize to 0-1
+      soundManager.playCollision(intensity);
+    }
+
+    if (isWallCollision) {
+      // Find the stone (the other body)
+      const stoneBody = (isSideWallA || isBackWallA) ? bodyB : bodyA;
+      const reason = (isSideWallA || isSideWallB) ? 'hit side wall' : 'went past back line';
+
+      // Find the stone in our game state
+      const stone = gameState.stones.find(s => s.body === stoneBody);
+      if (stone && !stone.outOfPlay) {
+        // Move stone to back wall instead of removing
+        moveStoneOutOfPlay(stone, reason);
+
+        // If this was the active stone, clear it
+        if (gameState.activeStone === stone) {
+          gameState.activeStone = null;
+          gameState.isSweeping = false;
+
+          // Move to next turn after a delay
+          setTimeout(() => {
+            if (gameState.phase === 'sweeping' || gameState.phase === 'throwing') {
+              gameState.phase = 'waiting';
+              setTimeout(() => nextTurn(), 1000);
+            }
+          }, 500);
+        }
+      }
+    }
+  }
+}
+
+function createLine(x1, z1, x2, z2, color) {
+  const points = [new THREE.Vector3(x1, 0.01, z1), new THREE.Vector3(x2, 0.01, z2)];
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const material = new THREE.LineBasicMaterial({ color });
+  const line = new THREE.Line(geometry, material);
+  scene.add(line);
+}
+
+// ============================================
+// STONE CREATION
+// ============================================
+function createStone(team) {
+  const capColor = team === 'red' ? 0xdc2626 : 0xfbbf24;
+  const capColorDark = team === 'red' ? 0xb91c1c : 0xd97706;
+
+  // Granite body material - speckled gray
+  const graniteMaterial = new THREE.MeshStandardMaterial({
+    color: 0x707070,
+    roughness: 0.7,
+    metalness: 0.05
+  });
+
+  // Create smooth stone profile using LatheGeometry for realistic rounded shape
+  const stoneProfile = [];
+  const radius = STONE_RADIUS;
+  const height = 0.11;
+
+  // Define the profile curve (half cross-section of the stone)
+  // Bottom center to outer edge, up the side, to top
+  stoneProfile.push(new THREE.Vector2(0, 0));  // Bottom center
+  stoneProfile.push(new THREE.Vector2(radius * 0.3, 0));  // Bottom flat
+  stoneProfile.push(new THREE.Vector2(radius * 0.85, 0.005));  // Curve out
+  stoneProfile.push(new THREE.Vector2(radius * 1.0, 0.02));  // Lower bulge
+  stoneProfile.push(new THREE.Vector2(radius * 1.05, 0.04));  // Max width
+  stoneProfile.push(new THREE.Vector2(radius * 1.02, 0.06));  // Upper curve
+  stoneProfile.push(new THREE.Vector2(radius * 0.95, 0.08));  // Taper in
+  stoneProfile.push(new THREE.Vector2(radius * 0.88, height));  // Top edge
+  stoneProfile.push(new THREE.Vector2(0, height));  // Top center
+
+  const bodyGeometry = new THREE.LatheGeometry(stoneProfile, 32);
+  const mesh = new THREE.Mesh(bodyGeometry, graniteMaterial);
+  mesh.castShadow = true;
+  mesh.position.set(0, 0, 0);
+
+  // Colored plastic top cap
+  const capMaterial = new THREE.MeshStandardMaterial({
+    color: capColor,
+    roughness: 0.3,
+    metalness: 0.1
+  });
+
+  // Cap profile - slightly domed
+  const capProfile = [];
+  capProfile.push(new THREE.Vector2(0, 0));
+  capProfile.push(new THREE.Vector2(radius * 0.68, 0));
+  capProfile.push(new THREE.Vector2(radius * 0.7, 0.008));
+  capProfile.push(new THREE.Vector2(radius * 0.65, 0.02));
+  capProfile.push(new THREE.Vector2(0, 0.025));
+
+  const capGeometry = new THREE.LatheGeometry(capProfile, 32);
+  const cap = new THREE.Mesh(capGeometry, capMaterial);
+  cap.position.y = height;
+  mesh.add(cap);
+
+  // Handle - arched bridge style (same color as cap)
+  const handleMaterial = new THREE.MeshStandardMaterial({
+    color: capColor,
+    roughness: 0.35,
+    metalness: 0.1
+  });
+
+  // Create arch handle using a partial torus
+  const handleArchGeometry = new THREE.TorusGeometry(0.04, 0.01, 12, 24, Math.PI);
+  const handleArch = new THREE.Mesh(handleArchGeometry, handleMaterial);
+  handleArch.rotation.z = Math.PI / 2;  // Stand upright
+  handleArch.rotation.y = Math.PI / 2;  // Face forward
+  handleArch.position.y = height + 0.02;
+  mesh.add(handleArch);
+
+  // Handle feet (where arch meets cap)
+  const footGeometry = new THREE.CylinderGeometry(0.01, 0.012, 0.015, 12);
+  const footMaterialDark = new THREE.MeshStandardMaterial({
+    color: capColorDark,
+    roughness: 0.4,
+    metalness: 0.1
+  });
+
+  const footLeft = new THREE.Mesh(footGeometry, footMaterialDark);
+  footLeft.position.set(-0.04, height + 0.007, 0);
+  mesh.add(footLeft);
+
+  const footRight = new THREE.Mesh(footGeometry, footMaterialDark);
+  footRight.position.set(0.04, height + 0.007, 0);
+  mesh.add(footRight);
+
+  scene.add(mesh);
+
+  // Physics body (scaled for Matter.js)
+  const body = Matter.Bodies.circle(0, 0, STONE_RADIUS * PHYSICS_SCALE, {
+    mass: STONE_MASS,
+    friction: 0.05,
+    frictionAir: ICE_FRICTION,
+    frictionStatic: 0.05,
+    restitution: 0.3,  // Low bounce - stones transfer momentum directly
+    label: team
+  });
+  Matter.Composite.add(world, body);
+
+  return { mesh, body, team };
+}
+
+// Create preview stone at the hack (visual only, no physics)
+function createPreviewStone(team) {
+  const capColor = team === 'red' ? 0xdc2626 : 0xfbbf24;
+  const capColorDark = team === 'red' ? 0xb91c1c : 0xd97706;
+
+  // Granite body material
+  const graniteMaterial = new THREE.MeshStandardMaterial({
+    color: 0x707070,
+    roughness: 0.7,
+    metalness: 0.05
+  });
+
+  // Stone profile
+  const stoneProfile = [];
+  const radius = STONE_RADIUS;
+  const height = 0.11;
+
+  stoneProfile.push(new THREE.Vector2(0, 0));
+  stoneProfile.push(new THREE.Vector2(radius * 0.3, 0));
+  stoneProfile.push(new THREE.Vector2(radius * 0.85, 0.005));
+  stoneProfile.push(new THREE.Vector2(radius * 1.0, 0.02));
+  stoneProfile.push(new THREE.Vector2(radius * 1.05, 0.04));
+  stoneProfile.push(new THREE.Vector2(radius * 1.02, 0.06));
+  stoneProfile.push(new THREE.Vector2(radius * 0.95, 0.08));
+  stoneProfile.push(new THREE.Vector2(radius * 0.88, height));
+  stoneProfile.push(new THREE.Vector2(0, height));
+
+  const bodyGeometry = new THREE.LatheGeometry(stoneProfile, 32);
+  const mesh = new THREE.Mesh(bodyGeometry, graniteMaterial);
+  mesh.castShadow = true;
+
+  // Colored cap
+  const capMaterial = new THREE.MeshStandardMaterial({
+    color: capColor,
+    roughness: 0.3,
+    metalness: 0.1
+  });
+
+  const capProfile = [];
+  capProfile.push(new THREE.Vector2(0, 0));
+  capProfile.push(new THREE.Vector2(radius * 0.68, 0));
+  capProfile.push(new THREE.Vector2(radius * 0.7, 0.008));
+  capProfile.push(new THREE.Vector2(radius * 0.65, 0.02));
+  capProfile.push(new THREE.Vector2(0, 0.025));
+
+  const capGeometry = new THREE.LatheGeometry(capProfile, 32);
+  const cap = new THREE.Mesh(capGeometry, capMaterial);
+  cap.position.y = height;
+  mesh.add(cap);
+
+  // Handle
+  const handleMaterial = new THREE.MeshStandardMaterial({
+    color: capColor,
+    roughness: 0.35,
+    metalness: 0.1
+  });
+
+  const handleArchGeometry = new THREE.TorusGeometry(0.04, 0.01, 12, 24, Math.PI);
+  const handleArch = new THREE.Mesh(handleArchGeometry, handleMaterial);
+  handleArch.rotation.z = Math.PI / 2;
+  handleArch.rotation.y = Math.PI / 2;
+  handleArch.position.y = height + 0.02;
+  mesh.add(handleArch);
+
+  // Handle feet
+  const footGeometry = new THREE.CylinderGeometry(0.01, 0.012, 0.015, 12);
+  const footMaterialDark = new THREE.MeshStandardMaterial({
+    color: capColorDark,
+    roughness: 0.4,
+    metalness: 0.1
+  });
+
+  const footLeft = new THREE.Mesh(footGeometry, footMaterialDark);
+  footLeft.position.set(-0.04, height + 0.007, 0);
+  mesh.add(footLeft);
+
+  const footRight = new THREE.Mesh(footGeometry, footMaterialDark);
+  footRight.position.set(0.04, height + 0.007, 0);
+  mesh.add(footRight);
+
+  // Position stone in front of the hack
+  mesh.position.set(0, 0, HACK_Z + 0.3);
+
+  return mesh;
+}
+
+// Update preview stone rotation based on curl direction
+function updatePreviewStoneRotation() {
+  if (!gameState.previewStone) return;
+
+  // Curl direction: 1 = IN (clockwise) -> handle at 2:00 position
+  //                -1 = OUT (counter-clockwise) -> handle at 10:00 position
+  //                null = not selected -> handle at 12:00 (straight)
+  // 2:00 is 60 degrees clockwise from 12:00 (forward)
+  // 10:00 is 60 degrees counter-clockwise from 12:00
+  // In Three.js Y-up, positive rotation is counter-clockwise when viewed from above
+  let handleAngle = 0;  // Default to 12:00 when not selected
+  if (gameState.curlDirection === 1) {
+    handleAngle = -Math.PI / 3;
+  } else if (gameState.curlDirection === -1) {
+    handleAngle = Math.PI / 3;
+  }
+  gameState.previewStone.rotation.y = handleAngle;
+}
+
+// Show/hide preview stone based on game phase
+function updatePreviewStoneVisibility() {
+  if (!gameState.previewStone) return;
+
+  // Only show during aiming phase when in thrower's view
+  const shouldShow = (gameState.phase === 'aiming' || gameState.phase === 'charging') &&
+                     gameState.previewHeight < 0.3;
+  gameState.previewStone.visible = shouldShow;
+}
+
+// Recreate preview stone for the current team (called when team changes)
+function updatePreviewStoneForTeam() {
+  // Remove old preview stone
+  if (gameState.previewStone) {
+    scene.remove(gameState.previewStone);
+    gameState.previewStone = null;
+  }
+
+  // Create new preview stone for current team
+  gameState.previewStone = createPreviewStone(gameState.currentTeam);
+  scene.add(gameState.previewStone);
+  updatePreviewStoneRotation();
+}
+
+// ============================================
+// CAMERA ANIMATION
+// ============================================
+let cameraAnimation = null;
+
+function animateCamera(from, to, duration, onComplete) {
+  const startTime = Date.now();
+  const startPos = { ...from };
+  const startLookAt = { ...from.lookAt };
+
+  cameraAnimation = {
+    update: () => {
+      const elapsed = Date.now() - startTime;
+      const t = Math.min(elapsed / duration, 1);
+      // Ease out cubic
+      const ease = 1 - Math.pow(1 - t, 3);
+
+      camera.position.x = startPos.x + (to.x - startPos.x) * ease;
+      camera.position.y = startPos.y + (to.y - startPos.y) * ease;
+      camera.position.z = startPos.z + (to.z - startPos.z) * ease;
+
+      const lookX = startLookAt.x + (to.lookAt.x - startLookAt.x) * ease;
+      const lookY = startLookAt.y + (to.lookAt.y - startLookAt.y) * ease;
+      const lookZ = startLookAt.z + (to.lookAt.z - startLookAt.z) * ease;
+      camera.lookAt(lookX, lookY, lookZ);
+
+      if (t >= 1) {
+        cameraAnimation = null;
+        if (onComplete) onComplete();
+      }
+    }
+  };
+}
+
+// ============================================
+// TARGET MARKER (Skip with broom)
+// ============================================
+function createTargetMarker() {
+  // Create a skip figure holding a broom as target
+  // Skip stands behind the broom pad, facing the thrower
+  // Broom extends FORWARD (toward thrower) with pad on ice as target
+  // One arm signals curl direction
+  // TALL BEACON for visibility from throwing view
+  const group = new THREE.Group();
+
+  // Materials
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });  // Dark jacket
+  const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });  // Dark pants
+  const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xe0b090, roughness: 0.6 });  // Skin tone
+  const broomMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5 });  // Dark gray handle
+  const padMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green broom pad (unlit for visibility)
+  const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green beacon (unlit)
+
+  // Skip body offset behind the target point (broom pad is at 0,0)
+  const skipZ = 0.6;  // Skip stands behind the broom pad
+
+  // === TALL VISIBILITY BEACON ===
+  // Vertical pole - very tall so it's visible from distance
+  const beaconPoleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 8);
+  const beaconPole = new THREE.Mesh(beaconPoleGeometry, beaconMaterial);
+  beaconPole.position.set(0, 1.25, 0);
+  group.add(beaconPole);
+
+  // Top ball on beacon
+  const beaconTopGeometry = new THREE.SphereGeometry(0.12, 16, 12);
+  const beaconTop = new THREE.Mesh(beaconTopGeometry, beaconMaterial);
+  beaconTop.position.set(0, 2.5, 0);
+  group.add(beaconTop);
+
+  // Horizontal crossbar for curl direction
+  const crossbarGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.8, 8);
+  const crossbar = new THREE.Mesh(crossbarGeometry, beaconMaterial);
+  crossbar.rotation.z = Math.PI / 2;
+  crossbar.position.set(0, 2.0, 0);
+  crossbar.name = 'crossbar';
+  group.add(crossbar);
+
+  // Arrow indicator on crossbar (shows curl direction)
+  const arrowGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
+  const arrow = new THREE.Mesh(arrowGeometry, beaconMaterial);
+  arrow.rotation.z = -Math.PI / 2;  // Point right by default
+  arrow.position.set(0.5, 2.0, 0);
+  arrow.name = 'curlArrow';
+  group.add(arrow);
+
+  // === SKIP BODY (smaller, behind beacon) ===
+  // Torso
+  const torsoGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.35, 12);
+  const torso = new THREE.Mesh(torsoGeometry, bodyMaterial);
+  torso.position.set(0, 0.5, skipZ);
+  group.add(torso);
+
+  // Head
+  const headGeometry = new THREE.SphereGeometry(0.08, 12, 10);
+  const head = new THREE.Mesh(headGeometry, skinMaterial);
+  head.position.set(0, 0.78, skipZ);
+  group.add(head);
+
+  // Legs
+  const legGeometry = new THREE.CylinderGeometry(0.04, 0.035, 0.35, 8);
+  const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial);
+  leftLeg.position.set(-0.05, 0.18, skipZ);
+  group.add(leftLeg);
+
+  const rightLeg = new THREE.Mesh(legGeometry, pantsMaterial);
+  rightLeg.position.set(0.05, 0.18, skipZ);
+  group.add(rightLeg);
+
+  // === BROOM (extends forward toward thrower) ===
+  const handleGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.8, 8);
+  const broomHandle = new THREE.Mesh(handleGeometry, broomMaterial);
+  broomHandle.rotation.x = Math.PI / 2.8;
+  broomHandle.position.set(0, 0.3, skipZ * 0.4);
+  group.add(broomHandle);
+
+  // Broom arms
+  const broomArmGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8);
+  const leftBroomArm = new THREE.Mesh(broomArmGeometry, bodyMaterial);
+  leftBroomArm.rotation.x = Math.PI / 3;
+  leftBroomArm.rotation.z = 0.3;
+  leftBroomArm.position.set(-0.08, 0.45, skipZ - 0.1);
+  group.add(leftBroomArm);
+
+  const rightBroomArm = new THREE.Mesh(broomArmGeometry, bodyMaterial);
+  rightBroomArm.rotation.x = Math.PI / 3;
+  rightBroomArm.rotation.z = -0.3;
+  rightBroomArm.position.set(0.08, 0.45, skipZ - 0.1);
+  rightBroomArm.name = 'rightBroomArm';
+  group.add(rightBroomArm);
+
+  // === BROOM PAD (THE TARGET) - Large and bright ===
+  const padGeometry = new THREE.BoxGeometry(0.25, 0.03, 0.15);
+  const broomPad = new THREE.Mesh(padGeometry, padMaterial);
+  broomPad.position.set(0, 0.015, 0);
+  group.add(broomPad);
+
+  // Large glow ring on ice
+  const glowRing = new THREE.RingGeometry(0.2, 0.35, 32);
+  const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+  const glow = new THREE.Mesh(glowRing, glowMaterial);
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.005;
+  group.add(glow);
+
+  // Inner glow ring
+  const innerGlow = new THREE.RingGeometry(0.1, 0.18, 32);
+  const innerGlowMaterial = new THREE.MeshBasicMaterial({ color: 0x88ff88, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+  const innerGlowMesh = new THREE.Mesh(innerGlow, innerGlowMaterial);
+  innerGlowMesh.rotation.x = -Math.PI / 2;
+  innerGlowMesh.position.y = 0.006;
+  group.add(innerGlowMesh);
+
+  // === SIGNAL ARM (indicates curl direction) ===
+  const signalArmGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+  const signalArm = new THREE.Mesh(signalArmGeometry, bodyMaterial);
+  signalArm.name = 'signalArm';
+  group.add(signalArm);
+
+  const handGeometry = new THREE.SphereGeometry(0.03, 8, 6);
+  const signalHand = new THREE.Mesh(handGeometry, skinMaterial);
+  signalHand.name = 'signalHand';
+  group.add(signalHand);
+
+  group.visible = false;
+  scene.add(group);
+  return group;
+}
+
+// Update skip's signal arm and beacon arrow based on curl direction
+function updateSkipSignalArm() {
+  if (!gameState.targetMarker) return;
+
+  const signalArm = gameState.targetMarker.getObjectByName('signalArm');
+  const signalHand = gameState.targetMarker.getObjectByName('signalHand');
+  const rightBroomArm = gameState.targetMarker.getObjectByName('rightBroomArm');
+  const curlArrow = gameState.targetMarker.getObjectByName('curlArrow');
+
+  // curlDirection: 1 = IN (clockwise) = curl right
+  // curlDirection: -1 = OUT (counter-clockwise) = curl left
+  // curlDirection: null = not selected yet
+  const direction = gameState.curlDirection;
+  const skipZ = 0.6;
+
+  // Hide arrow and arm if no direction selected
+  if (direction === null) {
+    if (curlArrow) curlArrow.visible = false;
+    if (signalArm) signalArm.visible = false;
+    if (signalHand) signalHand.visible = false;
+    if (rightBroomArm) rightBroomArm.visible = false;
+    return;
+  }
+
+  // Update beacon arrow direction
+  if (curlArrow) {
+    curlArrow.visible = true;
+    curlArrow.rotation.z = direction > 0 ? -Math.PI / 2 : Math.PI / 2;
+    curlArrow.position.x = direction * 0.5;
+  }
+
+  // Update skip's signal arm
+  if (signalArm && signalHand) {
+    signalArm.visible = true;
+    signalHand.visible = true;
+    signalArm.rotation.set(0, 0, Math.PI / 2);
+    signalArm.position.set(direction * 0.2, 0.55, skipZ);
+    signalHand.position.set(direction * 0.38, 0.55, skipZ);
+
+    if (rightBroomArm) {
+      rightBroomArm.visible = (direction === -1);
+    }
+  }
+}
+
+function placeTargetMarker(screenX, screenY) {
+  // Raycast from screen position to ice surface
+  const mouse = new THREE.Vector2(
+    (screenX / window.innerWidth) * 2 - 1,
+    -(screenY / window.innerHeight) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  // Create a plane at ice level (y = 0)
+  const icePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const intersection = new THREE.Vector3();
+
+  if (raycaster.ray.intersectPlane(icePlane, intersection)) {
+    // Check if click is within the sheet bounds and near the far house
+    if (intersection.x >= -SHEET_WIDTH / 2 && intersection.x <= SHEET_WIDTH / 2 &&
+        intersection.z >= HOG_LINE_FAR && intersection.z <= BACK_LINE_FAR) {
+
+      // Create marker if it doesn't exist
+      if (!gameState.targetMarker) {
+        gameState.targetMarker = createTargetMarker();
+      }
+
+      // Position and show the marker
+      gameState.targetMarker.position.x = intersection.x;
+      gameState.targetMarker.position.z = intersection.z;
+      gameState.targetMarker.visible = true;
+      gameState.targetPosition = { x: intersection.x, z: intersection.z };
+
+      // Skip faces toward the thrower (hack end at z=0)
+      // No rotation needed - skip is set up facing negative Z (toward thrower)
+      gameState.targetMarker.rotation.y = 0;
+
+      // Update signal arm for current curl direction
+      updateSkipSignalArm();
+
+      updateReturnButton();  // Show the return button
+      updateMarkerHint();    // Hide the marker hint
+      return true;  // Marker was placed
+    }
+  }
+  return false;  // No marker placed
+}
+
+function clearTargetMarker() {
+  if (gameState.targetMarker) {
+    gameState.targetMarker.visible = false;
+    gameState.targetPosition = null;
+  }
+}
+
+// ============================================
+// AIMING LINE
+// ============================================
+function createAimLine() {
+  const material = new THREE.LineDashedMaterial({
+    color: 0x00ff00,
+    dashSize: 0.3,
+    gapSize: 0.15,
+    linewidth: 2
+  });
+
+  // Create line from hack to far end
+  const points = [
+    new THREE.Vector3(0, 0.05, HACK_Z),
+    new THREE.Vector3(0, 0.05, TEE_LINE_FAR)
+  ];
+
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const line = new THREE.Line(geometry, material);
+  line.computeLineDistances();  // Required for dashed lines
+  line.visible = false;
+
+  scene.add(line);
+  return line;
+}
+
+function updateAimLine(angle) {
+  if (!gameState.aimLine) {
+    gameState.aimLine = createAimLine();
+  }
+
+  // Calculate end point based on angle - line length varies by difficulty
+  // Easy: longer line (12m) to help with aiming, Medium: 5m, Hard: 5m
+  const distance = gameState.settings.difficulty === 'easy' ? 12 : 5;
+  const endX = Math.sin(angle) * distance;
+  const endZ = HACK_Z + Math.cos(angle) * distance;
+
+  // Update line geometry
+  const positions = gameState.aimLine.geometry.attributes.position.array;
+  positions[0] = 0;      // Start X
+  positions[1] = 0.05;   // Start Y
+  positions[2] = HACK_Z; // Start Z
+  positions[3] = endX;   // End X
+  positions[4] = 0.05;   // End Y
+  positions[5] = endZ;   // End Z
+
+  gameState.aimLine.geometry.attributes.position.needsUpdate = true;
+  gameState.aimLine.computeLineDistances();
+  gameState.aimLine.visible = true;
+}
+
+function hideAimLine() {
+  if (gameState.aimLine) {
+    gameState.aimLine.visible = false;
+  }
+}
+
+// Preview camera - look around before throwing by sliding mouse up/down
+function updatePreviewCamera(x, y, isMouseMove = true) {
+  if (gameState.phase !== 'aiming') return;
+
+  // Calculate delta from last mouse position and update preview height
+  // Skip panning if preview is locked
+  if (isMouseMove && y !== undefined && !gameState.previewLocked) {
+    const deltaY = gameState.lastMousePos.y - y;  // Positive = moved up
+
+    // Adjust preview height based on mouse movement (sensitivity factor)
+    const sensitivity = 0.008;
+    gameState.previewHeight += deltaY * sensitivity;
+
+    // Clamp between 0 (thrower view) and 1 (max overhead)
+    gameState.previewHeight = Math.max(0, Math.min(1, gameState.previewHeight));
+
+    // Auto-lock when reaching the top - user can then freely position mouse to place marker
+    if (gameState.previewHeight >= 0.95) {
+      gameState.previewHeight = 1;  // Snap to top
+      gameState.previewLocked = true;
+    }
+
+    // Store current position for next delta calculation
+    gameState.lastMousePos = { x, y };
+  }
+
+  // Map preview height (0-1) to camera parameters
+  const t = gameState.previewHeight;
+
+  // Camera height: thrower's eye level to moderate overhead
+  const minHeight = 1.5;
+  const maxHeight = 12;
+  const targetHeight = minHeight + t * (maxHeight - minHeight);
+
+  // Camera Z position - move forward toward far house when higher
+  const minCamZ = -2;        // Behind hack at low view
+  const maxCamZ = TEE_LINE_FAR - 5;  // Over the far house at high view
+  const targetCamZ = minCamZ + t * (maxCamZ - minCamZ);
+
+  // Look at the far house (slightly ahead of camera)
+  const minLookZ = 10;
+  const maxLookZ = TEE_LINE_FAR;
+  const targetLookZ = minLookZ + t * (maxLookZ - minLookZ);
+
+  // Smooth camera movement - keep centered on sheet (x=0) for straight view
+  camera.position.x += (0 - camera.position.x) * 0.1;
+  camera.position.y += (targetHeight - camera.position.y) * 0.1;
+  camera.position.z += (targetCamZ - camera.position.z) * 0.1;
+  camera.lookAt(0, 0, targetLookZ);
+}
+
+// Follow stone during sliding phase
+function updateCameraFollow() {
+  if (!gameState.activeStone) return;
+
+  const stoneZ = gameState.activeStone.mesh.position.z;
+  const stoneX = gameState.activeStone.mesh.position.x;
+
+  if (gameState.phase === 'sliding') {
+    // During sliding: camera follows behind and slightly above the stone
+    const followDistance = 3;  // meters behind stone
+    const followHeight = 1.8;  // meters above ice
+
+    const targetZ = stoneZ - followDistance;
+    const targetY = followHeight;
+
+    // Lerp camera position for smooth following - keep centered (x=0) for straight view
+    camera.position.x += (0 - camera.position.x) * 0.1;
+    camera.position.y += (targetY - camera.position.y) * 0.1;
+    camera.position.z += (targetZ - camera.position.z) * 0.1;
+
+    // Look straight ahead down the center line
+    const lookAheadZ = Math.min(stoneZ + 15, TEE_LINE_FAR);
+    camera.lookAt(0, 0, lookAheadZ);
+
+  } else if (gameState.phase === 'throwing' || gameState.phase === 'sweeping') {
+    // During sweeping: overhead view that follows the stone and lowers as it approaches
+
+    // Calculate how far stone is from the far house (0 = at house, 1 = at near hog)
+    const distanceToHouse = TEE_LINE_FAR - stoneZ;
+    const maxDistance = TEE_LINE_FAR - HOG_LINE_NEAR;
+    const progressToHouse = Math.max(0, Math.min(1, 1 - (distanceToHouse / maxDistance)));
+
+    // Height decreases as stone gets closer to house (from 15m down to 6m)
+    const maxHeight = 15;
+    const minHeight = 6;
+    const targetY = maxHeight - (progressToHouse * (maxHeight - minHeight));
+
+    // Camera stays behind stone but gets closer as it approaches
+    const followDistance = 8 - (progressToHouse * 4);  // 8m to 4m behind
+    const targetZ = stoneZ - followDistance;
+
+    // Smooth camera movement - keep centered (x=0) for straight view
+    camera.position.x += (0 - camera.position.x) * 0.05;
+    camera.position.y += (targetY - camera.position.y) * 0.05;
+    camera.position.z += (targetZ - camera.position.z) * 0.05;
+
+    // Look straight down the center line at the stone's Z position
+    camera.lookAt(0, 0, stoneZ + 2);
+  }
+}
+
+function resetCameraToThrower() {
+  animateCamera(
+    { x: camera.position.x, y: camera.position.y, z: camera.position.z, lookAt: OVERHEAD_CAM.lookAt },
+    THROWER_CAM,
+    1000
+  );
+}
+
+// ============================================
+// THROWING MECHANICS
+// ============================================
+
+// Phase 1: Start aiming - click and drag back
+function startPull(x, y) {
+  if (gameState.phase !== 'aiming') return;
+
+  // Prevent throwing if curl direction not selected
+  if (gameState.curlDirection === null) {
+    // Flash the curl buttons to indicate they need to select
+    const curlDisplay = document.getElementById('curl-direction');
+    curlDisplay.style.color = '#ef4444';
+    curlDisplay.textContent = 'Curl: SELECT CURL FIRST!';
+    setTimeout(() => {
+      curlDisplay.style.color = '#f59e0b';
+      curlDisplay.textContent = 'Curl: Select Curl Direction';
+    }, 1500);
+    return;
+  }
+
+  gameState.phase = 'charging';
+  gameState.pullStart = { x, y };
+  gameState.pullCurrent = { x, y };
+  gameState.maxPower = 0;
+  gameState.currentPower = 0;
+
+  document.getElementById('power-display').style.display = 'block';
+  document.getElementById('power-bar').style.display = 'block';
+  document.getElementById('phase-text').style.color = '#4ade80';
+  document.getElementById('phase-text').textContent = 'Pull back to set effort...';
+
+  // Hide shot type on hard difficulty
+  const isHard = gameState.settings.difficulty === 'hard';
+  document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+  document.getElementById('shot-type').textContent = 'Ultra Light Guard';
+  document.getElementById('shot-type').style.color = '#60a5fa';
+}
+
+// Update aim and power during drag
+function updatePull(x, y) {
+  if (gameState.phase !== 'charging') return;
+
+  gameState.pullCurrent = { x, y };
+
+  // Calculate pull distance (pulling down/back increases power)
+  const dy = y - gameState.pullStart.y;
+  const dx = x - gameState.pullStart.x;
+
+  // Effort based on vertical pull (max at ~200px pull)
+  const pullDistance = Math.max(0, dy);
+  gameState.maxPower = Math.min(100, pullDistance / 2);
+  gameState.currentPower = gameState.maxPower;
+
+  // Aim angle based on horizontal offset
+  gameState.aimAngle = Math.atan2(dx, 200) * 0.5;
+
+  // Get shot type based on effort
+  const shotType = getShotType(gameState.currentPower);
+
+  // Update UI
+  document.getElementById('power-value').textContent = Math.round(gameState.currentPower);
+  document.getElementById('power-fill').style.width = gameState.currentPower + '%';
+  document.getElementById('power-fill').style.background = shotType.color;
+  document.getElementById('shot-type').textContent = shotType.name;
+  document.getElementById('shot-type').style.color = shotType.color;
+
+  // Show aiming line
+  updateAimLine(gameState.aimAngle);
+}
+
+// Phase 2: Release drag = push off from hack, start sliding
+function pushOff() {
+  if (gameState.phase !== 'charging') return;
+
+  // Must have some power to push off - if 0, cancel and return to aiming
+  if (gameState.maxPower < 1) {
+    gameState.phase = 'aiming';
+    document.getElementById('power-display').style.display = 'none';
+    hideAimLine();
+    return;
+  }
+
+  hideAimLine();  // Hide aiming line on push off
+  gameState.phase = 'sliding';
+  setCurlButtonsEnabled(false);  // Disable curl buttons during throw
+  gameState.slideStartTime = Date.now();
+
+  // Play throw sound
+  soundManager.playThrow();
+  gameState.currentPower = gameState.maxPower;
+  gameState.tLineCrossTime = null;  // Reset timing
+  gameState.splitTime = null;
+
+  // Create the stone and start it moving with the thrower
+  const stone = createStone(gameState.currentTeam);
+  stone.mesh.position.set(0, 0.06, 0);
+  Matter.Body.setPosition(stone.body, { x: 0, y: 0 });
+
+  // Calculate slide speed based on effort (0-100)
+  // Linear interpolation between MIN and MAX slide speed
+  const effortFactor = gameState.maxPower / 100;
+  const slideSpeed = MIN_SLIDE_SPEED + effortFactor * (MAX_SLIDE_SPEED - MIN_SLIDE_SPEED);
+  const initialVelocity = slideSpeed * PHYSICS_SCALE / 60;
+
+  // Store slide speed for consistent velocity during aiming
+  gameState.slideSpeed = initialVelocity;
+
+  Matter.Body.setVelocity(stone.body, { x: 0, y: initialVelocity });
+
+  // During slide, stone shouldn't slow down (thrower is pushing it)
+  stone.body.frictionAir = 0;
+
+  gameState.stones.push(stone);
+  gameState.activeStone = stone;
+
+  // Get shot type for display
+  const shotType = getShotType(gameState.maxPower);
+
+  // Show release prompt with shot type
+  document.getElementById('power-display').style.display = 'block';
+  document.getElementById('power-bar').style.display = 'none';
+  document.getElementById('phase-text').textContent = `${shotType.name} - CLICK to release!`;
+  document.getElementById('phase-text').style.color = shotType.color;
+  document.getElementById('hold-warning').style.display = 'block';
+  document.getElementById('hold-warning').textContent = 'Must release before hog line!';
+}
+
+// Update aim during sliding phase based on mouse position
+function updateSlidingAim(x) {
+  if (gameState.phase !== 'sliding') return;
+
+  // Calculate aim based on mouse X position relative to screen center
+  const screenCenter = window.innerWidth / 2;
+  const offset = x - screenCenter;
+
+  // Map mouse offset to aim angle (max ~30 degrees either direction)
+  gameState.aimAngle = (offset / screenCenter) * 0.5;
+}
+
+// Update sliding phase - check for hog line violation and track timing
+function updateSliding() {
+  if (gameState.phase !== 'sliding') return;
+
+  if (gameState.activeStone) {
+    const body = gameState.activeStone.body;
+    const stoneZ = body.position.y / PHYSICS_SCALE;  // Convert to meters
+
+    // Thrower slows down during slide - stone loses momentum over distance
+    // This means late release = less velocity = lighter weight
+    const distanceFromHack = stoneZ;
+    const slideDistance = HOG_LINE_NEAR;  // Max slide distance before release required
+
+    // Decay factor: stone retains 70-100% of speed based on distance traveled
+    // At hack (0m): 100% speed, at hog line (9.7m): 70% speed
+    const decayFactor = 1.0 - (distanceFromHack / slideDistance) * 0.3;
+    const currentSpeed = gameState.slideSpeed * Math.max(0.7, decayFactor);
+
+    // Apply aim direction during slide
+    Matter.Body.setVelocity(body, {
+      x: Math.sin(gameState.aimAngle) * currentSpeed * 0.4,
+      y: currentSpeed
+    });
+
+    // Track T-line crossing for split time
+    if (stoneZ >= TEE_LINE_NEAR && !gameState.tLineCrossTime) {
+      gameState.tLineCrossTime = Date.now();
+    }
+
+    // Check if stone crossed hog line without being released - VIOLATION
+    if (body.position.y >= HOG_LINE_Y) {
+      // Calculate split time before violation
+      if (gameState.tLineCrossTime) {
+        gameState.splitTime = (Date.now() - gameState.tLineCrossTime) / 1000;
+      }
+      hogViolation();
+    }
+  }
+}
+
+// Hog line violation - stone removed from play
+function hogViolation() {
+  if (!gameState.activeStone) return;
+
+  gameState.phase = 'waiting';
+  document.getElementById('hold-warning').style.display = 'none';
+  document.getElementById('power-display').style.display = 'none';
+  document.getElementById('phase-text').textContent = 'HOG LINE VIOLATION!';
+
+  // Remove the stone from play
+  scene.remove(gameState.activeStone.mesh);
+  Matter.Composite.remove(world, gameState.activeStone.body);
+  gameState.stones = gameState.stones.filter(s => s !== gameState.activeStone);
+
+  gameState.stonesThrown[gameState.currentTeam]++;
+  updateStoneCountDisplay();
+  gameState.activeStone = null;
+
+  // Show violation message briefly then next turn
+  setTimeout(() => {
+    nextTurn();
+  }, 2000);
+}
+
+// Phase 3: Click again = release the stone (continues at same speed)
+function releaseStone() {
+  if (gameState.phase !== 'sliding') return;
+
+  gameState.phase = 'throwing';
+  document.getElementById('hold-warning').style.display = 'none';
+  document.getElementById('power-display').style.display = 'none';
+  document.getElementById('phase-text').style.color = '#4ade80';
+  document.getElementById('phase-text').textContent = 'Released!';
+
+  // Play release sound and start sliding sound
+  soundManager.playRelease();
+  soundManager.startSliding();
+
+  // Stone continues at current velocity - NO speed change
+  // Just apply curl (angular velocity) - this will cause the stone to curve
+  Matter.Body.setAngularVelocity(gameState.activeStone.body, gameState.curlDirection * 0.08);
+
+  // Now apply ice friction since thrower released
+  gameState.activeStone.body.frictionAir = ICE_FRICTION;
+
+  gameState.stonesThrown[gameState.currentTeam]++;
+  updateStoneCountDisplay();
+
+  // Camera will smoothly follow stone via updateCameraFollow()
+  // Transition to sweeping phase after a brief moment
+  setTimeout(() => {
+    if (gameState.phase === 'throwing') {
+      gameState.phase = 'sweeping';
+    }
+  }, 500);
+}
+
+// Toggle curl direction (called by player)
+function setCurlDirection(direction) {
+  gameState.curlDirection = direction;
+  gameState.playerCurlDirection = direction;  // Remember player's choice
+  soundManager.playClick();  // UI click sound
+  updateCurlDisplay();
+  updateSkipSignalArm();  // Update skip's signal arm
+  updatePreviewStoneRotation();  // Update preview stone handle direction
+}
+
+function updateCurlDisplay() {
+  let curlText;
+  if (gameState.curlDirection === null) {
+    curlText = 'Select Curl Direction';
+  } else {
+    curlText = gameState.curlDirection === 1 ? 'IN (clockwise)' : 'OUT (counter-clockwise)';
+  }
+
+  const curlDisplay = document.getElementById('curl-direction');
+  curlDisplay.textContent = `Curl: ${curlText}`;
+  curlDisplay.style.color = gameState.curlDirection === null ? '#f59e0b' : '#fff';
+
+  // Update button states
+  const inBtn = document.getElementById('curl-in');
+  const outBtn = document.getElementById('curl-out');
+  if (inBtn && outBtn) {
+    inBtn.classList.toggle('active', gameState.curlDirection === 1);
+    outBtn.classList.toggle('active', gameState.curlDirection === -1);
+
+    // Add pulsing effect when no curl selected
+    if (gameState.curlDirection === null) {
+      inBtn.style.animation = 'pulse-btn 1.5s ease-in-out infinite';
+      outBtn.style.animation = 'pulse-btn 1.5s ease-in-out infinite';
+    } else {
+      inBtn.style.animation = '';
+      outBtn.style.animation = '';
+    }
+  }
+}
+
+function setCurlButtonsEnabled(enabled) {
+  const inBtn = document.getElementById('curl-in');
+  const outBtn = document.getElementById('curl-out');
+  if (inBtn && outBtn) {
+    inBtn.disabled = !enabled;
+    outBtn.disabled = !enabled;
+    inBtn.style.opacity = enabled ? '1' : '0.5';
+    outBtn.style.opacity = enabled ? '1' : '0.5';
+    inBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+    outBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  }
+}
+
+// Expose to window for HTML button onclick
+window.setCurl = setCurlDirection;
+
+// Game mode toggle
+window.setGameMode = function(mode) {
+  gameState.gameMode = mode;
+
+  // Update button styles
+  const btn1p = document.getElementById('mode-1p');
+  const btn2p = document.getElementById('mode-2p');
+
+  if (mode === '1player') {
+    btn1p.style.background = '#2d5a3d';
+    btn1p.style.borderColor = '#4ade80';
+    btn2p.style.background = '#333';
+    btn2p.style.borderColor = '#666';
+  } else {
+    btn2p.style.background = '#2d5a3d';
+    btn2p.style.borderColor = '#4ade80';
+    btn1p.style.background = '#333';
+    btn1p.style.borderColor = '#666';
+  }
+
+  // Update arena for the new mode (1P uses career level, 2P uses National)
+  updateArenaForLevel();
+};
+
+// Return to throw view button
+window.returnToThrowView = function() {
+  if (gameState.phase === 'aiming' && gameState.previewLocked) {
+    gameState.previewHeight = 0;  // Animate to thrower view
+    updateReturnButton();
+    updateMarkerHint();
+  }
+};
+
+function updateReturnButton() {
+  const btn = document.getElementById('return-to-throw');
+  if (!btn) return;
+
+  // Show button when locked at far view (marker optional)
+  if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5) {
+    btn.style.display = 'block';
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+function updateMarkerHint() {
+  const hint = document.getElementById('marker-hint');
+  if (!hint) return;
+
+  // Show hint when:
+  // - In aiming phase
+  // - Looking at the ice (preview height > 0.5, seeing the house)
+  // - No marker currently placed
+  // - Not computer's turn
+  const isComputerTurn = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  const shouldShow = gameState.phase === 'aiming' &&
+                     gameState.previewHeight > 0.5 &&
+                     !gameState.targetMarker &&
+                     !isComputerTurn;
+
+  hint.style.display = shouldShow ? 'block' : 'none';
+}
+
+// ============================================
+// SPLIT TIME DISPLAY
+// ============================================
+function displaySplitTime(time) {
+  const splitDisplay = document.getElementById('split-time');
+  if (!splitDisplay) return;
+
+  // Determine weight category based on timing
+  let category, color;
+  if (time >= 4.3) {
+    category = 'GUARD';
+    color = '#34d399';
+  } else if (time >= 3.6) {
+    category = 'DRAW';
+    color = '#fbbf24';
+  } else if (time >= 2.9) {
+    category = 'TAKEOUT';
+    color = '#f97316';
+  } else {
+    category = 'PEEL';
+    color = '#ef4444';
+  }
+
+  splitDisplay.innerHTML = `<span style="color:${color}">${time.toFixed(1)}s - ${category}</span>`;
+  splitDisplay.style.display = 'block';
+
+  // Hide after 3 seconds
+  setTimeout(() => {
+    splitDisplay.style.display = 'none';
+  }, 3000);
+}
+
+// ============================================
+// SWEEPING
+// ============================================
+
+// Calculate sweep effectiveness and direction from touch/mouse movement
+function updateSweepFromMovement(x, y) {
+  if (gameState.phase !== 'sweeping') return;
+
+  const now = Date.now();
+
+  // Add current position to tracking array
+  gameState.sweepTouches.push({ x, y, time: now });
+
+  // Keep only last 500ms of touches
+  gameState.sweepTouches = gameState.sweepTouches.filter(t => now - t.time < 500);
+
+  // Calculate speed and direction from recent movements
+  if (gameState.sweepTouches.length >= 2) {
+    let totalDistance = 0;
+    let horizontalMovement = 0;  // Track left/right bias
+
+    for (let i = 1; i < gameState.sweepTouches.length; i++) {
+      const dx = gameState.sweepTouches[i].x - gameState.sweepTouches[i-1].x;
+      const dy = gameState.sweepTouches[i].y - gameState.sweepTouches[i-1].y;
+      totalDistance += Math.sqrt(dx * dx + dy * dy);
+
+      // Track directional bias - accumulate horizontal movement
+      horizontalMovement += dx;
+    }
+
+    const timeSpan = now - gameState.sweepTouches[0].time;
+    const speed = timeSpan > 0 ? totalDistance / timeSpan : 0;
+
+    // Map speed to effectiveness (0-1)
+    gameState.sweepEffectiveness = Math.min(1, speed / 1.5);
+    const wasSweeping = gameState.isSweeping;
+    gameState.isSweeping = gameState.sweepEffectiveness > 0.1;
+    gameState.lastSweepTime = now;
+
+    // Start/stop sweeping sound
+    if (gameState.isSweeping && !wasSweeping) {
+      soundManager.startSweeping();
+    }
+
+    // Calculate sweep direction bias (-1 to 1)
+    // Positive = sweeping more to the right, Negative = sweeping more to the left
+    // Only count if there's enough movement
+    if (totalDistance > 20) {
+      const directionBias = horizontalMovement / totalDistance;
+      // Smooth the direction value
+      gameState.sweepDirection = gameState.sweepDirection * 0.7 + directionBias * 0.3;
+      // Clamp to -1 to 1
+      gameState.sweepDirection = Math.max(-1, Math.min(1, gameState.sweepDirection));
+    }
+  }
+}
+
+// Decay sweep effectiveness when not actively sweeping
+function decaySweepEffectiveness() {
+  const now = Date.now();
+  const timeSinceLastSweep = now - gameState.lastSweepTime;
+
+  // Decay over 200ms
+  if (timeSinceLastSweep > 100) {
+    gameState.sweepEffectiveness *= 0.9;
+    if (gameState.sweepEffectiveness < 0.05) {
+      gameState.sweepEffectiveness = 0;
+      if (gameState.isSweeping) {
+        gameState.isSweeping = false;
+        soundManager.stopSweeping();
+      }
+    }
+  }
+}
+
+function updateSweeping() {
+  if (!gameState.activeStone) return;
+
+  decaySweepEffectiveness();
+
+  // Friction varies based on sweep effectiveness
+  // Full sweep = SWEEP_FRICTION, no sweep = ICE_FRICTION
+  const friction = ICE_FRICTION - (gameState.sweepEffectiveness * (ICE_FRICTION - SWEEP_FRICTION));
+  gameState.activeStone.body.frictionAir = friction;
+
+  // Update sweep indicator
+  const indicator = document.getElementById('sweep-indicator');
+  if (indicator) {
+    if (gameState.isSweeping && gameState.phase === 'sweeping') {
+      indicator.style.display = 'block';
+      // Show effectiveness and direction
+      const intensity = Math.round(gameState.sweepEffectiveness * 100);
+      let directionText = '';
+      if (Math.abs(gameState.sweepDirection) > 0.3) {
+        directionText = gameState.sweepDirection > 0 ? ' →' : ' ←';
+      }
+      indicator.textContent = `SWEEPING! ${intensity}%${directionText}`;
+      indicator.style.color = `rgb(${74 + intensity}, ${222 - intensity * 0.5}, ${128 - intensity * 0.5})`;
+    } else {
+      indicator.style.display = 'none';
+    }
+  }
+}
+
+// ============================================
+// COMPUTER AI
+// ============================================
+function isComputerTurn() {
+  return gameState.gameMode === '1player' &&
+         gameState.currentTeam === gameState.computerTeam &&
+         gameState.phase === 'aiming';
+}
+
+function getComputerShot() {
+  // Analyze the game situation
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+  const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
+
+  // Find all stones and categorize them
+  const houseStonesComputer = [];
+  const houseStonesPlayer = [];
+  const guardsComputer = [];
+  const guardsPlayer = [];
+
+  for (const stone of gameState.stones) {
+    const dx = stone.mesh.position.x - buttonPos.x;
+    const dz = stone.mesh.position.z - buttonPos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+
+    // Check if stone is in the house
+    if (distance <= RING_12FT + STONE_RADIUS) {
+      if (stone.team === gameState.computerTeam) {
+        houseStonesComputer.push({ stone, distance, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      } else {
+        houseStonesPlayer.push({ stone, distance, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      }
+    }
+    // Check if stone is a guard (in front of house, in play area)
+    else if (stone.mesh.position.z < HOG_LINE_FAR && stone.mesh.position.z > HOG_LINE_NEAR) {
+      if (stone.team === gameState.computerTeam) {
+        guardsComputer.push({ stone, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      } else {
+        guardsPlayer.push({ stone, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      }
+    }
+  }
+
+  // Sort house stones by distance to button
+  houseStonesComputer.sort((a, b) => a.distance - b.distance);
+  houseStonesPlayer.sort((a, b) => a.distance - b.distance);
+
+  // Game situation analysis
+  const computerStonesLeft = 8 - gameState.stonesThrown[gameState.computerTeam];
+  const playerStonesLeft = 8 - gameState.stonesThrown[playerTeam];
+  const hasHammer = gameState.hammer === gameState.computerTeam;
+  const isLastStone = computerStonesLeft === 1;
+  const earlyEnd = computerStonesLeft >= 6;
+
+  // Scoring analysis
+  const computerHasShot = houseStonesComputer.length > 0 &&
+    (houseStonesPlayer.length === 0 || houseStonesComputer[0].distance < houseStonesPlayer[0].distance);
+  const playerHasShot = houseStonesPlayer.length > 0 &&
+    (houseStonesComputer.length === 0 || houseStonesPlayer[0].distance < houseStonesComputer[0].distance);
+
+  // Count potential points
+  let computerPoints = 0;
+  let playerPoints = 0;
+  if (computerHasShot) {
+    for (const s of houseStonesComputer) {
+      if (houseStonesPlayer.length === 0 || s.distance < houseStonesPlayer[0].distance) {
+        computerPoints++;
+      }
+    }
+  } else if (playerHasShot) {
+    for (const s of houseStonesPlayer) {
+      if (houseStonesComputer.length === 0 || s.distance < houseStonesComputer[0].distance) {
+        playerPoints++;
+      }
+    }
+  }
+
+  let shotType, targetX, targetZ, effort, curl;
+
+  // Strategic decision making
+  if (isLastStone && hasHammer) {
+    // Last stone with hammer - maximize score or steal prevention
+    if (playerHasShot) {
+      // Must hit their shot stone
+      shotType = 'takeout';
+      targetX = houseStonesPlayer[0].x;
+      targetZ = houseStonesPlayer[0].z;
+      effort = 72 + Math.random() * 8;
+    } else {
+      // Draw for more points or to button
+      shotType = 'draw';
+      targetX = 0;
+      targetZ = TEE_LINE_FAR;
+      effort = 52 + Math.random() * 6;
+    }
+  } else if (playerHasShot && playerPoints >= 2) {
+    // Player scoring multiple - aggressive takeout
+    shotType = 'takeout';
+    targetX = houseStonesPlayer[0].x;
+    targetZ = houseStonesPlayer[0].z;
+    effort = 78 + Math.random() * 8;
+  } else if (playerHasShot) {
+    // Player has shot - decide between takeout and other options
+    const shotStoneDistance = houseStonesPlayer[0].distance;
+
+    if (shotStoneDistance < 0.3) {
+      // Very close to button - must remove
+      shotType = 'takeout';
+      targetX = houseStonesPlayer[0].x;
+      targetZ = houseStonesPlayer[0].z;
+      effort = 75 + Math.random() * 8;
+    } else if (earlyEnd && guardsComputer.length < 2) {
+      // Early in end, try to set up guards first
+      shotType = 'guard';
+      targetX = (Math.random() - 0.5) * 2;
+      targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
+      effort = 38 + Math.random() * 8;
+    } else {
+      // Standard takeout
+      shotType = 'takeout';
+      targetX = houseStonesPlayer[0].x;
+      targetZ = houseStonesPlayer[0].z;
+      effort = 73 + Math.random() * 8;
+    }
+  } else if (computerHasShot && computerPoints >= 2) {
+    // We're scoring multiple - protect with guard or add more
+    if (guardsComputer.length < 2 && Math.random() > 0.3) {
+      shotType = 'guard';
+      // Place guard in front of scoring stones
+      targetX = houseStonesComputer[0].x * 0.5;
+      targetZ = HOG_LINE_FAR - 1.5 - Math.random() * 2;
+      effort = 36 + Math.random() * 8;
+    } else {
+      // Draw for more points
+      shotType = 'draw';
+      targetX = (Math.random() - 0.5) * 0.8;
+      targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.5;
+      effort = 54 + Math.random() * 6;
+    }
+  } else if (computerHasShot) {
+    // We have shot - protect or add
+    if (Math.random() > 0.5 && guardsComputer.length < 2) {
+      // Throw a guard
+      shotType = 'guard';
+      targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 1;
+      targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
+      effort = 37 + Math.random() * 8;
+    } else {
+      // Freeze to our stone
+      shotType = 'freeze';
+      targetX = houseStonesComputer[0].x + (Math.random() - 0.5) * 0.3;
+      targetZ = houseStonesComputer[0].z - STONE_RADIUS * 2.2;
+      effort = 53 + Math.random() * 5;
+    }
+  } else if (houseStonesComputer.length === 0 && houseStonesPlayer.length === 0) {
+    // Empty house
+    if (earlyEnd && hasHammer) {
+      // Early with hammer - place guards
+      shotType = 'guard';
+      targetX = (Math.random() - 0.5) * 1.5;
+      targetZ = HOG_LINE_FAR - 2 - Math.random() * 3;
+      effort = 35 + Math.random() * 10;
+    } else if (earlyEnd && !hasHammer) {
+      // Early without hammer - draw to top of house
+      shotType = 'draw';
+      targetX = (Math.random() - 0.5) * 1;
+      targetZ = TEE_LINE_FAR - 1;
+      effort = 50 + Math.random() * 6;
+    } else {
+      // Draw to button
+      shotType = 'draw';
+      targetX = (Math.random() - 0.5) * 0.3;
+      targetZ = TEE_LINE_FAR;
+      effort = 54 + Math.random() * 6;
+    }
+  } else if (guardsPlayer.length > 0 && !computerHasShot) {
+    // Player has guards blocking - try to peel or come around
+    if (Math.random() > 0.4) {
+      // Peel the guard
+      shotType = 'peel';
+      const targetGuard = guardsPlayer[0];
+      targetX = targetGuard.x;
+      targetZ = targetGuard.z;
+      effort = 85 + Math.random() * 10;
+    } else {
+      // Try to come around
+      shotType = 'come-around';
+      targetX = guardsPlayer[0].x > 0 ? -0.8 : 0.8;
+      targetZ = TEE_LINE_FAR;
+      effort = 52 + Math.random() * 6;
+    }
+  } else {
+    // Default - draw to button area
+    shotType = 'draw';
+    targetX = (Math.random() - 0.5) * 0.6;
+    targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.8;
+    effort = 53 + Math.random() * 7;
+  }
+
+  // Determine curl direction based on target position and shot type
+  if (shotType === 'takeout' || shotType === 'peel') {
+    // For takeouts, curl toward the target
+    curl = targetX > 0 ? -1 : 1;
+  } else if (shotType === 'come-around') {
+    // Come around curls away from guard then back
+    curl = targetX > 0 ? 1 : -1;
+  } else {
+    // For draws/guards, alternate or use strategic curl
+    curl = targetX > 0 ? 1 : -1;
+    if (Math.abs(targetX) < 0.3) {
+      curl = Math.random() > 0.5 ? 1 : -1;
+    }
+  }
+
+  // Calculate aim angle - account for curl
+  const curlCompensation = curl * 0.03;  // Slight adjustment for curl
+  const aimAngle = Math.atan2(targetX + curlCompensation, TEE_LINE_FAR - HACK_Z) * 0.85;
+
+  // Add randomness based on career level (in 1-player mode) or difficulty setting
+  let variance;
+  if (gameState.gameMode === '1player') {
+    const level = getCurrentLevel();
+    variance = level.difficulty;
+  } else {
+    const difficultyVariance = {
+      easy: 0.25,
+      medium: 0.12,
+      hard: 0.04
+    };
+    variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
+  }
+
+  // Apply variance (reduced for higher skill levels)
+  const accuracyVariance = (Math.random() - 0.5) * variance;
+  const effortVariance = (Math.random() - 0.5) * variance * 25;
+
+  return {
+    shotType,
+    effort: Math.min(100, Math.max(0, effort + effortVariance)),
+    aimAngle: aimAngle + accuracyVariance,
+    curl
+  };
+}
+
+function executeComputerShot() {
+  if (!isComputerTurn()) return;
+
+  const shot = getComputerShot();
+
+  // Show what the computer is doing
+  console.log(`Computer playing: ${shot.shotType}, effort: ${shot.effort.toFixed(0)}%`);
+
+  // Set up the shot
+  gameState.curlDirection = shot.curl;
+  updateCurlDisplay();
+
+  // Simulate the throw sequence with delays
+  setTimeout(() => {
+    // Start charging phase
+    gameState.phase = 'charging';
+    gameState.maxPower = shot.effort;
+    gameState.currentPower = shot.effort;
+    gameState.aimAngle = shot.aimAngle;
+
+    // Show power display briefly
+    const shotTypeInfo = getShotType(shot.effort);
+    const isHard = gameState.settings.difficulty === 'hard';
+    document.getElementById('power-display').style.display = 'block';
+    document.getElementById('power-bar').style.display = 'block';
+    document.getElementById('power-value').textContent = Math.round(shot.effort);
+    document.getElementById('power-fill').style.width = shot.effort + '%';
+    document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+    document.getElementById('shot-type').textContent = shotTypeInfo.name;
+    document.getElementById('shot-type').style.color = shotTypeInfo.color;
+
+    updateAimLine(shot.aimAngle);
+
+    setTimeout(() => {
+      // Push off
+      hideAimLine();
+      pushOff();
+
+      setTimeout(() => {
+        // Release stone
+        if (gameState.phase === 'sliding') {
+          releaseStone();
+        }
+      }, 800);  // Release timing
+
+    }, 1000);  // Time before push off
+
+  }, 1500);  // Initial delay before computer starts
+}
+
+// ============================================
+// PHYSICS UPDATE
+// ============================================
+function updatePhysics() {
+  Matter.Engine.update(engine, 1000 / 60);
+
+  // Update sliding phase
+  updateSliding();
+
+  // Sync 3D meshes with physics bodies
+  for (const stone of gameState.stones) {
+    stone.mesh.position.x = stone.body.position.x / PHYSICS_SCALE;
+    stone.mesh.position.z = stone.body.position.y / PHYSICS_SCALE;
+    stone.mesh.rotation.y = stone.body.angle;
+  }
+
+  // Track hog line crossing after release for split time
+  if (gameState.activeStone && gameState.phase === 'throwing' && gameState.tLineCrossTime && !gameState.splitTime) {
+    const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+    if (stoneZ >= HOG_LINE_NEAR) {
+      gameState.splitTime = (Date.now() - gameState.tLineCrossTime) / 1000;
+      displaySplitTime(gameState.splitTime);
+    }
+  }
+
+  // Apply curl effect during movement (stone curves based on rotation)
+  // Ice condition variability based on level
+  // Beginners get very consistent ice, higher levels have more realistic variation
+  const levelId = gameState.gameMode === '1player' ? gameState.career.level : 4;
+  // Level 1: 0% variation (perfectly consistent ice)
+  // Level 8: 15% variation (realistic ice conditions that vary)
+  const iceVariability = (levelId - 1) * 0.02;  // 0 to 0.14
+
+  // In real curling: clockwise spin (IN-turn) curls RIGHT, counter-clockwise (OUT-turn) curls LEFT
+  // The curl effect increases as the stone slows down - stones curve more dramatically near the end
+  if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
+    const body = gameState.activeStone.body;
+    const vel = body.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+
+    if (speed > 0.3) {
+      // Curl increases as stone slows (realistic curling physics)
+      // At high speed (5+), curl is subtle; at low speed (<1), curl is more pronounced
+      // Cap the multiplier to prevent unrealistic sideways jumps
+      const normalizedSpeed = Math.min(speed, 5) / 5;  // 0-1 range
+      const curlMultiplier = 1 + Math.pow(1 - normalizedSpeed, 2) * 2.5;  // 1x at high speed, up to 3.5x at low speed
+
+      // Ice variability - slight random variation in curl (more at higher levels)
+      const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability;
+
+      // Base curl force from angular velocity
+      // Negative sign because Matter.js positive angular = counter-clockwise,
+      // but we want positive curlDirection (IN-turn/clockwise) to curl RIGHT (+X)
+      // Cap force magnitude to prevent physics violations
+      let curlForce = -body.angularVelocity * 0.00012 * curlMultiplier * iceRandomness;
+      curlForce = Math.max(-0.0003, Math.min(0.0003, curlForce));  // Cap max lateral force
+
+      // Directional sweeping effect:
+      // Sweeping to the right makes stone deflect LEFT (negative X)
+      // Sweeping to the left makes stone deflect RIGHT (positive X)
+      // Stone moves toward the less-brushed side
+      if (gameState.isSweeping && gameState.sweepEffectiveness > 0.2) {
+        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.00006 * curlMultiplier;
+        curlForce += directionalForce;
+      }
+
+      // Final cap on total lateral force to prevent unrealistic physics
+      curlForce = Math.max(-0.0004, Math.min(0.0004, curlForce));
+      Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
+
+      // Update sliding sound volume based on speed
+      soundManager.updateSlidingVolume(normalizedSpeed);
+    }
+  }
+
+  // Apply increased friction at low speeds to make stones stop faster
+  // More aggressive slowdown to simulate realistic curling stone deceleration
+  // Level 1 (Club): threshold 4.0, multiplier 1.8 (forgiving and consistent)
+  // Level 8 (Olympics): threshold 2.5, multiplier 1.0 (challenging with variation)
+  const slowdownThreshold = 4.0 - (levelId - 1) * 0.214;  // 4.0 down to 2.5
+  const slowdownStrength = 1.8 - (levelId - 1) * 0.114;   // 1.8 down to 1.0
+  // Add slight friction variation at higher levels (simulates ice spots)
+  const frictionVariation = 1 + (Math.random() - 0.5) * iceVariability * 0.5;
+
+  for (const stone of gameState.stones) {
+    const vel = stone.body.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+
+    // Increase friction progressively as stone slows down
+    // Apply friction variation at higher levels (beginners get consistent ice)
+    if (speed < slowdownThreshold && speed > 0.1) {
+      const slowdownMultiplier = 1 + (slowdownThreshold - speed) * slowdownStrength;
+      // Extra exponential slowdown at very low speeds (< 1.0) for realistic stop
+      const extraSlowdown = speed < 1.0 ? 1 + Math.pow(1 - speed, 2) * 2 : 1;
+      stone.body.frictionAir = ICE_FRICTION * slowdownMultiplier * extraSlowdown * frictionVariation;
+    } else if (speed <= 0.1) {
+      // Stop the stone completely when very slow
+      Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+    }
+  }
+
+  // Check if ALL stones have stopped before ending turn
+  if (gameState.activeStone && (gameState.phase === 'sweeping' || gameState.phase === 'throwing')) {
+    // Check if any stone is still moving
+    let anyStoneMoving = false;
+    for (const stone of gameState.stones) {
+      const vel = stone.body.velocity;
+      const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+      if (speed > 0.1) {
+        anyStoneMoving = true;
+        break;
+      }
+    }
+
+    const activeVel = gameState.activeStone.body.velocity;
+    const activeSpeed = Math.sqrt(activeVel.x * activeVel.x + activeVel.y * activeVel.y);
+    const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+
+    // Only end turn when ALL stones have stopped
+    if (activeSpeed < 0.1 && !anyStoneMoving) {
+      // Check if stone didn't reach far hog line - move to out-of-play area
+      if (stoneZ < HOG_LINE_FAR && !gameState.activeStone.outOfPlay) {
+        moveStoneOutOfPlay(gameState.activeStone, 'did not reach far hog line');
+      }
+
+      gameState.phase = 'waiting';
+      gameState.activeStone = null;
+      gameState.isSweeping = false;
+      gameState.sweepEffectiveness = 0;
+      gameState.sweepDirection = 0;
+      gameState.sweepTouches = [];
+
+      // Stop all sounds when stone comes to rest
+      soundManager.stopSliding();
+      soundManager.stopSweeping();
+
+      // Hide sweep indicator
+      const indicator = document.getElementById('sweep-indicator');
+      if (indicator) indicator.style.display = 'none';
+
+      // Clear target marker for next turn
+      clearTargetMarker();
+
+      // Check if end is complete or switch turns
+      setTimeout(() => {
+        nextTurn();
+      }, 1500);
+    }
+  }
+
+  updateSweeping();
+}
+
+// ============================================
+// GAME FLOW
+// ============================================
+function nextTurn() {
+  const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
+
+  if (totalThrown >= 16) {
+    // End complete - calculate score
+    calculateScore();
+    return;
+  }
+
+  // Switch teams
+  gameState.currentTeam = gameState.currentTeam === 'red' ? 'yellow' : 'red';
+  gameState.phase = 'aiming';
+  gameState.previewHeight = 0;  // Reset to thrower's view
+  gameState.previewLocked = false;  // Reset pan mode
+  clearTargetMarker();  // Remove target marker from previous turn
+  setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
+  updatePreviewStoneForTeam();  // Update preview stone color for new team
+
+  // Update UI
+  const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  document.getElementById('turn').textContent =
+    `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+
+  // Reset camera to thrower view
+  resetCameraToThrower();
+
+  // Trigger computer turn if applicable, or restore player's curl preference
+  if (isComputer) {
+    setTimeout(() => executeComputerShot(), 1000);
+  } else {
+    // Restore player's preferred curl direction
+    gameState.curlDirection = gameState.playerCurlDirection;
+    updateCurlDisplay();
+    updateSkipSignalArm();
+    updatePreviewStoneRotation();
+  }
+}
+
+function calculateScore() {
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+
+  // Calculate distances from button for all stones (exclude out-of-play stones)
+  const distances = gameState.stones
+    .filter(stone => !stone.outOfPlay)
+    .map(stone => {
+      const dx = stone.mesh.position.x - buttonPos.x;
+      const dz = stone.mesh.position.z - buttonPos.z;
+      return {
+        team: stone.team,
+        distance: Math.sqrt(dx * dx + dz * dz)
+      };
+    }).filter(s => s.distance <= RING_12FT + STONE_RADIUS); // Stone touching 12ft ring counts
+
+  if (distances.length === 0) {
+    // No stones in house - blank end (team with hammer keeps it)
+    gameState.endScores.red[gameState.end - 1] = 0;
+    gameState.endScores.yellow[gameState.end - 1] = 0;
+    updateScoreDisplay();
+    showScoreOverlay(null, 0, gameState.end);
+    return;
+  }
+
+  // Sort by distance
+  distances.sort((a, b) => a.distance - b.distance);
+
+  // Scoring team is closest
+  const scoringTeam = distances[0].team;
+  const nonScoringTeam = scoringTeam === 'red' ? 'yellow' : 'red';
+  let points = 0;
+
+  for (const stone of distances) {
+    if (stone.team === scoringTeam) {
+      // Check if closer than any opponent stone
+      const closerOpponent = distances.find(s => s.team !== scoringTeam && s.distance < stone.distance);
+      if (!closerOpponent) {
+        points++;
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Record end scores
+  gameState.endScores[scoringTeam][gameState.end - 1] = points;
+  gameState.endScores[nonScoringTeam][gameState.end - 1] = 0;
+
+  // Update total score
+  gameState.scores[scoringTeam] += points;
+
+  // Hammer switches to non-scoring team (they get advantage next end)
+  gameState.hammer = nonScoringTeam;
+
+  updateScoreDisplay();
+  showScoreOverlay(scoringTeam, points, gameState.end);
+}
+
+// ============================================
+// SCORE OVERLAY
+// ============================================
+function showScoreOverlay(team, points, endNumber) {
+  const overlay = document.getElementById('score-overlay');
+  const endLabel = document.getElementById('score-end-label');
+  const teamDisplay = document.getElementById('score-team');
+  const pointsDisplay = document.getElementById('score-points');
+  const pointsLabel = document.getElementById('score-points-label');
+  const stonesDisplay = document.getElementById('score-stones-display');
+  const totalRed = document.getElementById('score-total-red');
+  const totalYellow = document.getElementById('score-total-yellow');
+
+  if (!overlay) return;
+
+  // Play score sound
+  if (points > 0) {
+    soundManager.playScore(points);
+  }
+
+  // Update content
+  endLabel.textContent = `End ${endNumber} Complete`;
+
+  if (team === null) {
+    // Blank end
+    teamDisplay.textContent = 'BLANK END';
+    teamDisplay.className = 'blank';
+    pointsDisplay.textContent = '0';
+    pointsLabel.textContent = 'No Score';
+    stonesDisplay.innerHTML = '';
+  } else {
+    teamDisplay.textContent = team.toUpperCase();
+    teamDisplay.className = team;
+    pointsDisplay.textContent = points;
+    pointsLabel.textContent = points === 1 ? 'Point Scored' : 'Points Scored';
+
+    // Create stone icons with staggered animation
+    stonesDisplay.innerHTML = '';
+    for (let i = 0; i < points; i++) {
+      const stone = document.createElement('div');
+      stone.className = `score-stone ${team}`;
+      stone.style.animationDelay = `${0.1 + i * 0.1}s`;
+      stonesDisplay.appendChild(stone);
+    }
+  }
+
+  // Update totals
+  totalRed.textContent = gameState.scores.red;
+  totalYellow.textContent = gameState.scores.yellow;
+
+  // Show overlay with animation
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+  });
+}
+
+window.continueGame = function() {
+  const overlay = document.getElementById('score-overlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+      startNewEnd();
+    }, 500);
+  }
+};
+
+function launchConfetti(winnerColor) {
+  const container = document.getElementById('confetti-container');
+  if (!container) return;
+
+  // Clear any existing confetti
+  container.innerHTML = '';
+
+  // Confetti colors based on winner
+  const colors = winnerColor === 'red'
+    ? ['#dc2626', '#ef4444', '#f87171', '#fca5a5', '#fee2e2', '#ffffff', '#ffd700']
+    : ['#fbbf24', '#f59e0b', '#fcd34d', '#fde68a', '#fef3c7', '#ffffff', '#ffd700'];
+
+  // Create confetti pieces
+  const confettiCount = 150;
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+
+    // Random properties
+    const left = Math.random() * 100;
+    const delay = Math.random() * 3;
+    const duration = 3 + Math.random() * 2;
+    const size = 8 + Math.random() * 12;
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const shape = Math.random() > 0.5 ? '50%' : '0';
+
+    confetti.style.cssText = `
+      left: ${left}%;
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      border-radius: ${shape};
+      animation-delay: ${delay}s;
+      animation-duration: ${duration}s;
+    `;
+
+    container.appendChild(confetti);
+  }
+
+  // Clean up confetti after animation
+  setTimeout(() => {
+    container.innerHTML = '';
+  }, 8000);
+}
+
+function launchRaindrops() {
+  const container = document.getElementById('confetti-container');
+  if (!container) return;
+
+  // Clear any existing elements
+  container.innerHTML = '';
+
+  // Create raindrops
+  const dropCount = 150;
+  for (let i = 0; i < dropCount; i++) {
+    const drop = document.createElement('div');
+
+    // Random properties for rain effect
+    const left = Math.random() * 100;
+    const delay = Math.random() * 3;
+    const duration = 0.8 + Math.random() * 0.6;
+    const width = 2 + Math.random() * 2;
+    const height = 20 + Math.random() * 30;
+
+    drop.style.cssText = `
+      position: absolute;
+      top: -40px;
+      left: ${left}%;
+      width: ${width}px;
+      height: ${height}px;
+      background: linear-gradient(to bottom, rgba(150, 180, 220, 0.2), rgba(100, 150, 200, 0.7));
+      border-radius: 0 0 50% 50%;
+      animation: rain-fall ${duration}s linear ${delay}s infinite;
+    `;
+
+    container.appendChild(drop);
+  }
+
+  // Clean up after animation
+  setTimeout(() => {
+    container.innerHTML = '';
+  }, 8000);
+}
+
+function showGameOverOverlay() {
+  const overlay = document.getElementById('gameover-overlay');
+  const winnerDisplay = document.getElementById('gameover-winner');
+  const subtitleDisplay = document.getElementById('gameover-subtitle');
+  const redScore = document.getElementById('gameover-red');
+  const yellowScore = document.getElementById('gameover-yellow');
+
+  if (!overlay) return;
+
+  // Determine winner
+  let winner, winnerClass;
+  if (gameState.scores.red > gameState.scores.yellow) {
+    winner = 'RED';
+    winnerClass = 'red';
+    subtitleDisplay.textContent = 'WINS!';
+  } else if (gameState.scores.yellow > gameState.scores.red) {
+    winner = 'YELLOW';
+    winnerClass = 'yellow';
+    subtitleDisplay.textContent = 'WINS!';
+  } else {
+    winner = 'TIE GAME';
+    winnerClass = 'tie';
+    subtitleDisplay.textContent = '';
+  }
+
+  // Determine if user won or lost (for effects)
+  // In 1-player mode, check if user's team won
+  // In 2-player mode, always show confetti for the winner
+  const userTeam = gameState.gameMode === '1player'
+    ? (gameState.computerTeam === 'yellow' ? 'red' : 'yellow')
+    : null;
+
+  if (winnerClass !== 'tie') {
+    if (gameState.gameMode === '2player') {
+      // 2-player: confetti for winner
+      launchConfetti(winnerClass);
+      soundManager.playVictory();
+    } else if (winnerClass === userTeam) {
+      // User wins: confetti!
+      launchConfetti(winnerClass);
+      soundManager.playVictory();
+    } else {
+      // User loses: rain
+      launchRaindrops();
+      soundManager.playDefeat();
+    }
+  }
+
+  winnerDisplay.textContent = winner;
+  winnerDisplay.className = winnerClass;
+  redScore.textContent = gameState.scores.red;
+  yellowScore.textContent = gameState.scores.yellow;
+
+  // Handle career progression (1-player mode only)
+  const careerMessageEl = document.getElementById('gameover-career-message');
+  if (gameState.gameMode === '1player' && winnerClass !== 'tie') {
+    const userWon = winnerClass === userTeam;
+    const careerResult = handleCareerResult(userWon);
+
+    if (careerMessageEl && careerResult) {
+      careerMessageEl.textContent = careerResult.message;
+      if (careerResult.advanced) {
+        careerMessageEl.style.color = '#4ade80';
+      } else if (careerResult.demoted) {
+        careerMessageEl.style.color = '#f87171';
+      } else {
+        careerMessageEl.style.color = '#94a3b8';
+      }
+      careerMessageEl.style.display = 'block';
+    }
+  } else if (careerMessageEl) {
+    careerMessageEl.style.display = 'none';
+  }
+
+  // Show overlay
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => {
+    overlay.classList.add('visible');
+  });
+}
+
+// Temporary test function for score overlay
+window.testScoreOverlay = function() {
+  showScoreOverlay('red', 3, 1);
+};
+
+// Temporary test functions for game over
+window.testGameOverWin = function() {
+  // Simulate user winning (user is red in 1-player mode)
+  gameState.scores.red = 7;
+  gameState.scores.yellow = 5;
+  showGameOverOverlay();
+};
+
+window.testGameOverLose = function() {
+  // Simulate user losing (user is red in 1-player mode)
+  gameState.scores.red = 4;
+  gameState.scores.yellow = 8;
+  showGameOverOverlay();
+};
+
+window.restartGame = function() {
+  // Clear confetti/rain if any
+  const confettiContainer = document.getElementById('confetti-container');
+  if (confettiContainer) confettiContainer.innerHTML = '';
+
+  const overlay = document.getElementById('gameover-overlay');
+  if (overlay) {
+    overlay.classList.remove('visible');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+
+      // Reset game state
+      gameState.end = 1;
+      gameState.scores = { red: 0, yellow: 0 };
+      gameState.endScores = { red: [null, null, null, null, null, null, null, null, null, null], yellow: [null, null, null, null, null, null, null, null, null, null] };
+      gameState.hammer = 'yellow';  // Reset hammer
+      gameState.stonesThrown = { red: 0, yellow: 0 };
+      gameState.currentTeam = 'red';
+      gameState.phase = 'aiming';
+      gameState.previewHeight = 0;
+      gameState.previewLocked = false;
+      gameState.curlDirection = null;  // Reset curl selection
+      gameState.playerCurlDirection = null;
+
+      // Clear any remaining stones
+      for (const stone of gameState.stones) {
+        scene.remove(stone.mesh);
+        Matter.Composite.remove(world, stone.body);
+      }
+      gameState.stones = [];
+
+      // Update UI
+      updateScoreDisplay();
+      updateStoneCountDisplay();
+      clearTargetMarker();
+      setCurlButtonsEnabled(true);  // Re-enable curl buttons
+      resetOutOfPlayStones();  // Reset out-of-play counter
+      updatePreviewStoneForTeam();  // Reset preview stone for red team
+      updateCurlDisplay();  // Reset curl display to require selection
+
+      const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+      document.getElementById('turn').textContent = `End 1 - Red's Turn${isComputer ? ' (Computer)' : ''}`;
+
+      resetCameraToThrower();
+
+      if (isComputer) {
+        setTimeout(() => executeComputerShot(), 1000);
+      }
+    }, 500);
+  }
+};
+
+// ============================================
+// SETTINGS
+// ============================================
+window.openSettings = function() {
+  const overlay = document.getElementById('settings-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+    // Sync UI with current state
+    const soundToggle = document.getElementById('sound-toggle');
+    if (soundToggle) soundToggle.checked = gameState.settings.soundEnabled;
+    updateDifficultyButtons(gameState.settings.difficulty);
+    updateEndsButtons(gameState.settings.gameLength);
+    // Sync game mode buttons
+    const btn1p = document.getElementById('mode-1p');
+    const btn2p = document.getElementById('mode-2p');
+    if (btn1p && btn2p) {
+      if (gameState.gameMode === '1player') {
+        btn1p.style.borderColor = '#4ade80';
+        btn1p.style.background = '#2d5a3d';
+        btn2p.style.borderColor = '#666';
+        btn2p.style.background = '#333';
+      } else {
+        btn2p.style.borderColor = '#4ade80';
+        btn2p.style.background = '#2d5a3d';
+        btn1p.style.borderColor = '#666';
+        btn1p.style.background = '#333';
+      }
+    }
+  }
+};
+
+window.closeSettings = function() {
+  const overlay = document.getElementById('settings-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
+window.setDifficulty = function(difficulty) {
+  gameState.settings.difficulty = difficulty;
+  updateDifficultyButtons(difficulty);
+};
+
+function updateDifficultyButtons(difficulty) {
+  const buttons = document.querySelectorAll('.difficulty-btn');
+  const descriptions = {
+    easy: 'Computer makes frequent mistakes',
+    medium: 'Computer makes occasional mistakes',
+    hard: 'Computer plays near-perfect shots'
+  };
+
+  buttons.forEach(btn => {
+    const btnDifficulty = btn.getAttribute('data-difficulty');
+    if (btnDifficulty === difficulty) {
+      btn.style.borderColor = '#4ade80';
+      btn.style.background = '#2d5a3d';
+    } else {
+      btn.style.borderColor = '#666';
+      btn.style.background = '#333';
+    }
+  });
+
+  const descEl = document.getElementById('difficulty-description');
+  if (descEl) {
+    descEl.textContent = descriptions[difficulty] || '';
+  }
+}
+
+window.toggleSound = function(enabled) {
+  gameState.settings.soundEnabled = enabled;
+  soundManager.setEnabled(enabled);
+};
+
+window.setGameLength = function(ends) {
+  gameState.settings.gameLength = ends;
+  updateEndsButtons(ends);
+  updateScoreboardColumns();
+};
+
+function updateEndsButtons(ends) {
+  const buttons = document.querySelectorAll('.ends-btn');
+  const descriptions = {
+    4: 'Quick game',
+    8: 'Standard game length',
+    10: 'Full competitive game'
+  };
+
+  buttons.forEach(btn => {
+    const btnEnds = parseInt(btn.getAttribute('data-ends'));
+    if (btnEnds === ends) {
+      btn.style.borderColor = '#4ade80';
+      btn.style.background = '#2d5a3d';
+    } else {
+      btn.style.borderColor = '#666';
+      btn.style.background = '#333';
+    }
+  });
+
+  const descEl = document.getElementById('ends-description');
+  if (descEl) {
+    descEl.textContent = descriptions[ends] || '';
+  }
+}
+
+function updateScoreboardColumns() {
+  // Show/hide end columns in scoreboard based on game length
+  const gameLength = gameState.settings.gameLength;
+  for (let i = 1; i <= 10; i++) {
+    const redCell = document.getElementById(`red-end-${i}`);
+    const yellowCell = document.getElementById(`yellow-end-${i}`);
+    const headerCells = document.querySelectorAll(`#score-table th`);
+
+    // Find the header cell for this end (index i+1 because of team and hammer columns)
+    if (redCell && yellowCell) {
+      const display = i <= gameLength ? '' : 'none';
+      redCell.style.display = display;
+      yellowCell.style.display = display;
+    }
+    if (headerCells[i + 1]) {
+      headerCells[i + 1].style.display = i <= gameLength ? '' : 'none';
+    }
+  }
+}
+
+window.submitFeedback = function(type) {
+  const overlay = document.getElementById('feedback-overlay');
+  const title = document.getElementById('feedback-title');
+  const typeInput = document.getElementById('feedback-type');
+  const messageInput = document.getElementById('feedback-message');
+  const statusEl = document.getElementById('feedback-status');
+
+  if (overlay) {
+    // Reset form
+    document.getElementById('feedback-form').reset();
+    statusEl.style.display = 'none';
+
+    // Set type
+    typeInput.value = type;
+    title.textContent = type === 'bug' ? 'Report Bug' : 'Request Feature';
+    title.style.color = type === 'bug' ? '#fca5a5' : '#93c5fd';
+    messageInput.placeholder = type === 'bug'
+      ? 'Describe the bug...\n\nSteps to reproduce:\n1. \n2. \n3. '
+      : 'Describe the feature you would like...';
+
+    overlay.style.display = 'flex';
+  }
+};
+
+window.closeFeedback = function() {
+  const overlay = document.getElementById('feedback-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
+window.sendFeedback = async function(event) {
+  event.preventDefault();
+
+  const type = document.getElementById('feedback-type').value;
+  const name = document.getElementById('feedback-name').value;
+  const email = document.getElementById('feedback-email').value;
+  const message = document.getElementById('feedback-message').value;
+  const submitBtn = document.getElementById('feedback-submit');
+  const statusEl = document.getElementById('feedback-status');
+
+  // Disable button while sending
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending...';
+  statusEl.style.display = 'none';
+
+  try {
+    const response = await fetch('/api/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, name, email, message })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      statusEl.textContent = 'Thank you! Your feedback has been sent.';
+      statusEl.style.color = '#4ade80';
+      statusEl.style.display = 'block';
+
+      // Close after delay
+      setTimeout(() => {
+        window.closeFeedback();
+      }, 2000);
+    } else {
+      throw new Error(data.error || 'Failed to send');
+    }
+  } catch (error) {
+    console.error('Feedback error:', error);
+    statusEl.textContent = error.message || 'Failed to send. Please try again.';
+    statusEl.style.color = '#f87171';
+    statusEl.style.display = 'block';
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send';
+  }
+};
+
+function startNewEnd() {
+  // Clear stones
+  for (const stone of gameState.stones) {
+    scene.remove(stone.mesh);
+    Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  resetOutOfPlayStones();  // Reset the out-of-play position counter
+  updateStoneCountDisplay();
+  gameState.end++;
+
+  if (gameState.end > gameState.settings.gameLength) {
+    // Game over
+    showGameOverOverlay();
+    return;
+  }
+
+  gameState.phase = 'aiming';
+  gameState.previewHeight = 0;  // Reset to thrower's view
+  gameState.previewLocked = false;  // Reset pan mode
+  clearTargetMarker();  // Remove target marker
+  setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
+  updatePreviewStoneForTeam();  // Update preview stone for current team
+
+  const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  document.getElementById('turn').textContent =
+    `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+  resetCameraToThrower();
+
+  // Trigger computer turn if applicable, or restore player's curl preference
+  if (isComputer) {
+    setTimeout(() => executeComputerShot(), 1000);
+  } else {
+    // Restore player's preferred curl direction
+    gameState.curlDirection = gameState.playerCurlDirection;
+    updateCurlDisplay();
+    updateSkipSignalArm();
+    updatePreviewStoneRotation();
+  }
+}
+
+function updateScoreDisplay() {
+  // Update totals
+  const redTotal = document.getElementById('red-total');
+  const yellowTotal = document.getElementById('yellow-total');
+  if (redTotal) redTotal.textContent = gameState.scores.red;
+  if (yellowTotal) yellowTotal.textContent = gameState.scores.yellow;
+
+  // Update end-by-end scores
+  for (let i = 0; i < 8; i++) {
+    const redCell = document.getElementById(`red-end-${i + 1}`);
+    const yellowCell = document.getElementById(`yellow-end-${i + 1}`);
+
+    if (redCell) {
+      const score = gameState.endScores.red[i];
+      redCell.textContent = score !== null ? score : '';
+      redCell.className = '';
+      if (score !== null && score > 0) {
+        redCell.classList.add('scored', 'scored-red');
+      }
+      // Highlight current end
+      if (i === gameState.end - 1 && score === null) {
+        redCell.classList.add('current-end');
+      }
+    }
+
+    if (yellowCell) {
+      const score = gameState.endScores.yellow[i];
+      yellowCell.textContent = score !== null ? score : '';
+      yellowCell.className = '';
+      if (score !== null && score > 0) {
+        yellowCell.classList.add('scored', 'scored-yellow');
+      }
+      // Highlight current end
+      if (i === gameState.end - 1 && score === null) {
+        yellowCell.classList.add('current-end');
+      }
+    }
+  }
+
+  // Update hammer indicator
+  const redHammer = document.getElementById('red-hammer');
+  const yellowHammer = document.getElementById('yellow-hammer');
+  if (redHammer) {
+    redHammer.innerHTML = gameState.hammer === 'red' ? '<span class="hammer-indicator">●</span>' : '';
+  }
+  if (yellowHammer) {
+    yellowHammer.innerHTML = gameState.hammer === 'yellow' ? '<span class="hammer-indicator">●</span>' : '';
+  }
+}
+
+function updateStoneCountDisplay() {
+  const redContainer = document.getElementById('red-stone-icons');
+  const yellowContainer = document.getElementById('yellow-stone-icons');
+
+  if (!redContainer || !yellowContainer) return;
+
+  const redRemaining = 8 - gameState.stonesThrown.red;
+  const yellowRemaining = 8 - gameState.stonesThrown.yellow;
+
+  const redThrown = gameState.stonesThrown.red;
+  const yellowThrown = gameState.stonesThrown.yellow;
+
+  // Create stone icons for red (thrown stones dimmed on left, remaining on right)
+  redContainer.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const isRemaining = i >= redThrown;
+    const stone = document.createElement('div');
+    stone.style.cssText = `
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: ${isRemaining ? '#dc2626' : '#4a1515'};
+      border: 1px solid ${isRemaining ? '#fee' : '#333'};
+      transition: all 0.3s;
+    `;
+    redContainer.appendChild(stone);
+  }
+
+  // Create stone icons for yellow (thrown stones dimmed on left, remaining on right)
+  yellowContainer.innerHTML = '';
+  for (let i = 0; i < 8; i++) {
+    const isRemaining = i >= yellowThrown;
+    const stone = document.createElement('div');
+    stone.style.cssText = `
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: ${isRemaining ? '#fbbf24' : '#4a4015'};
+      border: 1px solid ${isRemaining ? '#ffe' : '#333'};
+      transition: all 0.3s;
+    `;
+    yellowContainer.appendChild(stone);
+  }
+}
+
+// ============================================
+// INPUT HANDLERS
+// ============================================
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (gameState.phase === 'aiming') {
+    // If in preview mode (camera raised), handle marker placement
+    if (gameState.previewHeight > 0.3) {
+      // Try to place target marker on the ice
+      const markerPlaced = placeTargetMarker(e.clientX, e.clientY);
+      if (markerPlaced) {
+        // Marker placed - stay in preview so user can see it and adjust if needed
+        return;
+      }
+      return;  // Don't start throw while in raised preview mode
+    }
+    startPull(e.clientX, e.clientY);
+  } else if (gameState.phase === 'sliding') {
+    releaseStone();
+  }
+});
+
+// Double click to unlock preview and allow repositioning
+renderer.domElement.addEventListener('dblclick', (e) => {
+  if (gameState.phase === 'aiming' && gameState.previewLocked) {
+    // Unlock to allow repositioning marker (keep existing marker visible)
+    gameState.previewLocked = false;
+    updateReturnButton();
+    updateMarkerHint();
+    // Update last mouse position to prevent sudden jump
+    gameState.lastMousePos = { x: e.clientX, y: e.clientY };
+  }
+});
+
+renderer.domElement.addEventListener('mousemove', (e) => {
+  updatePull(e.clientX, e.clientY);
+  updateSlidingAim(e.clientX);  // Allow aiming during slide
+  updatePreviewCamera(e.clientX, e.clientY);  // Preview camera during aiming
+  updateSweepFromMovement(e.clientX, e.clientY);  // Sweeping via mouse drag
+});
+
+renderer.domElement.addEventListener('mouseup', () => {
+  if (gameState.phase === 'charging') {
+    pushOff();
+  }
+});
+
+renderer.domElement.addEventListener('mouseleave', () => {
+  if (gameState.phase === 'charging') {
+    pushOff();
+  }
+});
+
+// Curl direction and sweeping
+document.addEventListener('keydown', (e) => {
+  // Curl direction - A/Left for out-turn, D/Right for in-turn
+  if (gameState.phase === 'aiming' || gameState.phase === 'charging') {
+    if (e.code === 'KeyA' || e.code === 'ArrowLeft') {
+      setCurlDirection(-1); // Counter-clockwise / out-turn
+    } else if (e.code === 'KeyD' || e.code === 'ArrowRight') {
+      setCurlDirection(1); // Clockwise / in-turn
+    }
+  }
+
+});
+
+
+// Touch support
+let touchStartedInAiming = false;
+
+renderer.domElement.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  if (gameState.phase === 'aiming') {
+    // If in preview mode (camera raised), handle marker placement
+    if (gameState.previewHeight > 0.3) {
+      // Try to place target marker on the ice
+      const markerPlaced = placeTargetMarker(touch.clientX, touch.clientY);
+      if (markerPlaced) {
+        // Marker placed - stay in preview so user can see it
+        return;
+      }
+      return;  // Don't start throw while in raised preview mode
+    }
+    touchStartedInAiming = true;
+    startPull(touch.clientX, touch.clientY);
+  } else if (gameState.phase === 'sliding') {
+    releaseStone();
+  }
+});
+
+renderer.domElement.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  updatePull(touch.clientX, touch.clientY);
+  updateSlidingAim(touch.clientX);  // Allow aiming during slide
+  updateSweepFromMovement(touch.clientX, touch.clientY);  // Sweeping via touch drag
+});
+
+renderer.domElement.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (gameState.phase === 'charging' && touchStartedInAiming) {
+    pushOff();
+    touchStartedInAiming = false;
+  }
+});
+
+// Window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================
+// GAME LOOP
+// ============================================
+function animate() {
+  requestAnimationFrame(animate);
+
+  updatePhysics();
+
+  // Camera updates
+  if (cameraAnimation) {
+    cameraAnimation.update();
+  } else if (gameState.phase === 'aiming') {
+    updatePreviewCamera(undefined, undefined, false);  // Continue smooth camera interpolation
+    updateReturnButton();  // Update button visibility as camera moves
+    updateMarkerHint();    // Update hint visibility as camera moves
+  } else {
+    updateCameraFollow();  // Follow stone during sliding/throwing phase
+  }
+
+  // Update preview stone visibility based on phase and camera height
+  updatePreviewStoneVisibility();
+
+  renderer.render(scene, camera);
+}
+
+// ============================================
+// INITIALIZE
+// ============================================
+updateLoadingProgress(50, 'Building ice sheet...');
+createSheet();
+updateLoadingProgress(60, 'Building arena...');
+loadCareer();  // Load saved career progress first to know the level
+updateArenaForLevel();  // Create arena based on career level
+updateLoadingProgress(70, 'Setting up UI...');
+updateStoneCountDisplay();  // Initialize stone count display
+updateScoreDisplay();  // Initialize scoreboard
+updateCurlDisplay();  // Initialize curl display (with pulsing buttons)
+
+// Create initial preview stone
+updateLoadingProgress(90, 'Creating preview stone...');
+gameState.previewStone = createPreviewStone(gameState.currentTeam);
+scene.add(gameState.previewStone);
+updatePreviewStoneRotation();
+
+// Hide splash screen and start game after minimum display time
+updateLoadingProgress(100, 'Ready!');
+const splashMinTime = 2000;  // Minimum 2 seconds splash display
+const loadEndTime = Date.now();
+const elapsed = loadEndTime - (window.splashStartTime || loadEndTime);
+const remainingTime = Math.max(0, splashMinTime - elapsed);
+
+setTimeout(() => {
+  hideSplashScreen();
+  animate();
+  console.log('Curling game initialized!');
+}, remainingTime);
