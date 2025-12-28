@@ -100,6 +100,8 @@ const gameState = {
   // Game mode: '1player' or '2player'
   gameMode: '1player',
   computerTeam: 'yellow',  // Computer plays yellow in 1-player mode
+  // Computer's current shot info for sweeping decisions
+  computerShotTarget: null,  // { x, z, shotType, effort }
 
   // Phases: 'aiming' -> 'charging' -> 'sliding' -> 'throwing' -> 'sweeping' -> 'waiting'
   phase: 'aiming',
@@ -3147,6 +3149,98 @@ function decaySweepEffectiveness() {
   }
 }
 
+// Computer AI sweeping - both offensive (own stones) and defensive (opponent stones)
+function updateComputerSweeping() {
+  if (gameState.gameMode !== '1player') return;
+  if (gameState.phase !== 'sweeping') return;
+  if (!gameState.activeStone) return;
+
+  const stone = gameState.activeStone;
+  const stoneX = stone.body.position.x / PHYSICS_SCALE;
+  const stoneZ = stone.body.position.y / PHYSICS_SCALE;
+  const velocity = stone.body.velocity;
+  const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+
+  const isComputerStone = stone.team === gameState.computerTeam;
+  const isPlayerStone = !isComputerStone;
+
+  // Get current level for AI skill
+  const level = getCurrentLevel();
+  const skillFactor = 1 - level.difficulty; // Higher skill = lower difficulty value
+
+  // Defensive sweeping: Player's stone, after T-line
+  if (isPlayerStone && stoneZ >= TEE_LINE_FAR) {
+    // Computer can defensively sweep player's stone to make it go too far
+    // Sweep if the stone looks like it will stop in a good position
+    const distanceToBack = BACK_LINE - stoneZ;
+    const estimatedTravel = speed * 15; // Rough estimate of remaining distance
+
+    // If stone will stop in the house (good for player), sweep it out
+    const willStopInHouse = estimatedTravel < distanceToBack && estimatedTravel > 0.5;
+    const stoneNearButton = Math.abs(stoneX) < 1.5 && stoneZ < BACK_LINE - 1;
+
+    // Higher skill = more likely to defensively sweep at the right time
+    const shouldDefensiveSweep = willStopInHouse && stoneNearButton && Math.random() < skillFactor * 0.8;
+
+    if (shouldDefensiveSweep && speed > 0.5) {
+      // Computer sweeps to push stone through
+      gameState.isSweeping = true;
+      gameState.sweepEffectiveness = 0.7 + Math.random() * 0.3; // 70-100%
+      gameState.sweepAngleEffectiveness = 0.9; // Computer sweeps at good angle
+      gameState.sweepAngle = 10;
+      gameState.lastSweepTime = Date.now();
+
+      if (!gameState._computerSweepSoundStarted) {
+        soundManager.startSweeping();
+        gameState._computerSweepSoundStarted = true;
+      }
+      return;
+    }
+  }
+
+  // Offensive sweeping: Computer's own stone
+  if (isComputerStone && gameState.computerShotTarget) {
+    const target = gameState.computerShotTarget;
+    const distanceToTarget = target.z - stoneZ;
+    const estimatedTravel = speed * 18; // Rough estimate based on friction
+
+    // Decision: Will the stone reach its target?
+    const willComeUpShort = estimatedTravel < distanceToTarget * 0.9;
+    const needsMoreDistance = distanceToTarget > 2 && willComeUpShort;
+
+    // For takeouts, always sweep to maintain speed
+    const isTakeout = target.shotType === 'takeout' || target.shotType === 'peel';
+    const shouldSweepTakeout = isTakeout && distanceToTarget > 3 && speed > 1;
+
+    // For draws, sweep if coming up short
+    const shouldSweepDraw = !isTakeout && needsMoreDistance && speed > 0.3;
+
+    // Higher skill = better sweeping decisions
+    const sweepDecision = (shouldSweepTakeout || shouldSweepDraw) && Math.random() < skillFactor * 0.9;
+
+    if (sweepDecision) {
+      // Computer sweeps its own stone
+      gameState.isSweeping = true;
+      gameState.sweepEffectiveness = 0.6 + skillFactor * 0.4; // Better at higher levels
+      gameState.sweepAngleEffectiveness = 0.85 + skillFactor * 0.15; // Good angle
+      gameState.sweepAngle = 15 - skillFactor * 10; // Better angle at higher skill
+      gameState.lastSweepTime = Date.now();
+
+      if (!gameState._computerSweepSoundStarted) {
+        soundManager.startSweeping();
+        gameState._computerSweepSoundStarted = true;
+      }
+      return;
+    }
+  }
+
+  // Not sweeping - stop sound if it was playing
+  if (gameState._computerSweepSoundStarted && !gameState.isSweeping) {
+    soundManager.stopSweeping();
+    gameState._computerSweepSoundStarted = false;
+  }
+}
+
 function updateSweeping() {
   // If no active stone, ensure sweeping is stopped
   if (!gameState.activeStone) {
@@ -3155,8 +3249,12 @@ function updateSweeping() {
       gameState.sweepEffectiveness = 0;
       soundManager.stopSweeping();
     }
+    gameState._computerSweepSoundStarted = false;
     return;
   }
+
+  // Let computer AI decide on sweeping
+  updateComputerSweeping();
 
   decaySweepEffectiveness();
 
@@ -3169,19 +3267,34 @@ function updateSweeping() {
   const indicator = document.getElementById('sweep-indicator');
   if (indicator && gameState.phase === 'sweeping') {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
-    // In 1-player mode, opponent is the computer
-    const isOpponentStone = gameState.gameMode === '1player' &&
+    // In 1-player mode, check stone ownership
+    const isComputerStone = gameState.gameMode === '1player' &&
                             gameState.activeStone.team === gameState.computerTeam;
-    const canSweep = !isOpponentStone || stoneZ >= TEE_LINE_FAR;
+    const isPlayerStone = gameState.gameMode === '1player' && !isComputerStone;
+    const canPlayerSweep = !isComputerStone || stoneZ >= TEE_LINE_FAR;
 
-    if (!canSweep) {
-      // Opponent's stone - waiting for T-line
+    // Check if computer is currently sweeping
+    const computerIsSweeping = gameState._computerSweepSoundStarted;
+
+    if (computerIsSweeping && gameState.isSweeping) {
+      // Computer is sweeping - show what it's doing
+      indicator.style.display = 'block';
+      const intensity = Math.round(gameState.sweepEffectiveness * 100);
+      if (isComputerStone) {
+        indicator.textContent = `🖥️ CPU SWEEPING ${intensity}%`;
+        indicator.style.color = '#fbbf24'; // Yellow for computer
+      } else {
+        indicator.textContent = `🖥️ CPU DEFENSE ${intensity}%`;
+        indicator.style.color = '#ef4444'; // Red for defensive sweep
+      }
+    } else if (!canPlayerSweep) {
+      // Computer's stone - player waiting for T-line
       indicator.style.display = 'block';
       indicator.textContent = 'Sweep after T-line...';
       indicator.style.color = '#888';
-    } else if (gameState.isSweeping) {
+    } else if (gameState.isSweeping && !computerIsSweeping) {
       indicator.style.display = 'block';
-      // Show effectiveness with angle info
+      // Player is sweeping - show effectiveness with angle info
       const intensity = Math.round(gameState.sweepEffectiveness * 100);
       const angle = Math.round(gameState.sweepAngle);
       const angleEff = Math.round(gameState.sweepAngleEffectiveness * 100);
@@ -3209,9 +3322,13 @@ function updateSweeping() {
       indicator.textContent = `${angleIndicator} ${intensity}% (${angle}°)`;
       indicator.style.color = color;
     } else {
-      // Can sweep but not sweeping - show ready message
+      // No one is sweeping - show ready message
       indicator.style.display = 'block';
-      indicator.textContent = isOpponentStone ? 'SWEEP NOW!' : 'Swipe ↑ to sweep';
+      if (isComputerStone) {
+        indicator.textContent = canPlayerSweep ? 'SWEEP NOW!' : 'Waiting...';
+      } else {
+        indicator.textContent = 'Swipe ↑ to sweep';
+      }
       indicator.style.color = '#4ade80';
     }
   } else if (indicator) {
@@ -3470,6 +3587,8 @@ function getComputerShot() {
 
   return {
     shotType,
+    targetX,
+    targetZ,
     effort: Math.min(100, Math.max(0, effort + effortVariance)),
     aimAngle: aimAngle + accuracyVariance,
     curl
@@ -3480,6 +3599,14 @@ function executeComputerShot() {
   if (!isComputerTurn()) return;
 
   const shot = getComputerShot();
+
+  // Store shot target for sweeping decisions
+  gameState.computerShotTarget = {
+    x: shot.targetX,
+    z: shot.targetZ,
+    shotType: shot.shotType,
+    effort: shot.effort
+  };
 
   // Show what the computer is doing
   console.log(`Computer playing: ${shot.shotType}, effort: ${shot.effort.toFixed(0)}%`);
@@ -3735,6 +3862,8 @@ function updatePhysics() {
       gameState.sweepAngle = 0;
       gameState.sweepAngleEffectiveness = 1;
       gameState.sweepVector = { x: 0, y: 0 };
+      gameState._computerSweepSoundStarted = false;
+      gameState.computerShotTarget = null;
 
       // Stop all sounds when stone comes to rest
       soundManager.stopSliding();
