@@ -129,10 +129,27 @@
         transition: width 0.05s;
       }
       #hold-warning {
-        color: #fbbf24;
-        margin-top: 5px;
+        color: #fff;
+        margin-top: 10px;
         display: none;
         font-weight: bold;
+        font-size: 18px;
+        padding: 12px 20px;
+        background: linear-gradient(90deg, #dc2626, #ef4444);
+        border-radius: 8px;
+        animation: release-pulse 0.5s ease-in-out infinite;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+      @keyframes release-pulse {
+        0%, 100% {
+          transform: scale(1);
+          box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+        50% {
+          transform: scale(1.05);
+          box-shadow: 0 0 25px rgba(239, 68, 68, 0.9);
+        }
       }
       #curl-display {
         margin-top: 10px;
@@ -725,10 +742,9 @@
           <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
             Game Mode
           </label>
-          <div style="display: flex; gap: 8px;">
-            <button class="mode-btn" id="mode-1p" data-mode="1player" onclick="window.setGameMode('1player')" style="
-              flex: 1;
-              padding: 10px;
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button class="mode-btn" id="mode-career" data-mode="career" onclick="window.setGameMode('1player')" style="
+              padding: 12px;
               border: 2px solid #4ade80;
               background: #2d5a3d;
               color: white;
@@ -736,10 +752,13 @@
               cursor: pointer;
               font-size: 14px;
               transition: all 0.2s;
-            ">1 Player</button>
-            <button class="mode-btn" id="mode-2p" data-mode="2player" onclick="window.setGameMode('2player')" style="
-              flex: 1;
-              padding: 10px;
+              text-align: left;
+            ">
+              <div style="font-weight: bold;">🏆 Career Mode</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Start at Club level and work your way to the Olympics</div>
+            </button>
+            <button class="mode-btn" id="mode-quickplay" data-mode="quickplay" onclick="window.setGameMode('2player')" style="
+              padding: 12px;
               border: 2px solid #666;
               background: #333;
               color: white;
@@ -747,8 +766,154 @@
               cursor: pointer;
               font-size: 14px;
               transition: all 0.2s;
-            ">2 Player</button>
+              text-align: left;
+            ">
+              <div style="font-weight: bold;">🎮 Quick Play</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Jump into a game at any difficulty level</div>
+            </button>
+            <button class="mode-btn" id="mode-online" disabled style="
+              padding: 12px;
+              border: 2px solid #444;
+              background: #252525;
+              color: #666;
+              border-radius: 6px;
+              cursor: not-allowed;
+              font-size: 14px;
+              text-align: left;
+              opacity: 0.7;
+            ">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold;">🌐 Online Multiplayer</span>
+                <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
+              </div>
+              <div style="font-size: 11px; color: #555; margin-top: 4px;">Challenge players worldwide</div>
+            </button>
           </div>
+        </div>
+
+        <!-- Learn Mode (Coming Soon) -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Learn Mode
+          </label>
+          <button disabled style="
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #444;
+            background: #252525;
+            color: #666;
+            border-radius: 6px;
+            cursor: not-allowed;
+            font-size: 14px;
+            text-align: left;
+            opacity: 0.7;
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: bold;">📚 Learn to Curl</span>
+              <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
+            </div>
+            <div style="font-size: 11px; color: #555; margin-top: 4px;">AI coach suggests shots, explains strategy, and answers your questions</div>
+          </button>
+        </div>
+
+        <!-- Quick Play Level Selector (only shown in Quick Play mode) -->
+        <div id="quickplay-level-section" style="margin-bottom: 25px; display: none;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Select Level
+          </label>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+            <button class="level-btn" data-level="1" onclick="window.setQuickPlayLevel(1)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #6b7280;">●</span> Club</button>
+            <button class="level-btn" data-level="2" onclick="window.setQuickPlayLevel(2)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #3b82f6;">●</span> Regional</button>
+            <button class="level-btn" data-level="3" onclick="window.setQuickPlayLevel(3)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #8b5cf6;">●</span> Provincial</button>
+            <button class="level-btn" data-level="4" onclick="window.setQuickPlayLevel(4)" style="
+              padding: 10px 8px;
+              border: 2px solid #4ade80;
+              background: #2d5a3d;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #ef4444;">●</span> National</button>
+            <button class="level-btn" data-level="5" onclick="window.setQuickPlayLevel(5)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #f59e0b;">●</span> International</button>
+            <button class="level-btn" data-level="6" onclick="window.setQuickPlayLevel(6)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #10b981;">●</span> World Champ</button>
+            <button class="level-btn" data-level="7" onclick="window.setQuickPlayLevel(7)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #ec4899;">●</span> Olympic Trials</button>
+            <button class="level-btn" data-level="8" onclick="window.setQuickPlayLevel(8)" style="
+              padding: 10px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 6px;
+              cursor: pointer;
+              font-size: 12px;
+              transition: all 0.2s;
+              text-align: left;
+            "><span style="color: #ffd700;">●</span> Olympics</button>
+          </div>
+          <p id="quickplay-level-description" style="margin: 10px 0 0 0; font-size: 12px; color: #718096;">
+            National level - Medium difficulty
+          </p>
         </div>
 
         <!-- Game Length Setting -->
@@ -888,6 +1053,46 @@
               font-size: 12px;
               cursor: pointer;
             ">Reset Career</button>
+          </div>
+        </div>
+
+        <!-- Country Selection (Coming Soon) -->
+        <div style="margin-bottom: 25px;">
+          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
+            Your Country
+          </label>
+          <button disabled style="
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #444;
+            background: #252525;
+            color: #666;
+            border-radius: 6px;
+            cursor: not-allowed;
+            font-size: 14px;
+            text-align: left;
+            opacity: 0.7;
+          ">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 24px;">🏳️</span>
+                <span style="font-weight: bold;">Select Country</span>
+              </div>
+              <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
+            </div>
+            <div style="font-size: 11px; color: #555; margin-top: 4px;">Represent your nation at International level and above</div>
+          </button>
+          <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; opacity: 0.5;">
+            <span style="font-size: 20px;" title="Canada">🇨🇦</span>
+            <span style="font-size: 20px;" title="Sweden">🇸🇪</span>
+            <span style="font-size: 20px;" title="Switzerland">🇨🇭</span>
+            <span style="font-size: 20px;" title="Norway">🇳🇴</span>
+            <span style="font-size: 20px;" title="USA">🇺🇸</span>
+            <span style="font-size: 20px;" title="Japan">🇯🇵</span>
+            <span style="font-size: 20px;" title="South Korea">🇰🇷</span>
+            <span style="font-size: 20px;" title="Great Britain">🇬🇧</span>
+            <span style="font-size: 20px;" title="Scotland">🏴󠁧󠁢󠁳󠁣󠁴󠁿</span>
+            <span style="font-size: 12px; color: #555; align-self: center;">+ more</span>
           </div>
         </div>
 

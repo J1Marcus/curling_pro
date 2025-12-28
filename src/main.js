@@ -56,11 +56,11 @@ const STONE_MASS = 20;        // ~20kg (44 lbs)
 // Physics scale: 1 Three.js unit = 1 meter, Matter.js uses pixels (100px = 1m)
 const PHYSICS_SCALE = 100;
 
-// Realistic physics - stone takes ~2s to hog line, ~5-8s total travel
+// Realistic physics - tuned to real curling timing:
+// Draw weight: hog-to-hog ~14s, far hog-to-rest ~4-5s, total ~18-19s
 // frictionAir in Matter.js acts as a velocity dampening factor
-// Tuned so draw weight stops in the house, guard stops short
-const ICE_FRICTION = 0.0015;      // Friction on ice (tuned for realistic stopping)
-const SWEEP_FRICTION = 0.0009;    // Reduced friction when sweeping
+const ICE_FRICTION = 0.0015;      // Base friction (original value)
+const SWEEP_FRICTION = 0.0009;    // Reduced friction when sweeping (~40% reduction)
 
 // Velocities based on real curling timing (T-line to hog = 6.4m)
 // Guard: 4.3-4.8s, Draw: 3.6-4.2s, Takeout: 2.9-3.5s, Peel: 2.2-2.8s
@@ -118,6 +118,7 @@ const gameState = {
   slideStartTime: null,
   currentPower: 0,
   aimAngle: 0,
+  baseAimAngle: 0,  // Base angle from target, mouse adjusts relative to this
 
   // Curl direction: 1 = clockwise (in-turn for right-hander), -1 = counter-clockwise (out-turn), null = not selected
   curlDirection: null,
@@ -129,6 +130,10 @@ const gameState = {
   sweepDirection: 0,      // -1 = left bias, 0 = balanced, 1 = right bias
   sweepTouches: [],       // Track recent touch positions for speed calc
   lastSweepTime: 0,
+  // Angle-based sweeping (0° = aligned with stone, 90° = perpendicular)
+  sweepAngle: 0,          // Current sweep angle relative to stone velocity
+  sweepAngleEffectiveness: 1, // cos(angle) - multiplier for sweep effect (1 = aligned, 0 = perpendicular)
+  sweepVector: { x: 0, y: 0 }, // Normalized sweep direction vector
   activeStone: null,
 
   // Preview stone shown during aiming
@@ -137,6 +142,11 @@ const gameState = {
   // Timing (for split time display)
   tLineCrossTime: null,
   splitTime: null,
+
+  // Physics timing instrumentation (for tuning)
+  nearHogCrossTime: null,
+  farHogCrossTime: null,
+  stoneStopTime: null,
 
   // Stored slide speed for consistent velocity
   slideSpeed: 0,
@@ -160,7 +170,8 @@ const gameState = {
   settings: {
     difficulty: 'medium',  // easy, medium, hard
     soundEnabled: false,
-    gameLength: 8  // number of ends
+    gameLength: 8,  // number of ends
+    quickPlayLevel: 4  // Default to National for quick play
   },
 
   // Career mode
@@ -185,6 +196,11 @@ const CAREER_LEVELS = [
 
 // Career helper functions
 function getCurrentLevel() {
+  // In Quick Play mode (2player), use the selected quick play level
+  if (gameState.gameMode === '2player') {
+    return CAREER_LEVELS[gameState.settings.quickPlayLevel - 1] || CAREER_LEVELS[3]; // Default to National
+  }
+  // In Career mode, use career progression level
   return CAREER_LEVELS[gameState.career.level - 1] || CAREER_LEVELS[0];
 }
 
@@ -388,17 +404,17 @@ mainLight.shadow.mapSize.width = 2048;
 mainLight.shadow.mapSize.height = 2048;
 scene.add(mainLight);
 
-// Additional overhead lights along the sheet
-const light1 = new THREE.PointLight(0xffffff, 0.4, 30);
-light1.position.set(0, 12, 10);
+// Additional overhead lights along the sheet - high and wide for even coverage
+const light1 = new THREE.PointLight(0xffffff, 0.25, 80);
+light1.position.set(0, 25, 10);
 scene.add(light1);
 
-const light2 = new THREE.PointLight(0xffffff, 0.4, 30);
-light2.position.set(0, 12, 25);
+const light2 = new THREE.PointLight(0xffffff, 0.25, 80);
+light2.position.set(0, 25, 25);
 scene.add(light2);
 
-const light3 = new THREE.PointLight(0xffffff, 0.4, 30);
-light3.position.set(0, 12, 38);
+const light3 = new THREE.PointLight(0xffffff, 0.25, 80);
+light3.position.set(0, 25, 38);
 scene.add(light3);
 
 // Soft fill light from sides
@@ -419,6 +435,164 @@ scene.add(hemiLight);
 // ============================================
 let arenaGroup = null;  // Group to hold all arena elements for easy updates
 
+// Create a more realistic seated spectator with rounded shapes and facial features
+function createSpectator() {
+  const group = new THREE.Group();
+
+  // Random colors for clothing
+  const shirtColors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316, 0x1e40af, 0x991b1b];
+  const pantsColors = [0x1f2937, 0x374151, 0x4b5563, 0x1e3a5f, 0x3d2914];
+  const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642, 0xe8beac];
+  const hairColors = [0x2c1810, 0x4a3728, 0x8b4513, 0xd4a574, 0x1a1a1a, 0x808080, 0xffd700];
+
+  const shirtColor = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+  const pantsColor = pantsColors[Math.floor(Math.random() * pantsColors.length)];
+  const skinColor = skinTones[Math.floor(Math.random() * skinTones.length)];
+  const hairColor = hairColors[Math.floor(Math.random() * hairColors.length)];
+
+  const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.8 });
+  const pantsMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.8 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.6 });
+  const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.9 });
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+
+  // Torso (capsule-like using sphere + cylinder + sphere)
+  const torsoMidGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.22, 12);
+  const torsoMid = new THREE.Mesh(torsoMidGeo, shirtMat);
+  torsoMid.position.set(0, 0.45, 0);
+  group.add(torsoMid);
+
+  // Shoulders (rounded top)
+  const shoulderGeo = new THREE.SphereGeometry(0.12, 12, 8);
+  const shoulders = new THREE.Mesh(shoulderGeo, shirtMat);
+  shoulders.position.set(0, 0.56, 0);
+  shoulders.scale.set(1.1, 0.5, 0.9);
+  group.add(shoulders);
+
+  // Head (slightly oval)
+  const headGeo = new THREE.SphereGeometry(0.1, 16, 14);
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.set(0, 0.75, 0);
+  head.scale.set(1, 1.1, 0.95);
+  group.add(head);
+
+  // Face features
+  // Eyes
+  const eyeGeo = new THREE.SphereGeometry(0.018, 8, 8);
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.035, 0.77, -0.085);
+  group.add(leftEye);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.035, 0.77, -0.085);
+  group.add(rightEye);
+
+  // Nose (small bump)
+  const noseGeo = new THREE.SphereGeometry(0.015, 8, 6);
+  const nose = new THREE.Mesh(noseGeo, skinMat);
+  nose.position.set(0, 0.73, -0.095);
+  group.add(nose);
+
+  // Hair or cap
+  const hasHat = Math.random() > 0.7;
+  if (hasHat) {
+    // Baseball cap
+    const capGeo = new THREE.SphereGeometry(0.11, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+    const capMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.7 });
+    const cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.set(0, 0.78, 0);
+    group.add(cap);
+    // Brim
+    const brimGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 12, 1, false, -Math.PI/3, Math.PI * 2/3);
+    const brim = new THREE.Mesh(brimGeo, capMat);
+    brim.position.set(0, 0.76, -0.08);
+    brim.rotation.x = -0.3;
+    group.add(brim);
+  } else {
+    // Hair (fuller, covers more of head)
+    const hairGeo = new THREE.SphereGeometry(0.105, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    const hair = new THREE.Mesh(hairGeo, hairMat);
+    hair.position.set(0, 0.77, 0.01);
+    group.add(hair);
+  }
+
+  // Arms (rounded, capsule-like)
+  const upperArmGeo = new THREE.CapsuleGeometry(0.03, 0.12, 4, 8);
+  const forearmGeo = new THREE.CapsuleGeometry(0.025, 0.1, 4, 8);
+  const armPose = Math.random();
+
+  // Left upper arm
+  const leftUpperArm = new THREE.Mesh(upperArmGeo, shirtMat);
+  leftUpperArm.position.set(-0.16, 0.48, 0);
+  leftUpperArm.rotation.z = 0.4;
+  group.add(leftUpperArm);
+
+  // Left forearm
+  const leftForearm = new THREE.Mesh(forearmGeo, skinMat);
+  if (armPose > 0.85) {
+    // Raised
+    leftForearm.position.set(-0.22, 0.62, 0);
+    leftForearm.rotation.z = 0.2;
+  } else {
+    // Resting
+    leftForearm.position.set(-0.18, 0.32, -0.06);
+    leftForearm.rotation.x = 1.2;
+    leftForearm.rotation.z = 0.3;
+  }
+  group.add(leftForearm);
+
+  // Right upper arm
+  const rightUpperArm = new THREE.Mesh(upperArmGeo, shirtMat);
+  rightUpperArm.position.set(0.16, 0.48, 0);
+  rightUpperArm.rotation.z = -0.4;
+  group.add(rightUpperArm);
+
+  // Right forearm
+  const rightForearm = new THREE.Mesh(forearmGeo, skinMat);
+  if (armPose > 0.9) {
+    // Raised
+    rightForearm.position.set(0.22, 0.62, 0);
+    rightForearm.rotation.z = -0.2;
+  } else {
+    // Resting
+    rightForearm.position.set(0.18, 0.32, -0.06);
+    rightForearm.rotation.x = 1.2;
+    rightForearm.rotation.z = -0.3;
+  }
+  group.add(rightForearm);
+
+  // Thighs (capsule for roundness)
+  const thighGeo = new THREE.CapsuleGeometry(0.045, 0.15, 4, 8);
+
+  const leftThigh = new THREE.Mesh(thighGeo, pantsMat);
+  leftThigh.position.set(-0.07, 0.22, -0.1);
+  leftThigh.rotation.x = Math.PI / 2.2;
+  group.add(leftThigh);
+
+  const rightThigh = new THREE.Mesh(thighGeo, pantsMat);
+  rightThigh.position.set(0.07, 0.22, -0.1);
+  rightThigh.rotation.x = Math.PI / 2.2;
+  group.add(rightThigh);
+
+  // Lower legs
+  const shinGeo = new THREE.CapsuleGeometry(0.035, 0.12, 4, 8);
+
+  const leftShin = new THREE.Mesh(shinGeo, pantsMat);
+  leftShin.position.set(-0.07, 0.05, -0.22);
+  leftShin.rotation.x = 0.15;
+  group.add(leftShin);
+
+  const rightShin = new THREE.Mesh(shinGeo, pantsMat);
+  rightShin.position.set(0.07, 0.05, -0.22);
+  rightShin.rotation.x = 0.15;
+  group.add(rightShin);
+
+  // Slight random lean for natural look
+  group.rotation.x = (Math.random() - 0.5) * 0.15;
+
+  return group;
+}
+
 function createArena(level = 1) {
   // Remove existing arena if present
   if (arenaGroup) {
@@ -429,17 +603,18 @@ function createArena(level = 1) {
   arenaGroup = new THREE.Group();
 
   // Arena configuration based on level
-  // Level 1 (Club): Small venue, few spectators
-  // Level 8 (Olympics): Full arena, packed house
+  // Level 1 (Club): Handful of spectators, small venue
+  // Level 8 (Olympics): Packed house, full arena
+  // Rows kept low for performance (max 4)
   const arenaConfig = {
-    1: { rows: 2, fillPercent: 0.15, standHeight: 2, bgColor: 0x1a1a2e, name: 'Club' },
+    1: { rows: 1, fillPercent: 0.10, standHeight: 2, bgColor: 0x1a1a2e, name: 'Club' },
     2: { rows: 2, fillPercent: 0.25, standHeight: 2.5, bgColor: 0x1a1a2e, name: 'Regional' },
-    3: { rows: 3, fillPercent: 0.35, standHeight: 3, bgColor: 0x16213e, name: 'Provincial' },
-    4: { rows: 3, fillPercent: 0.50, standHeight: 3.5, bgColor: 0x16213e, name: 'National' },
-    5: { rows: 4, fillPercent: 0.60, standHeight: 4, bgColor: 0x0f3460, name: 'International' },
-    6: { rows: 5, fillPercent: 0.75, standHeight: 5, bgColor: 0x0f3460, name: 'World' },
-    7: { rows: 6, fillPercent: 0.85, standHeight: 6, bgColor: 0x1a1a4e, name: 'Trials' },
-    8: { rows: 7, fillPercent: 0.95, standHeight: 7, bgColor: 0x1a1a4e, name: 'Olympics' }
+    3: { rows: 2, fillPercent: 0.40, standHeight: 3, bgColor: 0x16213e, name: 'Provincial' },
+    4: { rows: 3, fillPercent: 0.55, standHeight: 3.5, bgColor: 0x16213e, name: 'National' },
+    5: { rows: 3, fillPercent: 0.70, standHeight: 4, bgColor: 0x0f3460, name: 'International' },
+    6: { rows: 4, fillPercent: 0.80, standHeight: 5, bgColor: 0x0f3460, name: 'World' },
+    7: { rows: 4, fillPercent: 0.90, standHeight: 6, bgColor: 0x1a1a4e, name: 'Trials' },
+    8: { rows: 4, fillPercent: 1.00, standHeight: 7, bgColor: 0x1a1a4e, name: 'Olympics' }
   };
 
   const config = arenaConfig[level] || arenaConfig[1];
@@ -450,7 +625,8 @@ function createArena(level = 1) {
 
   // Stand dimensions
   const standLength = SHEET_LENGTH + 10;
-  const standOffset = SHEET_WIDTH / 2 + 2;  // Distance from ice edge
+  const surroundWidth = 3;  // Must match the blue surround width
+  const standOffset = SHEET_WIDTH / 2 + surroundWidth + 1.5;  // Distance from ice edge (after blue surround + draping)
   const rowDepth = 1.2;
   const rowHeight = 0.8;
 
@@ -472,7 +648,7 @@ function createArena(level = 1) {
       arenaGroup.add(stand);
 
       // Add spectators to this row
-      const spectatorSpacing = 0.6;
+      const spectatorSpacing = 0.45;  // Balanced spacing for performance
       const spectatorsPerRow = Math.floor(standLength / spectatorSpacing);
 
       for (let i = 0; i < spectatorsPerRow; i++) {
@@ -481,38 +657,16 @@ function createArena(level = 1) {
 
         const zPos = (i - spectatorsPerRow / 2) * spectatorSpacing + SHEET_LENGTH / 2;
 
-        // Create spectator (simple colored cylinder for body + sphere for head)
-        const spectatorGroup = new THREE.Group();
+        // Create realistic spectator
+        const spectator = createSpectator();
+        spectator.position.set(xPos, yPos, zPos);
+        // Face toward the ice (side stands face inward)
+        // Right side (positive X) needs to face -X (toward ice): rotate +90°
+        // Left side (negative X) needs to face +X (toward ice): rotate -90°
+        spectator.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
+        spectator.rotation.y += (Math.random() - 0.5) * 0.2;  // Slight variation
 
-        // Body (cylinder)
-        const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.18, 0.5, 8);
-        // Random clothing colors
-        const colors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316];
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-          color: colors[Math.floor(Math.random() * colors.length)],
-          roughness: 0.7
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.55;
-        spectatorGroup.add(body);
-
-        // Head (sphere)
-        const headGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-        const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642];
-        const headMaterial = new THREE.MeshStandardMaterial({
-          color: skinTones[Math.floor(Math.random() * skinTones.length)],
-          roughness: 0.6
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 0.95;
-        spectatorGroup.add(head);
-
-        spectatorGroup.position.set(xPos, yPos, zPos);
-
-        // Slight random rotation for variety
-        spectatorGroup.rotation.y = (Math.random() - 0.5) * 0.3;
-
-        arenaGroup.add(spectatorGroup);
+        arenaGroup.add(spectator);
       }
     }
   });
@@ -521,7 +675,7 @@ function createArena(level = 1) {
   if (level >= 4) {
     const backRows = Math.min(level - 2, 5);
     for (let row = 0; row < backRows; row++) {
-      const zPos = BACK_LINE_FAR + 3 + row * rowDepth;
+      const zPos = SHEET_LENGTH + surroundWidth + 2 + row * rowDepth;  // After blue surround and draping
       const yPos = row * rowHeight + 0.5;
 
       // Stand platform
@@ -536,7 +690,7 @@ function createArena(level = 1) {
       arenaGroup.add(stand);
 
       // Spectators
-      const spectatorSpacing = 0.6;
+      const spectatorSpacing = 0.45;  // Balanced spacing for performance
       const spectatorsPerRow = Math.floor((SHEET_WIDTH + 6) / spectatorSpacing);
 
       for (let i = 0; i < spectatorsPerRow; i++) {
@@ -544,32 +698,13 @@ function createArena(level = 1) {
 
         const xPos = (i - spectatorsPerRow / 2) * spectatorSpacing;
 
-        const spectatorGroup = new THREE.Group();
+        // Create realistic spectator
+        const spectator = createSpectator();
+        spectator.position.set(xPos, yPos, zPos);
+        // Face the ice (back stands face toward near end)
+        spectator.rotation.y = Math.PI + (Math.random() - 0.5) * 0.2;
 
-        const bodyGeometry = new THREE.CylinderGeometry(0.15, 0.18, 0.5, 8);
-        const colors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316];
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-          color: colors[Math.floor(Math.random() * colors.length)],
-          roughness: 0.7
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.55;
-        spectatorGroup.add(body);
-
-        const headGeometry = new THREE.SphereGeometry(0.12, 8, 8);
-        const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642];
-        const headMaterial = new THREE.MeshStandardMaterial({
-          color: skinTones[Math.floor(Math.random() * skinTones.length)],
-          roughness: 0.6
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 0.95;
-        spectatorGroup.add(head);
-
-        spectatorGroup.position.set(xPos, yPos, zPos);
-        spectatorGroup.rotation.y = Math.PI + (Math.random() - 0.5) * 0.3;  // Face the ice
-
-        arenaGroup.add(spectatorGroup);
+        arenaGroup.add(spectator);
       }
     }
   }
@@ -610,12 +745,622 @@ function createArena(level = 1) {
     });
   }
 
+  // Level-specific championship symbols (levels 2-8)
+  if (level >= 2) {
+    const symbolGroup = new THREE.Group();
+
+    // Helper function to create a 5-pointed star shape
+    function createStarShape(outerRadius, innerRadius) {
+      const shape = new THREE.Shape();
+      const points = 5;
+      for (let i = 0; i < points * 2; i++) {
+        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        const x = Math.cos(angle) * radius;
+        const y = Math.sin(angle) * radius;
+        if (i === 0) shape.moveTo(x, y);
+        else shape.lineTo(x, y);
+      }
+      shape.closePath();
+      return shape;
+    }
+
+    // Helper function to create a star mesh
+    function createStar(color, size = 0.5) {
+      const starShape = createStarShape(size, size * 0.4);
+      const geometry = new THREE.ExtrudeGeometry(starShape, { depth: 0.1, bevelEnabled: false });
+      const material = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.7 });
+      return new THREE.Mesh(geometry, material);
+    }
+
+    const bronze = 0xCD7F32;
+    const silver = 0xC0C0C0;
+    const gold = 0xFFD700;
+
+    if (level === 2) {
+      // Regional: 1 bronze star
+      const star = createStar(bronze, 0.8);
+      symbolGroup.add(star);
+    } else if (level === 3) {
+      // Provincial: 2 silver stars
+      [-0.9, 0.9].forEach(x => {
+        const star = createStar(silver, 0.7);
+        star.position.x = x;
+        symbolGroup.add(star);
+      });
+    } else if (level === 4) {
+      // National: 3 gold stars
+      [-1.2, 0, 1.2].forEach(x => {
+        const star = createStar(gold, 0.7);
+        star.position.x = x;
+        symbolGroup.add(star);
+      });
+    } else if (level === 5) {
+      // International: Globe
+      const globeGeometry = new THREE.SphereGeometry(1, 32, 32);
+      const globeMaterial = new THREE.MeshStandardMaterial({
+        color: 0x4169E1, roughness: 0.5, metalness: 0.3
+      });
+      const globe = new THREE.Mesh(globeGeometry, globeMaterial);
+      symbolGroup.add(globe);
+
+      // Add latitude/longitude lines
+      const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+      // Equator
+      const equatorGeometry = new THREE.TorusGeometry(1.02, 0.02, 8, 64);
+      const equator = new THREE.Mesh(equatorGeometry, lineMaterial);
+      equator.rotation.x = Math.PI / 2;
+      symbolGroup.add(equator);
+      // Prime meridian
+      const meridianGeometry = new THREE.TorusGeometry(1.02, 0.02, 8, 64);
+      const meridian = new THREE.Mesh(meridianGeometry, lineMaterial);
+      symbolGroup.add(meridian);
+    } else if (level === 6) {
+      // World Championship: Laurel wreath
+      const leafMaterial = new THREE.MeshStandardMaterial({
+        color: 0x228B22, roughness: 0.6, metalness: 0.2
+      });
+      const leafCount = 12;
+
+      // Left branch
+      for (let i = 0; i < leafCount; i++) {
+        const angle = (i / leafCount) * Math.PI * 0.7 + Math.PI * 0.15;
+        const leafGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+        leafGeometry.scale(1, 2, 0.3);
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+        leaf.position.x = -Math.cos(angle) * 1.2;
+        leaf.position.y = Math.sin(angle) * 1.2 - 0.3;
+        leaf.rotation.z = angle - Math.PI / 2;
+        symbolGroup.add(leaf);
+      }
+      // Right branch (mirror)
+      for (let i = 0; i < leafCount; i++) {
+        const angle = (i / leafCount) * Math.PI * 0.7 + Math.PI * 0.15;
+        const leafGeometry = new THREE.SphereGeometry(0.15, 8, 8);
+        leafGeometry.scale(1, 2, 0.3);
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+        leaf.position.x = Math.cos(angle) * 1.2;
+        leaf.position.y = Math.sin(angle) * 1.2 - 0.3;
+        leaf.rotation.z = -angle + Math.PI / 2;
+        symbolGroup.add(leaf);
+      }
+      // Gold ribbon at bottom
+      const ribbonGeometry = new THREE.TorusGeometry(0.3, 0.08, 8, 16, Math.PI);
+      const ribbonMaterial = new THREE.MeshStandardMaterial({ color: gold, metalness: 0.7 });
+      const ribbon = new THREE.Mesh(ribbonGeometry, ribbonMaterial);
+      ribbon.position.y = -1.1;
+      ribbon.rotation.z = Math.PI;
+      symbolGroup.add(ribbon);
+    } else if (level === 7) {
+      // Trials: Crown
+      const crownMaterial = new THREE.MeshStandardMaterial({
+        color: gold, roughness: 0.3, metalness: 0.8
+      });
+      // Crown base (ring)
+      const baseGeometry = new THREE.TorusGeometry(0.8, 0.15, 16, 32);
+      const base = new THREE.Mesh(baseGeometry, crownMaterial);
+      base.rotation.x = Math.PI / 2;
+      base.position.y = -0.3;
+      symbolGroup.add(base);
+      // Crown points
+      const pointCount = 5;
+      for (let i = 0; i < pointCount; i++) {
+        const angle = (i / pointCount) * Math.PI * 2;
+        const pointGeometry = new THREE.ConeGeometry(0.2, 0.8, 4);
+        const point = new THREE.Mesh(pointGeometry, crownMaterial);
+        point.position.x = Math.cos(angle) * 0.7;
+        point.position.z = Math.sin(angle) * 0.7;
+        point.position.y = 0.2;
+        symbolGroup.add(point);
+        // Jewel on each point
+        const jewelGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        const jewelMaterial = new THREE.MeshStandardMaterial({
+          color: i % 2 === 0 ? 0xFF0000 : 0x0000FF, roughness: 0.2, metalness: 0.5
+        });
+        const jewel = new THREE.Mesh(jewelGeometry, jewelMaterial);
+        jewel.position.copy(point.position);
+        jewel.position.y += 0.45;
+        symbolGroup.add(jewel);
+      }
+    } else if (level === 8) {
+      // Championship: Golden curling stone with radiating stars
+      // Golden stone
+      const stoneGeometry = new THREE.CylinderGeometry(0.6, 0.7, 0.5, 32);
+      const stoneMaterial = new THREE.MeshStandardMaterial({
+        color: gold, roughness: 0.2, metalness: 0.9
+      });
+      const stone = new THREE.Mesh(stoneGeometry, stoneMaterial);
+      symbolGroup.add(stone);
+      // Handle
+      const handleGeometry = new THREE.TorusGeometry(0.25, 0.06, 8, 16, Math.PI);
+      const handle = new THREE.Mesh(handleGeometry, stoneMaterial);
+      handle.position.y = 0.35;
+      handle.rotation.x = Math.PI / 2;
+      symbolGroup.add(handle);
+      // Radiating stars around the stone
+      const starCount = 8;
+      for (let i = 0; i < starCount; i++) {
+        const angle = (i / starCount) * Math.PI * 2;
+        const star = createStar(0xFFFFFF, 0.25);
+        star.position.x = Math.cos(angle) * 1.5;
+        star.position.y = Math.sin(angle) * 1.5;
+        symbolGroup.add(star);
+      }
+      // Larger corner stars
+      [[-1.8, 1.8], [1.8, 1.8], [-1.8, -1.8], [1.8, -1.8]].forEach(([x, y]) => {
+        const star = createStar(gold, 0.35);
+        star.position.x = x;
+        star.position.y = y;
+        symbolGroup.add(star);
+      });
+
+      // National flags of major curling nations along the arena walls
+      const flagWidth = 3;
+      const flagHeight = 2;
+      const flagDepth = 0.05;
+
+      // Helper to create a flag with colored sections
+      function createFlag(design) {
+        const flagGroup = new THREE.Group();
+        design.forEach(section => {
+          const geometry = new THREE.BoxGeometry(
+            section.w * flagWidth,
+            section.h * flagHeight,
+            flagDepth
+          );
+          const material = new THREE.MeshStandardMaterial({
+            color: section.color, roughness: 0.5
+          });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(
+            (section.x - 0.5) * flagWidth,
+            (section.y - 0.5) * flagHeight,
+            section.z || 0
+          );
+          flagGroup.add(mesh);
+        });
+        return flagGroup;
+      }
+
+      // Accurate flag designs for major curling nations
+      // Using proper proportions and official colors
+
+      // Helper to create diagonal stripe for saltire flags
+      function createDiagonalStripe(width, height, color, angle) {
+        const stripeGroup = new THREE.Group();
+        const stripeLength = Math.sqrt(width * width + height * height);
+        const geometry = new THREE.BoxGeometry(stripeLength, height * 0.14, flagDepth);
+        const material = new THREE.MeshStandardMaterial({ color, roughness: 0.5 });
+        const stripe = new THREE.Mesh(geometry, material);
+        stripe.rotation.z = angle;
+        stripeGroup.add(stripe);
+        return stripeGroup;
+      }
+
+      const flags = [
+        // 0: Canada - Red (1/4) White (1/2) Red (1/4) with maple leaf implied
+        { name: 'Canada', design: [
+          { x: 0.125, y: 0.5, w: 0.25, h: 1, color: 0xFF0000 },
+          { x: 0.5, y: 0.5, w: 0.5, h: 1, color: 0xFFFFFF },
+          { x: 0.875, y: 0.5, w: 0.25, h: 1, color: 0xFF0000 }
+        ]},
+        // 1: Sweden - Blue with yellow Nordic cross (offset left)
+        { name: 'Sweden', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0x006AA7 },
+          { x: 0.36, y: 0.5, w: 0.10, h: 1, color: 0xFECC00, z: 0.01 },
+          { x: 0.5, y: 0.5, w: 1, h: 0.10, color: 0xFECC00, z: 0.01 }
+        ]},
+        // 2: Switzerland - Red with white cross (Swiss cross is 7:6 ratio arms)
+        { name: 'Switzerland', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0xDA291C },
+          { x: 0.5, y: 0.5, w: 0.15, h: 0.5, color: 0xFFFFFF, z: 0.01 },
+          { x: 0.5, y: 0.5, w: 0.5, h: 0.15, color: 0xFFFFFF, z: 0.01 }
+        ]},
+        // 3: Norway - Red with blue-bordered white Nordic cross
+        { name: 'Norway', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0xBA0C2F },
+          { x: 0.36, y: 0.5, w: 0.16, h: 1, color: 0xFFFFFF, z: 0.01 },
+          { x: 0.5, y: 0.5, w: 1, h: 0.16, color: 0xFFFFFF, z: 0.01 },
+          { x: 0.36, y: 0.5, w: 0.08, h: 1, color: 0x00205B, z: 0.02 },
+          { x: 0.5, y: 0.5, w: 1, h: 0.08, color: 0x00205B, z: 0.02 }
+        ]},
+        // 4: Scotland - Blue with white saltire (diagonal cross)
+        { name: 'Scotland', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0x0065BD }
+        ], saltire: true, saltireColor: 0xFFFFFF },
+        // 5: Japan - White with red circle (Hinomaru)
+        { name: 'Japan', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0xFFFFFF }
+        ], circle: { color: 0xBC002D, radius: 0.3 }},
+        // 6: South Korea - White with red/blue taeguk
+        { name: 'SouthKorea', design: [
+          { x: 0.5, y: 0.5, w: 1, h: 1, color: 0xFFFFFF }
+        ], taeguk: true },
+        // 7: USA - 13 stripes (7 red, 6 white) with blue canton
+        { name: 'USA', design: (() => {
+          const stripes = [];
+          for (let i = 0; i < 13; i++) {
+            stripes.push({
+              x: 0.5,
+              y: (i + 0.5) / 13,
+              w: 1,
+              h: 1/13,
+              color: i % 2 === 0 ? 0xB31942 : 0xFFFFFF
+            });
+          }
+          // Blue canton (covers top 7 stripes, left 40%)
+          stripes.push({ x: 0.2, y: 0.73, w: 0.4, h: 7/13, color: 0x0A3161, z: 0.01 });
+          return stripes;
+        })()}
+      ];
+
+      // Position flags - 4 on each wall, no duplicates
+      const flagSpacing = 8;
+      const wallX = SHEET_WIDTH / 2 + surroundWidth + 1;
+      const startZ = SHEET_LENGTH * 0.2;
+
+      flags.forEach((flagData, i) => {
+        const flag = createFlag(flagData.design);
+        const isLeftWall = i < 4;
+        const wallIndex = i % 4;
+        const zPos = startZ + wallIndex * flagSpacing;
+        const xPos = isLeftWall ? -wallX : wallX;
+        const rotY = isLeftWall ? Math.PI / 2 : -Math.PI / 2;
+
+        flag.position.set(xPos, 8, zPos);
+        flag.rotation.y = rotY;
+        arenaGroup.add(flag);
+
+        // Add saltire (diagonal cross) for Scotland
+        if (flagData.saltire) {
+          const angle1 = Math.atan2(flagHeight, flagWidth);
+          const angle2 = -angle1;
+          const stripe1 = createDiagonalStripe(flagWidth, flagHeight, flagData.saltireColor, angle1);
+          const stripe2 = createDiagonalStripe(flagWidth, flagHeight, flagData.saltireColor, angle2);
+          stripe1.position.set(xPos + (isLeftWall ? 0.05 : -0.05), 8, zPos);
+          stripe2.position.set(xPos + (isLeftWall ? 0.05 : -0.05), 8, zPos);
+          stripe1.rotation.y = rotY;
+          stripe2.rotation.y = rotY;
+          arenaGroup.add(stripe1);
+          arenaGroup.add(stripe2);
+        }
+
+        // Add circle for Japan
+        if (flagData.circle) {
+          const circleGeom = new THREE.CircleGeometry(flagHeight * flagData.circle.radius, 32);
+          const circleMat = new THREE.MeshStandardMaterial({ color: flagData.circle.color, roughness: 0.5 });
+          const circle = new THREE.Mesh(circleGeom, circleMat);
+          circle.position.set(xPos + (isLeftWall ? 0.05 : -0.05), 8, zPos);
+          circle.rotation.y = rotY;
+          arenaGroup.add(circle);
+        }
+
+        // Add taeguk for South Korea
+        if (flagData.taeguk) {
+          const taegukRadius = flagHeight * 0.25;
+          // Red top half
+          const redGeom = new THREE.CircleGeometry(taegukRadius, 32, 0, Math.PI);
+          const redMat = new THREE.MeshStandardMaterial({ color: 0xC60C30, roughness: 0.5 });
+          const redHalf = new THREE.Mesh(redGeom, redMat);
+          redHalf.position.set(xPos + (isLeftWall ? 0.05 : -0.05), 8, zPos);
+          redHalf.rotation.y = rotY;
+          redHalf.rotation.z = Math.PI / 2;
+          arenaGroup.add(redHalf);
+          // Blue bottom half
+          const blueGeom = new THREE.CircleGeometry(taegukRadius, 32, Math.PI, Math.PI);
+          const blueMat = new THREE.MeshStandardMaterial({ color: 0x003478, roughness: 0.5 });
+          const blueHalf = new THREE.Mesh(blueGeom, blueMat);
+          blueHalf.position.set(xPos + (isLeftWall ? 0.05 : -0.05), 8, zPos);
+          blueHalf.rotation.y = rotY;
+          blueHalf.rotation.z = Math.PI / 2;
+          arenaGroup.add(blueHalf);
+          // Small inner circles for yin-yang effect
+          const smallRed = new THREE.Mesh(
+            new THREE.CircleGeometry(taegukRadius * 0.25, 16),
+            redMat
+          );
+          smallRed.position.set(xPos + (isLeftWall ? 0.06 : -0.06), 8 - taegukRadius * 0.5, zPos);
+          smallRed.rotation.y = rotY;
+          arenaGroup.add(smallRed);
+          const smallBlue = new THREE.Mesh(
+            new THREE.CircleGeometry(taegukRadius * 0.25, 16),
+            blueMat
+          );
+          smallBlue.position.set(xPos + (isLeftWall ? 0.06 : -0.06), 8 + taegukRadius * 0.5, zPos);
+          smallBlue.rotation.y = rotY;
+          arenaGroup.add(smallBlue);
+        }
+      });
+    }
+
+    // Position on back wall above stands
+    symbolGroup.position.set(0, 12, SHEET_LENGTH + surroundWidth + 5);
+    symbolGroup.rotation.x = -0.2;
+    symbolGroup.scale.set(2, 2, 2);
+    arenaGroup.add(symbolGroup);
+
+    // Add symbol on ice for levels 5+ (more prestigious levels)
+    if (level >= 5) {
+      const iceSymbol = symbolGroup.clone();
+      iceSymbol.position.set(0, 0.05, SHEET_LENGTH / 2);
+      iceSymbol.rotation.x = -Math.PI / 2;
+      iceSymbol.scale.set(0.4, 0.4, 0.1);
+      // Make ice version semi-transparent
+      iceSymbol.traverse(child => {
+        if (child.isMesh) {
+          child.material = child.material.clone();
+          child.material.transparent = true;
+          child.material.opacity = 0.4;
+        }
+      });
+      arenaGroup.add(iceSymbol);
+    }
+  }
+
+  // ========== BLUE SURROUND (authentic curling arena style) ==========
+  // surroundWidth already defined above (3m)
+  const blueSurroundMaterial = new THREE.MeshStandardMaterial({
+    color: 0x1e4d8c,  // Curling blue
+    roughness: 0.7
+  });
+
+  // Blue floor surrounding the ice
+  // Left side
+  const leftSurroundGeo = new THREE.BoxGeometry(surroundWidth, 0.02, SHEET_LENGTH + 6);
+  const leftSurround = new THREE.Mesh(leftSurroundGeo, blueSurroundMaterial);
+  leftSurround.position.set(-(SHEET_WIDTH / 2 + surroundWidth / 2), 0.01, SHEET_LENGTH / 2);
+  leftSurround.receiveShadow = true;
+  arenaGroup.add(leftSurround);
+
+  // Right side
+  const rightSurround = new THREE.Mesh(leftSurroundGeo, blueSurroundMaterial);
+  rightSurround.position.set(SHEET_WIDTH / 2 + surroundWidth / 2, 0.01, SHEET_LENGTH / 2);
+  rightSurround.receiveShadow = true;
+  arenaGroup.add(rightSurround);
+
+  // Back (behind far house)
+  const backSurroundGeo = new THREE.BoxGeometry(SHEET_WIDTH + surroundWidth * 2, 0.02, surroundWidth);
+  const backSurround = new THREE.Mesh(backSurroundGeo, blueSurroundMaterial);
+  backSurround.position.set(0, 0.01, SHEET_LENGTH + surroundWidth / 2);
+  backSurround.receiveShadow = true;
+  arenaGroup.add(backSurround);
+
+  // Front (behind hack)
+  const frontSurroundGeo = new THREE.BoxGeometry(SHEET_WIDTH + surroundWidth * 2, 0.02, surroundWidth);
+  const frontSurround = new THREE.Mesh(frontSurroundGeo, blueSurroundMaterial);
+  frontSurround.position.set(0, 0.01, -surroundWidth / 2);
+  frontSurround.receiveShadow = true;
+  arenaGroup.add(frontSurround);
+
+  // Low curb/edge around the ice (just a small lip, not hockey boards)
+  const curbHeight = 0.08;
+  const curbMaterial = new THREE.MeshStandardMaterial({
+    color: 0x333333,
+    roughness: 0.6
+  });
+
+  [-1, 1].forEach(side => {
+    const curbGeo = new THREE.BoxGeometry(0.05, curbHeight, SHEET_LENGTH + 2);
+    const curb = new THREE.Mesh(curbGeo, curbMaterial);
+    curb.position.set(side * (SHEET_WIDTH / 2 + 0.025), curbHeight / 2, SHEET_LENGTH / 2);
+    arenaGroup.add(curb);
+  });
+
+  // ========== BLACK DRAPING WITH SPONSOR BANNERS ==========
+  const drapeMaterial = new THREE.MeshStandardMaterial({
+    color: 0x111111,
+    roughness: 0.9
+  });
+  const bannerMaterial = new THREE.MeshBasicMaterial({
+    color: 0x1a4d8c  // Blue sponsor banner
+  });
+
+  // Draping along sides (between blue surround and seating)
+  const drapeHeight = 0.9;
+  [-1, 1].forEach(side => {
+    // Main drape
+    const drapeGeo = new THREE.BoxGeometry(0.1, drapeHeight, SHEET_LENGTH + 4);
+    const drape = new THREE.Mesh(drapeGeo, drapeMaterial);
+    drape.position.set(side * (SHEET_WIDTH / 2 + surroundWidth + 0.05), drapeHeight / 2, SHEET_LENGTH / 2);
+    arenaGroup.add(drape);
+
+    // Sponsor banner panels on drape
+    for (let i = 0; i < 5; i++) {
+      const bannerGeo = new THREE.PlaneGeometry(0.08, 0.5);
+      const banner = new THREE.Mesh(bannerGeo, bannerMaterial);
+      const zPos = 4 + i * 9;
+      banner.position.set(
+        side * (SHEET_WIDTH / 2 + surroundWidth + 0.11),
+        0.5,
+        zPos
+      );
+      banner.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      arenaGroup.add(banner);
+
+      // White text area on banner
+      const textGeo = new THREE.PlaneGeometry(0.06, 0.15);
+      const textMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      const text = new THREE.Mesh(textGeo, textMat);
+      text.position.set(
+        side * (SHEET_WIDTH / 2 + surroundWidth + 0.115),
+        0.5,
+        zPos
+      );
+      text.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      arenaGroup.add(text);
+    }
+  });
+
+  // Back draping
+  const backDrapeGeo = new THREE.BoxGeometry(SHEET_WIDTH + surroundWidth * 2, drapeHeight, 0.1);
+  const backDrape = new THREE.Mesh(backDrapeGeo, drapeMaterial);
+  backDrape.position.set(0, drapeHeight / 2, SHEET_LENGTH + surroundWidth + 0.5);
+  arenaGroup.add(backDrape);
+
+  // ========== CEILING STRUCTURE (for level 3+) ==========
+  if (level >= 3) {
+    const ceilingHeight = 12 + level;
+    const beamMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2a2a2a,
+      roughness: 0.6,
+      metalness: 0.3
+    });
+
+    // Main longitudinal beams
+    [-6, 0, 6].forEach(xPos => {
+      const beamGeo = new THREE.BoxGeometry(0.4, 0.6, SHEET_LENGTH + 20);
+      const beam = new THREE.Mesh(beamGeo, beamMaterial);
+      beam.position.set(xPos, ceilingHeight, SHEET_LENGTH / 2);
+      arenaGroup.add(beam);
+    });
+
+    // Cross beams
+    for (let z = 0; z < SHEET_LENGTH + 10; z += 8) {
+      const crossBeamGeo = new THREE.BoxGeometry(16, 0.4, 0.4);
+      const crossBeam = new THREE.Mesh(crossBeamGeo, beamMaterial);
+      crossBeam.position.set(0, ceilingHeight - 0.5, z);
+      arenaGroup.add(crossBeam);
+    }
+
+    // Diagonal support trusses (for level 5+)
+    if (level >= 5) {
+      const trussMaterial = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        roughness: 0.5,
+        metalness: 0.4
+      });
+
+      for (let z = 4; z < SHEET_LENGTH + 10; z += 16) {
+        [-5, 5].forEach(xPos => {
+          // Vertical supports
+          const vertGeo = new THREE.CylinderGeometry(0.1, 0.1, ceilingHeight - 5, 8);
+          const vert = new THREE.Mesh(vertGeo, trussMaterial);
+          vert.position.set(xPos, (ceilingHeight - 5) / 2 + 5, z);
+          arenaGroup.add(vert);
+        });
+      }
+    }
+  }
+
+  // ========== IMPROVED BLEACHERS WITH RISERS ==========
+  // Add vertical risers between rows for more realistic bleacher look
+  const riserMaterial = new THREE.MeshStandardMaterial({
+    color: 0x252535,
+    roughness: 0.9
+  });
+
+  [-1, 1].forEach(side => {
+    for (let row = 0; row < config.rows; row++) {
+      const xPos = side * (standOffset + row * rowDepth);
+      const yPos = row * rowHeight;
+
+      // Vertical riser (front face of each step)
+      if (row > 0) {
+        const riserGeo = new THREE.BoxGeometry(rowDepth - 0.1, rowHeight - 0.3, standLength);
+        const riser = new THREE.Mesh(riserGeo, riserMaterial);
+        riser.position.set(xPos, yPos + 0.15, SHEET_LENGTH / 2);
+        arenaGroup.add(riser);
+      }
+    }
+  });
+
+  // ========== RAILINGS ==========
+  if (level >= 2) {
+    const railMaterial = new THREE.MeshStandardMaterial({
+      color: 0x888888,
+      roughness: 0.3,
+      metalness: 0.6
+    });
+
+    // Front railing (between walkway and first row)
+    [-1, 1].forEach(side => {
+      const railX = side * (standOffset - rowDepth / 2 - 0.1);
+
+      // Horizontal rail
+      const railGeo = new THREE.CylinderGeometry(0.03, 0.03, standLength, 8);
+      const rail = new THREE.Mesh(railGeo, railMaterial);
+      rail.rotation.x = Math.PI / 2;
+      rail.position.set(railX, 0.9, SHEET_LENGTH / 2);
+      arenaGroup.add(rail);
+
+      // Vertical posts
+      for (let z = 2; z < SHEET_LENGTH; z += 4) {
+        const postGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.9, 8);
+        const post = new THREE.Mesh(postGeo, railMaterial);
+        post.position.set(railX, 0.45, z);
+        arenaGroup.add(post);
+      }
+    });
+  }
+
+  // ========== SCOREBOARD (for level 4+) ==========
+  if (level >= 4) {
+    const scoreboardHeight = level >= 6 ? 14 : 11;
+
+    // Main scoreboard housing
+    const sbHousingGeo = new THREE.BoxGeometry(4, 1.5, 2);
+    const sbHousingMat = new THREE.MeshStandardMaterial({
+      color: 0x1a1a1a,
+      roughness: 0.7
+    });
+    const sbHousing = new THREE.Mesh(sbHousingGeo, sbHousingMat);
+    sbHousing.position.set(0, scoreboardHeight, SHEET_LENGTH / 2);
+    arenaGroup.add(sbHousing);
+
+    // Display screen (front)
+    const sbScreenGeo = new THREE.PlaneGeometry(3.6, 1.2);
+    const sbScreenMat = new THREE.MeshBasicMaterial({
+      color: 0x001133
+    });
+    const sbScreen = new THREE.Mesh(sbScreenGeo, sbScreenMat);
+    sbScreen.position.set(0, scoreboardHeight, SHEET_LENGTH / 2 - 1.01);
+    arenaGroup.add(sbScreen);
+
+    // Display screen (back)
+    const sbScreenBack = new THREE.Mesh(sbScreenGeo, sbScreenMat);
+    sbScreenBack.position.set(0, scoreboardHeight, SHEET_LENGTH / 2 + 1.01);
+    sbScreenBack.rotation.y = Math.PI;
+    arenaGroup.add(sbScreenBack);
+
+    // Hanging cables
+    const cableMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    [-1.5, 1.5].forEach(xOff => {
+      const cableGeo = new THREE.CylinderGeometry(0.03, 0.03, 6, 8);
+      const cable = new THREE.Mesh(cableGeo, cableMat);
+      cable.position.set(xOff, scoreboardHeight + 3.75, SHEET_LENGTH / 2);
+      arenaGroup.add(cable);
+    });
+  }
+
   scene.add(arenaGroup);
 }
 
 // Update arena when career level changes
 function updateArenaForLevel() {
-  const level = gameState.gameMode === '1player' ? gameState.career.level : 4;
+  // Use career level for Career mode, quickPlayLevel for Quick Play
+  const level = gameState.gameMode === '1player'
+    ? gameState.career.level
+    : gameState.settings.quickPlayLevel;
   createArena(level);
 }
 
@@ -717,10 +1462,10 @@ function createSheet() {
 
   const iceMaterial = new THREE.MeshStandardMaterial({
     map: iceTexture,
-    roughness: 0.08,  // Very smooth/glossy
-    metalness: 0.02,
+    roughness: 0.4,  // Less glossy to reduce harsh specular highlights
+    metalness: 0.0,
     color: 0xffffff,
-    envMapIntensity: 0.3
+    envMapIntensity: 0.1
   });
   const ice = new THREE.Mesh(iceGeometry, iceMaterial);
   ice.rotation.x = -Math.PI / 2;
@@ -1001,6 +1746,67 @@ function resetOutOfPlayStones() {
   outOfPlayCount = 0;
 }
 
+// Custom stone-to-stone collision physics
+// Implements proper 2D elastic collision with coefficient of restitution e = 0.85
+// This ensures shooter "dies" (loses most velocity) while target moves at ~92.5% of incoming speed
+const COLLISION_RESTITUTION = 0.85;  // Coefficient of restitution for stone-on-stone
+
+function applyStoneCollision(bodyA, bodyB) {
+  // Get positions and velocities
+  const posA = bodyA.position;
+  const posB = bodyB.position;
+  const velA = { x: bodyA.velocity.x, y: bodyA.velocity.y };
+  const velB = { x: bodyB.velocity.x, y: bodyB.velocity.y };
+
+  // Calculate collision normal (from A to B)
+  const dx = posB.x - posA.x;
+  const dy = posB.y - posA.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < 0.001) return; // Avoid division by zero
+
+  const nx = dx / dist;  // Normal x component
+  const ny = dy / dist;  // Normal y component
+
+  // Calculate relative velocity along the collision normal
+  const relVelX = velA.x - velB.x;
+  const relVelY = velA.y - velB.y;
+  const relVelNormal = relVelX * nx + relVelY * ny;
+
+  // Only process if stones are approaching each other
+  if (relVelNormal <= 0) return;
+
+  // For equal mass collision with coefficient of restitution e:
+  // Impulse magnitude = (1 + e) * relVelNormal / 2 (for equal masses)
+  const e = COLLISION_RESTITUTION;
+  const impulseMag = (1 + e) * relVelNormal / 2;
+
+  // Apply impulse to both bodies
+  // Body A loses velocity along normal, Body B gains it
+  const impulseX = impulseMag * nx;
+  const impulseY = impulseMag * ny;
+
+  // New velocities
+  const newVelA = {
+    x: velA.x - impulseX,
+    y: velA.y - impulseY
+  };
+  const newVelB = {
+    x: velB.x + impulseX,
+    y: velB.y + impulseY
+  };
+
+  // Apply the calculated velocities
+  Matter.Body.setVelocity(bodyA, newVelA);
+  Matter.Body.setVelocity(bodyB, newVelB);
+
+  // Debug logging
+  const speedA = Math.sqrt(velA.x * velA.x + velA.y * velA.y);
+  const speedB = Math.sqrt(velB.x * velB.x + velB.y * velB.y);
+  const newSpeedA = Math.sqrt(newVelA.x * newVelA.x + newVelA.y * newVelA.y);
+  const newSpeedB = Math.sqrt(newVelB.x * newVelB.x + newVelB.y * newVelB.y);
+  console.log(`[COLLISION] Stone A: ${speedA.toFixed(2)} -> ${newSpeedA.toFixed(2)} | Stone B: ${speedB.toFixed(2)} -> ${newSpeedB.toFixed(2)}`);
+}
+
 // Handle collisions - move stones to back wall when they hit side or back walls
 function handleCollision(event) {
   const pairs = event.pairs;
@@ -1027,6 +1833,10 @@ function handleCollision(event) {
       const relSpeed = Math.sqrt(relVelX * relVelX + relVelY * relVelY);
       const intensity = Math.min(1, relSpeed / 5);  // Normalize to 0-1
       soundManager.playCollision(intensity);
+
+      // Custom collision response for proper momentum transfer
+      // Matter.js sometimes doesn't handle restitution correctly, so we manually apply physics
+      applyStoneCollision(bodyA, bodyB);
     }
 
     if (isWallCollision) {
@@ -1158,10 +1968,10 @@ function createStone(team) {
   // Physics body (scaled for Matter.js)
   const body = Matter.Bodies.circle(0, 0, STONE_RADIUS * PHYSICS_SCALE, {
     mass: STONE_MASS,
-    friction: 0.05,
+    friction: 0.01,       // Low friction for stone-on-stone sliding
     frictionAir: ICE_FRICTION,
-    frictionStatic: 0.05,
-    restitution: 0.3,  // Low bounce - stones transfer momentum directly
+    frictionStatic: 0.01, // Low static friction
+    restitution: 0,       // We handle collision response manually in applyStoneCollision()
     label: team
   });
   Matter.Composite.add(world, body);
@@ -1359,12 +2169,14 @@ function createTargetMarker() {
   const beaconPoleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 8);
   const beaconPole = new THREE.Mesh(beaconPoleGeometry, beaconMaterial);
   beaconPole.position.set(0, 1.25, 0);
+  beaconPole.name = 'beacon';
   group.add(beaconPole);
 
   // Top ball on beacon
   const beaconTopGeometry = new THREE.SphereGeometry(0.12, 16, 12);
   const beaconTop = new THREE.Mesh(beaconTopGeometry, beaconMaterial);
   beaconTop.position.set(0, 2.5, 0);
+  beaconTop.name = 'beacon';
   group.add(beaconTop);
 
   // Horizontal crossbar for curl direction
@@ -1372,7 +2184,7 @@ function createTargetMarker() {
   const crossbar = new THREE.Mesh(crossbarGeometry, beaconMaterial);
   crossbar.rotation.z = Math.PI / 2;
   crossbar.position.set(0, 2.0, 0);
-  crossbar.name = 'crossbar';
+  crossbar.name = 'beacon';
   group.add(crossbar);
 
   // Arrow indicator on crossbar (shows curl direction)
@@ -1380,7 +2192,7 @@ function createTargetMarker() {
   const arrow = new THREE.Mesh(arrowGeometry, beaconMaterial);
   arrow.rotation.z = -Math.PI / 2;  // Point right by default
   arrow.position.set(0.5, 2.0, 0);
-  arrow.name = 'curlArrow';
+  arrow.name = 'beacon';
   group.add(arrow);
 
   // === SKIP BODY (smaller, behind beacon) ===
@@ -1432,6 +2244,7 @@ function createTargetMarker() {
   const padGeometry = new THREE.BoxGeometry(0.25, 0.03, 0.15);
   const broomPad = new THREE.Mesh(padGeometry, padMaterial);
   broomPad.position.set(0, 0.015, 0);
+  broomPad.name = 'beacon';
   group.add(broomPad);
 
   // Large glow ring on ice
@@ -1440,6 +2253,7 @@ function createTargetMarker() {
   const glow = new THREE.Mesh(glowRing, glowMaterial);
   glow.rotation.x = -Math.PI / 2;
   glow.position.y = 0.005;
+  glow.name = 'beacon';
   group.add(glow);
 
   // Inner glow ring
@@ -1448,6 +2262,7 @@ function createTargetMarker() {
   const innerGlowMesh = new THREE.Mesh(innerGlow, innerGlowMaterial);
   innerGlowMesh.rotation.x = -Math.PI / 2;
   innerGlowMesh.position.y = 0.006;
+  innerGlowMesh.name = 'beacon';
   group.add(innerGlowMesh);
 
   // === SIGNAL ARM (indicates curl direction) ===
@@ -1535,10 +2350,13 @@ function placeTargetMarker(screenX, screenY) {
         gameState.targetMarker = createTargetMarker();
       }
 
-      // Position and show the marker
+      // Position and show the marker (restore all parts including beacon)
       gameState.targetMarker.position.x = intersection.x;
       gameState.targetMarker.position.z = intersection.z;
       gameState.targetMarker.visible = true;
+      gameState.targetMarker.traverse((child) => {
+        child.visible = true;
+      });
       gameState.targetPosition = { x: intersection.x, z: intersection.z };
 
       // Skip faces toward the thrower (hack end at z=0)
@@ -1823,6 +2641,9 @@ function pushOff() {
   gameState.currentPower = gameState.maxPower;
   gameState.tLineCrossTime = null;  // Reset timing
   gameState.splitTime = null;
+  gameState.nearHogCrossTime = null;  // Reset physics timing
+  gameState.farHogCrossTime = null;
+  gameState.stoneStopTime = null;
 
   // Create the stone and start it moving with the thrower
   const stone = createStone(gameState.currentTeam);
@@ -1838,7 +2659,23 @@ function pushOff() {
   // Store slide speed for consistent velocity during aiming
   gameState.slideSpeed = initialVelocity;
 
-  Matter.Body.setVelocity(stone.body, { x: 0, y: initialVelocity });
+  // Calculate initial aim angle from target position if set
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  if (isComputer) {
+    // Computer already set aimAngle in executeComputerShot - preserve it
+    gameState.baseAimAngle = gameState.aimAngle;
+  } else if (gameState.targetPosition) {
+    gameState.baseAimAngle = Math.atan2(gameState.targetPosition.x, gameState.targetPosition.z - HACK_Z);
+  } else {
+    // Fallback for human - use existing aimAngle if set, otherwise straight
+    gameState.baseAimAngle = gameState.aimAngle || 0;
+  }
+  gameState.aimAngle = gameState.baseAimAngle;
+
+  // Set initial velocity toward the aim direction (proper trigonometry)
+  const initialVelX = Math.sin(gameState.aimAngle) * initialVelocity;
+  const initialVelY = Math.cos(gameState.aimAngle) * initialVelocity;
+  Matter.Body.setVelocity(stone.body, { x: initialVelX, y: initialVelY });
 
   // During slide, stone shouldn't slow down (thrower is pushing it)
   stone.body.frictionAir = 0;
@@ -1854,20 +2691,25 @@ function pushOff() {
   document.getElementById('power-bar').style.display = 'none';
   document.getElementById('phase-text').textContent = `${shotType.name} - CLICK to release!`;
   document.getElementById('phase-text').style.color = shotType.color;
-  document.getElementById('hold-warning').style.display = 'block';
-  document.getElementById('hold-warning').textContent = 'Must release before hog line!';
+  // Only show release warning for human players, not computer
+  if (!isComputer) {
+    document.getElementById('hold-warning').style.display = 'block';
+    document.getElementById('hold-warning').textContent = '⚠️ TAP TO RELEASE! ⚠️';
+  }
 }
 
 // Update aim during sliding phase based on mouse position
 function updateSlidingAim(x) {
   if (gameState.phase !== 'sliding') return;
 
-  // Calculate aim based on mouse X position relative to screen center
+  // Calculate aim adjustment based on mouse X position relative to screen center
   const screenCenter = window.innerWidth / 2;
   const offset = x - screenCenter;
 
-  // Map mouse offset to aim angle (max ~30 degrees either direction)
-  gameState.aimAngle = (offset / screenCenter) * 0.5;
+  // Mouse adjusts relative to base aim angle (from target)
+  // Max adjustment of ~15 degrees either direction
+  const adjustment = (offset / screenCenter) * 0.25;
+  gameState.aimAngle = gameState.baseAimAngle + adjustment;
 }
 
 // Update sliding phase - check for hog line violation and track timing
@@ -1888,10 +2730,10 @@ function updateSliding() {
     const decayFactor = 1.0 - (distanceFromHack / slideDistance) * 0.3;
     const currentSpeed = gameState.slideSpeed * Math.max(0.7, decayFactor);
 
-    // Apply aim direction during slide
+    // Apply aim direction during slide (proper trigonometry)
     Matter.Body.setVelocity(body, {
-      x: Math.sin(gameState.aimAngle) * currentSpeed * 0.4,
-      y: currentSpeed
+      x: Math.sin(gameState.aimAngle) * currentSpeed,
+      y: Math.cos(gameState.aimAngle) * currentSpeed
     });
 
     // Track T-line crossing for split time
@@ -1943,6 +2785,15 @@ function releaseStone() {
   document.getElementById('power-display').style.display = 'none';
   document.getElementById('phase-text').style.color = '#4ade80';
   document.getElementById('phase-text').textContent = 'Released!';
+
+  // Hide green beacon parts but keep the skip visible
+  if (gameState.targetMarker) {
+    gameState.targetMarker.traverse((child) => {
+      if (child.name === 'beacon') {
+        child.visible = false;
+      }
+    });
+  }
 
   // Play release sound and start sliding sound
   soundManager.playRelease();
@@ -2027,23 +2878,60 @@ window.setCurl = setCurlDirection;
 window.setGameMode = function(mode) {
   gameState.gameMode = mode;
 
-  // Update button styles
-  const btn1p = document.getElementById('mode-1p');
-  const btn2p = document.getElementById('mode-2p');
+  // Update button styles for new UI
+  const btnCareer = document.getElementById('mode-career');
+  const btnQuickplay = document.getElementById('mode-quickplay');
+  const levelSection = document.getElementById('quickplay-level-section');
+  const careerSection = document.querySelector('[style*="Career Progress"]')?.parentElement ||
+                        document.getElementById('career-progress-section');
 
   if (mode === '1player') {
-    btn1p.style.background = '#2d5a3d';
-    btn1p.style.borderColor = '#4ade80';
-    btn2p.style.background = '#333';
-    btn2p.style.borderColor = '#666';
+    // Career mode selected
+    btnCareer.style.background = '#2d5a3d';
+    btnCareer.style.borderColor = '#4ade80';
+    btnQuickplay.style.background = '#333';
+    btnQuickplay.style.borderColor = '#666';
+    // Hide level selector, show career progress
+    if (levelSection) levelSection.style.display = 'none';
   } else {
-    btn2p.style.background = '#2d5a3d';
-    btn2p.style.borderColor = '#4ade80';
-    btn1p.style.background = '#333';
-    btn1p.style.borderColor = '#666';
+    // Quick play selected
+    btnQuickplay.style.background = '#2d5a3d';
+    btnQuickplay.style.borderColor = '#4ade80';
+    btnCareer.style.background = '#333';
+    btnCareer.style.borderColor = '#666';
+    // Show level selector
+    if (levelSection) levelSection.style.display = 'block';
   }
 
-  // Update arena for the new mode (1P uses career level, 2P uses National)
+  // Update arena for the new mode (Career uses career level, Quick Play uses selected difficulty)
+  updateArenaForLevel();
+};
+
+// Quick Play level selector
+window.setQuickPlayLevel = function(level) {
+  gameState.settings.quickPlayLevel = level;
+
+  // Update button styles
+  const levelBtns = document.querySelectorAll('.level-btn');
+  levelBtns.forEach(btn => {
+    const btnLevel = parseInt(btn.dataset.level);
+    if (btnLevel === level) {
+      btn.style.background = '#2d5a3d';
+      btn.style.borderColor = '#4ade80';
+    } else {
+      btn.style.background = '#333';
+      btn.style.borderColor = '#666';
+    }
+  });
+
+  // Update description
+  const levelInfo = CAREER_LEVELS[level - 1];
+  const desc = document.getElementById('quickplay-level-description');
+  if (desc && levelInfo) {
+    desc.textContent = `${levelInfo.name} level - ${levelInfo.difficultyLabel} difficulty`;
+  }
+
+  // Update arena for the new level
   updateArenaForLevel();
 };
 
@@ -2060,8 +2948,9 @@ function updateReturnButton() {
   const btn = document.getElementById('return-to-throw');
   if (!btn) return;
 
-  // Show button when locked at far view (marker optional)
-  if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5) {
+  // Show button when locked at far view (marker optional), but NOT for computer's turn
+  const isComputerTurn = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5 && !isComputerTurn) {
     btn.style.display = 'block';
   } else {
     btn.style.display = 'none';
@@ -2123,8 +3012,28 @@ function displaySplitTime(time) {
 // ============================================
 
 // Calculate sweep effectiveness and direction from touch/mouse movement
+// Now includes angle-based effectiveness: cos(angle) between sweep and stone velocity
 function updateSweepFromMovement(x, y) {
   if (gameState.phase !== 'sweeping') return;
+  if (!gameState.activeStone) return;
+
+  // Check if this is the opponent's stone (defensive sweeping)
+  // In 1-player mode, opponent is the computer
+  const isOpponentStone = gameState.gameMode === '1player' &&
+                          gameState.activeStone.team === gameState.computerTeam;
+
+  // Defensive sweeping only allowed after stone passes the T-line
+  if (isOpponentStone) {
+    const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+    if (stoneZ < TEE_LINE_FAR) {
+      return;
+    }
+    // Debug: log when defensive sweep is allowed
+    if (!gameState._debugDefensiveSweepLogged) {
+      console.log(`[DEBUG] Defensive sweep allowed - stone at ${stoneZ.toFixed(2)}m, T-line at ${TEE_LINE_FAR}m`);
+      gameState._debugDefensiveSweepLogged = true;
+    }
+  }
 
   const now = Date.now();
 
@@ -2137,36 +3046,81 @@ function updateSweepFromMovement(x, y) {
   // Calculate speed and direction from recent movements
   if (gameState.sweepTouches.length >= 2) {
     let totalDistance = 0;
-    let horizontalMovement = 0;  // Track left/right bias
+    let totalDx = 0;
+    let totalDy = 0;
 
     for (let i = 1; i < gameState.sweepTouches.length; i++) {
       const dx = gameState.sweepTouches[i].x - gameState.sweepTouches[i-1].x;
       const dy = gameState.sweepTouches[i].y - gameState.sweepTouches[i-1].y;
       totalDistance += Math.sqrt(dx * dx + dy * dy);
-
-      // Track directional bias - accumulate horizontal movement
-      horizontalMovement += dx;
+      totalDx += dx;
+      totalDy += dy;
     }
 
     const timeSpan = now - gameState.sweepTouches[0].time;
     const speed = timeSpan > 0 ? totalDistance / timeSpan : 0;
 
-    // Map speed to effectiveness (0-1)
-    gameState.sweepEffectiveness = Math.min(1, speed / 1.5);
+    // Map speed to base effectiveness (0-1)
+    const baseEffectiveness = Math.min(1, speed / 1.5);
+
+    // Calculate sweep vector (normalized direction of swipe)
+    const sweepMagnitude = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+    if (sweepMagnitude > 5) {
+      gameState.sweepVector = {
+        x: totalDx / sweepMagnitude,
+        y: totalDy / sweepMagnitude
+      };
+
+      // Get stone velocity vector
+      const stoneVel = gameState.activeStone.body.velocity;
+      const stoneSpeed = Math.sqrt(stoneVel.x * stoneVel.x + stoneVel.y * stoneVel.y);
+
+      if (stoneSpeed > 0.01) {
+        // Normalize stone velocity
+        const stoneDir = {
+          x: stoneVel.x / stoneSpeed,
+          y: stoneVel.y / stoneSpeed
+        };
+
+        // Calculate angle between sweep direction and stone velocity
+        // Using dot product: cos(angle) = (sweep · stoneVel) / (|sweep| * |stoneVel|)
+        // Since both are normalized, just dot product
+        // Note: screen Y is inverted from physics Y, and we want forward sweep to match stone direction
+        // Sweep up on screen (-Y in screen coords) should align with stone moving forward (+Y in physics)
+        const dotProduct = gameState.sweepVector.x * stoneDir.x - gameState.sweepVector.y * stoneDir.y;
+
+        // Angle effectiveness: |cos(angle)|
+        // 0° or 180° sweep = 1.0 (aligned with or against stone motion)
+        // 90° sweep = 0.0 (perpendicular)
+        // We use absolute value because sweeping forward OR backward along the line is effective
+        gameState.sweepAngleEffectiveness = Math.abs(dotProduct);
+
+        // Calculate actual angle in degrees for display
+        gameState.sweepAngle = Math.acos(Math.abs(dotProduct)) * (180 / Math.PI);
+      }
+    }
+
+    // Final sweep effectiveness = base (speed) × angle factor
+    gameState.sweepEffectiveness = baseEffectiveness * gameState.sweepAngleEffectiveness;
+
     const wasSweeping = gameState.isSweeping;
     gameState.isSweeping = gameState.sweepEffectiveness > 0.1;
     gameState.lastSweepTime = now;
+
+    // Debug: log sweep detection with angle info
+    if (gameState.isSweeping && !wasSweeping) {
+      console.log(`[DEBUG] Sweep started - base: ${(baseEffectiveness * 100).toFixed(0)}%, angle: ${gameState.sweepAngle.toFixed(0)}°, effective: ${(gameState.sweepEffectiveness * 100).toFixed(0)}%`);
+    }
 
     // Start/stop sweeping sound
     if (gameState.isSweeping && !wasSweeping) {
       soundManager.startSweeping();
     }
 
-    // Calculate sweep direction bias (-1 to 1)
+    // Calculate sweep direction bias (-1 to 1) for lateral effect
     // Positive = sweeping more to the right, Negative = sweeping more to the left
-    // Only count if there's enough movement
     if (totalDistance > 20) {
-      const directionBias = horizontalMovement / totalDistance;
+      const directionBias = totalDx / totalDistance;
       // Smooth the direction value
       gameState.sweepDirection = gameState.sweepDirection * 0.7 + directionBias * 0.3;
       // Clamp to -1 to 1
@@ -2194,7 +3148,15 @@ function decaySweepEffectiveness() {
 }
 
 function updateSweeping() {
-  if (!gameState.activeStone) return;
+  // If no active stone, ensure sweeping is stopped
+  if (!gameState.activeStone) {
+    if (gameState.isSweeping) {
+      gameState.isSweeping = false;
+      gameState.sweepEffectiveness = 0;
+      soundManager.stopSweeping();
+    }
+    return;
+  }
 
   decaySweepEffectiveness();
 
@@ -2205,20 +3167,55 @@ function updateSweeping() {
 
   // Update sweep indicator
   const indicator = document.getElementById('sweep-indicator');
-  if (indicator) {
-    if (gameState.isSweeping && gameState.phase === 'sweeping') {
+  if (indicator && gameState.phase === 'sweeping') {
+    const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+    // In 1-player mode, opponent is the computer
+    const isOpponentStone = gameState.gameMode === '1player' &&
+                            gameState.activeStone.team === gameState.computerTeam;
+    const canSweep = !isOpponentStone || stoneZ >= TEE_LINE_FAR;
+
+    if (!canSweep) {
+      // Opponent's stone - waiting for T-line
       indicator.style.display = 'block';
-      // Show effectiveness and direction
+      indicator.textContent = 'Sweep after T-line...';
+      indicator.style.color = '#888';
+    } else if (gameState.isSweeping) {
+      indicator.style.display = 'block';
+      // Show effectiveness with angle info
       const intensity = Math.round(gameState.sweepEffectiveness * 100);
-      let directionText = '';
-      if (Math.abs(gameState.sweepDirection) > 0.3) {
-        directionText = gameState.sweepDirection > 0 ? ' →' : ' ←';
+      const angle = Math.round(gameState.sweepAngle);
+      const angleEff = Math.round(gameState.sweepAngleEffectiveness * 100);
+
+      // Angle quality indicator
+      let angleIndicator = '';
+      if (angle <= 20) {
+        angleIndicator = '▲'; // Great - nearly aligned
+      } else if (angle <= 45) {
+        angleIndicator = '◢'; // Good - diagonal
+      } else {
+        angleIndicator = '►'; // Poor - too perpendicular
       }
-      indicator.textContent = `SWEEPING! ${intensity}%${directionText}`;
-      indicator.style.color = `rgb(${74 + intensity}, ${222 - intensity * 0.5}, ${128 - intensity * 0.5})`;
+
+      // Color based on effectiveness (green = good, yellow = ok, red = poor)
+      let color;
+      if (angleEff >= 70) {
+        color = `rgb(${74 + intensity}, 222, 128)`; // Green
+      } else if (angleEff >= 40) {
+        color = `rgb(255, ${180 + angleEff * 0.5}, 50)`; // Yellow-orange
+      } else {
+        color = `rgb(255, ${100 + angleEff}, ${100 + angleEff})`; // Red-ish
+      }
+
+      indicator.textContent = `${angleIndicator} ${intensity}% (${angle}°)`;
+      indicator.style.color = color;
     } else {
-      indicator.style.display = 'none';
+      // Can sweep but not sweeping - show ready message
+      indicator.style.display = 'block';
+      indicator.textContent = isOpponentStone ? 'SWEEP NOW!' : 'Swipe ↑ to sweep';
+      indicator.style.color = '#4ade80';
     }
+  } else if (indicator) {
+    indicator.style.display = 'none';
   }
 }
 
@@ -2338,7 +3335,7 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 2;
       targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
-      effort = 38 + Math.random() * 8;
+      effort = 48 + Math.random() * 8;
     } else {
       // Standard takeout
       shotType = 'takeout';
@@ -2353,7 +3350,7 @@ function getComputerShot() {
       // Place guard in front of scoring stones
       targetX = houseStonesComputer[0].x * 0.5;
       targetZ = HOG_LINE_FAR - 1.5 - Math.random() * 2;
-      effort = 36 + Math.random() * 8;
+      effort = 46 + Math.random() * 8;
     } else {
       // Draw for more points
       shotType = 'draw';
@@ -2368,7 +3365,7 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 1;
       targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
-      effort = 37 + Math.random() * 8;
+      effort = 47 + Math.random() * 8;
     } else {
       // Freeze to our stone
       shotType = 'freeze';
@@ -2383,7 +3380,7 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 1.5;
       targetZ = HOG_LINE_FAR - 2 - Math.random() * 3;
-      effort = 35 + Math.random() * 10;
+      effort = 45 + Math.random() * 10;
     } else if (earlyEnd && !hasHammer) {
       // Early without hammer - draw to top of house
       shotType = 'draw';
@@ -2423,22 +3420,35 @@ function getComputerShot() {
 
   // Determine curl direction based on target position and shot type
   if (shotType === 'takeout' || shotType === 'peel') {
-    // For takeouts, curl toward the target
+    // For takeouts, curl toward the target (stone curves INTO target)
     curl = targetX > 0 ? -1 : 1;
   } else if (shotType === 'come-around') {
     // Come around curls away from guard then back
     curl = targetX > 0 ? 1 : -1;
   } else {
-    // For draws/guards, alternate or use strategic curl
-    curl = targetX > 0 ? 1 : -1;
-    if (Math.abs(targetX) < 0.3) {
-      curl = Math.random() > 0.5 ? 1 : -1;
-    }
+    // For draws/guards, pick curl direction to curve INTO the target
+    // If target is left of center, curl left (counter-clockwise, -1)
+    // If target is right of center, curl right (clockwise, +1)
+    curl = targetX > 0.2 ? 1 : (targetX < -0.2 ? -1 : (Math.random() > 0.5 ? 1 : -1));
   }
 
-  // Calculate aim angle - account for curl
-  const curlCompensation = curl * 0.03;  // Slight adjustment for curl
-  const aimAngle = Math.atan2(targetX + curlCompensation, TEE_LINE_FAR - HACK_Z) * 0.85;
+  // Calculate aim angle with proper curl compensation
+  // Curl causes lateral drift - heavier throws drift less, lighter throws drift more
+  // Base curl drift is approximately 1.5-2.5 meters over full sheet for draw weight
+  // Takeout weight drifts less (~0.5-1m), guard weight drifts more (~2-3m)
+  const normalizedEffort = effort / 100;
+  // Curl drift decreases with effort (fast stones curl less)
+  // At effort 50 (draw): ~2m drift, at effort 80 (takeout): ~0.8m drift
+  const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 2.5;
+
+  // Curl direction affects which way we need to compensate
+  // If curling right (+1), stone drifts right, so aim LEFT of target
+  // If curling left (-1), stone drifts left, so aim RIGHT of target
+  const curlCompensation = -curl * estimatedCurlDrift * 0.6; // 60% compensation (not 100% to allow some curl)
+
+  // Adjust aim: compensate for curl by aiming opposite to curl direction
+  const aimX = targetX + curlCompensation;
+  const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
   // Add randomness based on career level (in 1-player mode) or difficulty setting
   let variance;
@@ -2541,6 +3551,27 @@ function updatePhysics() {
     }
   }
 
+  // Track hog line crossings for physics timing (for tuning)
+  if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
+    const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+
+    // Track near hog line crossing
+    if (!gameState.nearHogCrossTime && stoneZ >= HOG_LINE_NEAR) {
+      gameState.nearHogCrossTime = Date.now();
+      console.log(`[TIMING] Near hog crossed at ${stoneZ.toFixed(2)}m`);
+    }
+
+    // Track far hog line crossing
+    if (gameState.nearHogCrossTime && !gameState.farHogCrossTime && stoneZ >= HOG_LINE_FAR) {
+      gameState.farHogCrossTime = Date.now();
+      const hogToHog = (gameState.farHogCrossTime - gameState.nearHogCrossTime) / 1000;
+      const vel = gameState.activeStone.body.velocity;
+      const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+      console.log(`[TIMING] Far hog crossed - Hog-to-hog: ${hogToHog.toFixed(2)}s (target: ~14s for draw)`);
+      console.log(`[TIMING] Speed at far hog: ${speed.toFixed(3)} (cliff kicks in at < 1.0)`);
+    }
+  }
+
   // Apply curl effect during movement (stone curves based on rotation)
   // Ice condition variability based on level
   // Beginners get very consistent ice, higher levels have more realistic variation
@@ -2592,26 +3623,52 @@ function updatePhysics() {
   }
 
   // Apply increased friction at low speeds to make stones stop faster
-  // More aggressive slowdown to simulate realistic curling stone deceleration
-  // Level 1 (Club): threshold 4.0, multiplier 1.8 (forgiving and consistent)
-  // Level 8 (Olympics): threshold 2.5, multiplier 1.0 (challenging with variation)
-  const slowdownThreshold = 4.0 - (levelId - 1) * 0.214;  // 4.0 down to 2.5
-  const slowdownStrength = 1.8 - (levelId - 1) * 0.114;   // 1.8 down to 1.0
-  // Add slight friction variation at higher levels (simulates ice spots)
+  // Real curling: stones "fall off a cliff" as they slow - friction spikes dramatically
+  // Post-hog glide should be ~4-5s, not 18s, so we need aggressive low-speed friction
+  // The key: only apply aggressive slowdown at VERY low speeds (post-hog territory)
   const frictionVariation = 1 + (Math.random() - 0.5) * iceVariability * 0.5;
 
   for (const stone of gameState.stones) {
     const vel = stone.body.velocity;
     const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
 
-    // Increase friction progressively as stone slows down
-    // Apply friction variation at higher levels (beginners get consistent ice)
-    if (speed < slowdownThreshold && speed > 0.1) {
-      const slowdownMultiplier = 1 + (slowdownThreshold - speed) * slowdownStrength;
-      // Extra exponential slowdown at very low speeds (< 1.0) for realistic stop
-      const extraSlowdown = speed < 1.0 ? 1 + Math.pow(1 - speed, 2) * 2 : 1;
-      stone.body.frictionAir = ICE_FRICTION * slowdownMultiplier * extraSlowdown * frictionVariation;
-    } else if (speed <= 0.1) {
+    if (speed > 0.1) {
+      // Progressive friction increase as stone slows
+      // At high speeds: base friction only
+      // At low speeds: aggressive "cliff" slowdown kicks in
+      let friction = ICE_FRICTION;
+
+      // Mild increase at medium-low speeds (1.5 to 1.0)
+      if (speed < 1.5 && speed >= 1.0) {
+        friction *= 1 + (1.5 - speed) * 0.8;
+      }
+
+      // Aggressive "cliff" at low speeds (< 1.0)
+      // Stone needs to stop quickly when moving slowly, not drift forever
+      // frictionAir alone isn't enough - directly dampen velocity
+      const stoneZ = stone.body.position.y / PHYSICS_SCALE;
+      if (speed < 1.0) {
+        // Direct velocity damping
+        // More aggressive after far hog line (tuned for 4-5s post-hog glide)
+        // Slightly more aggressive before hog line to stop weak throws faster
+        let dampingRate;
+        if (stoneZ >= HOG_LINE_FAR) {
+          // Post-hog: need to stop in 4-5s
+          dampingRate = 0.002 + (1.0 - speed) * 0.004;  // ~0.2-0.6% per frame
+        } else {
+          // Pre-hog: weak throws - slightly more aggressive than before
+          dampingRate = 0.0015 + (1.0 - speed) * 0.007;  // Small bump from original
+        }
+        const dampedSpeed = Math.max(0.1, speed * (1 - dampingRate));
+        const scale = dampedSpeed / speed;
+        Matter.Body.setVelocity(stone.body, {
+          x: vel.x * scale,
+          y: vel.y * scale
+        });
+      }
+
+      stone.body.frictionAir = friction * frictionVariation;
+    } else {
       // Stop the stone completely when very slow
       Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
     }
@@ -2636,6 +3693,34 @@ function updatePhysics() {
 
     // Only end turn when ALL stones have stopped
     if (activeSpeed < 0.1 && !anyStoneMoving) {
+      // Log physics timing when stone stops
+      if (gameState.farHogCrossTime && !gameState.stoneStopTime) {
+        gameState.stoneStopTime = Date.now();
+        const hogToHog = (gameState.farHogCrossTime - gameState.nearHogCrossTime) / 1000;
+        const hogToRest = (gameState.stoneStopTime - gameState.farHogCrossTime) / 1000;
+        const totalTime = (gameState.stoneStopTime - gameState.nearHogCrossTime) / 1000;
+        const finalZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
+
+        // Determine where stone stopped relative to house
+        let stopPosition = '';
+        if (finalZ < HOG_LINE_FAR) stopPosition = 'short of far hog';
+        else if (finalZ < TEE_LINE_FAR - 1.83) stopPosition = 'top 12-foot';
+        else if (finalZ < TEE_LINE_FAR - 1.22) stopPosition = 'top 8-foot';
+        else if (finalZ < TEE_LINE_FAR - 0.61) stopPosition = 'top 4-foot';
+        else if (finalZ < TEE_LINE_FAR + 0.61) stopPosition = 'button area';
+        else if (finalZ < TEE_LINE_FAR + 1.22) stopPosition = 'back 4-foot';
+        else if (finalZ < TEE_LINE_FAR + 1.83) stopPosition = 'back 8-foot';
+        else if (finalZ < BACK_LINE_FAR) stopPosition = 'back 12-foot';
+        else stopPosition = 'through the house';
+
+        console.log(`[TIMING] Stone stopped at ${finalZ.toFixed(2)}m (${stopPosition})`);
+        console.log(`[TIMING] === PHYSICS SUMMARY ===`);
+        console.log(`[TIMING] Hog-to-hog: ${hogToHog.toFixed(2)}s (target: ~14s for draw)`);
+        console.log(`[TIMING] Far hog-to-rest: ${hogToRest.toFixed(2)}s (target: 4-5s for draw)`);
+        console.log(`[TIMING] Total (near hog to rest): ${totalTime.toFixed(2)}s (target: ~18-19s for draw)`);
+        console.log(`[TIMING] Effort was: ${gameState.maxPower}% (Draw = 50-69%)`);
+      }
+
       // Check if stone didn't reach far hog line - move to out-of-play area
       if (stoneZ < HOG_LINE_FAR && !gameState.activeStone.outOfPlay) {
         moveStoneOutOfPlay(gameState.activeStone, 'did not reach far hog line');
@@ -2647,6 +3732,9 @@ function updatePhysics() {
       gameState.sweepEffectiveness = 0;
       gameState.sweepDirection = 0;
       gameState.sweepTouches = [];
+      gameState.sweepAngle = 0;
+      gameState.sweepAngleEffectiveness = 1;
+      gameState.sweepVector = { x: 0, y: 0 };
 
       // Stop all sounds when stone comes to rest
       soundManager.stopSliding();
