@@ -207,7 +207,8 @@ const gameState = {
   coachTargetMarker: null,
 
   // First-run tutorial state (for regular mode)
-  firstRunTutorial: null  // { id, pausesGame }
+  firstRunTutorial: null,  // { id, pausesGame }
+  firstRunTutorialsShownThisSession: {}  // Track tutorials shown this session (resets on refresh)
 };
 
 // Level definitions
@@ -5962,9 +5963,14 @@ function showFirstRunTutorial(tutorialId) {
     return false;
   }
 
-  // Check if already shown
+  // Check if permanently dismissed (user checked "don't show again")
   const shown = getFirstRunTutorialsShown();
   if (shown[tutorialId]) {
+    return false;
+  }
+
+  // Check if already shown this session (don't repeat within same game)
+  if (gameState.firstRunTutorialsShownThisSession[tutorialId]) {
     return false;
   }
 
@@ -6026,12 +6032,12 @@ function dismissFirstRunTutorial() {
 
   const tutorialId = gameState.firstRunTutorial.id;
 
-  // Check if user wants to disable all tutorials
+  // Mark as shown this session (won't repeat during this game)
+  gameState.firstRunTutorialsShownThisSession[tutorialId] = true;
+
+  // If user checked "don't show again", permanently dismiss
   const checkbox = document.getElementById('tutorial-dont-show');
   if (checkbox && checkbox.checked) {
-    disableFirstRunTutorials();
-  } else {
-    // Just mark this one as shown
     markFirstRunTutorialShown(tutorialId);
   }
 
