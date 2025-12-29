@@ -1,18 +1,29 @@
 {
   "name": "CurlingPro",
   "short_name": "CurlingPro",
-  "description": "The Ultimate Curling Experience",
+  "description": "A realistic curling simulation game",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1a2e",
-  "theme_color": "#4ade80",
   "orientation": "portrait",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
   "icons": [
     {
-      "src": "/curlingpro.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/curlingpro.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
     }
   ]
 }
