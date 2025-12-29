@@ -5192,8 +5192,8 @@ function nextTurn() {
   // Switch teams
   gameState.currentTeam = gameState.currentTeam === 'red' ? 'yellow' : 'red';
   gameState.phase = 'aiming';
-  gameState.previewHeight = 0;  // Reset to thrower's view
-  gameState.previewLocked = false;  // Reset pan mode
+  gameState.previewHeight = 1;  // Start in target view
+  gameState.previewLocked = true;
   clearTargetMarker();  // Remove target marker from previous turn
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
   updatePreviewStoneForTeam();  // Update preview stone color for new team
@@ -5204,8 +5204,7 @@ function nextTurn() {
   document.getElementById('turn').textContent =
     `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
 
-  // Reset camera to thrower view
-  resetCameraToThrower();
+  // Camera will update via animation loop to target view
 
   // Trigger computer turn if applicable, or restore player's curl preference
   if (isComputer) {
@@ -5552,8 +5551,8 @@ window.restartGame = function() {
       gameState.stonesThrown = { red: 0, yellow: 0 };
       gameState.currentTeam = 'red';
       gameState.phase = 'aiming';
-      gameState.previewHeight = 0;
-      gameState.previewLocked = false;
+      gameState.previewHeight = 1;  // Start in target view
+      gameState.previewLocked = true;
       gameState.curlDirection = null;  // Reset curl selection
       gameState.playerCurlDirection = null;
 
@@ -6099,6 +6098,9 @@ const remainingTime = Math.max(0, splashMinTime - elapsed);
 
 setTimeout(() => {
   hideSplashScreen();
+  // Start in target view (raised camera) so player can place target immediately
+  gameState.previewHeight = 1;
+  gameState.previewLocked = true;
   animate();
   console.log('Curling game initialized!');
 }, remainingTime);
