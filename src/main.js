@@ -6064,6 +6064,14 @@ function dismissFirstRunTutorial() {
   }
 }
 
+// Reset first-run tutorials (call from console: resetFirstRunTutorials())
+window.resetFirstRunTutorials = function() {
+  localStorage.removeItem('curlingpro_tutorials_shown');
+  localStorage.removeItem('curlingpro_tutorials_disabled');
+  gameState.firstRunTutorialsShownThisSession = {};
+  console.log('[First-Run Tutorials] Reset complete - tutorials will show again');
+};
+
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
   updateDifficultyButtons(difficulty);
