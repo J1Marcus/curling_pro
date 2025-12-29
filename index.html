@@ -709,6 +709,75 @@
       </div>
     </div>
 
+    <!-- First-Time Instructions Overlay -->
+    <div id="first-run-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9700;
+      overflow-y: auto;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: center;
+      ">
+        <h1 style="color: white; font-size: 24px; margin-bottom: 8px;">How to Play</h1>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 30px;">Quick guide to get you started</p>
+
+        <div style="text-align: left; color: #e2e8f0;">
+          <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">🎯</div>
+            <div style="font-weight: bold; margin-bottom: 4px;">1. Aim</div>
+            <div style="color: #94a3b8; font-size: 14px;">Tap on the ice to place your target marker where you want the stone to go.</div>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">🌀</div>
+            <div style="font-weight: bold; margin-bottom: 4px;">2. Set Curl</div>
+            <div style="color: #94a3b8; font-size: 14px;">Choose left or right curl to make the stone curve as it travels.</div>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">💪</div>
+            <div style="font-weight: bold; margin-bottom: 4px;">3. Throw</div>
+            <div style="color: #94a3b8; font-size: 14px;">Pull back and hold to set power, then release to throw. Tap again to let go of the stone.</div>
+          </div>
+
+          <div style="background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px; margin-bottom: 12px;">
+            <div style="font-size: 24px; margin-bottom: 8px;">🧹</div>
+            <div style="font-weight: bold; margin-bottom: 4px;">4. Sweep</div>
+            <div style="color: #94a3b8; font-size: 14px;">Swipe back and forth to sweep. Sweeping makes the stone travel farther and straighter.</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <label style="display: flex; align-items: center; justify-content: center; gap: 8px; color: #94a3b8; font-size: 14px; cursor: pointer; margin-bottom: 20px;">
+            <input type="checkbox" id="dont-show-instructions" style="width: 18px; height: 18px; cursor: pointer;">
+            Don't show this again
+          </label>
+
+          <button onclick="window.dismissFirstRunInstructions()" style="
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 14px 40px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+          ">Got it!</button>
+        </div>
+      </div>
+    </div>
+
     <style>
       @keyframes coin-flip {
         0% { transform: rotateY(0deg) rotateX(0deg); }

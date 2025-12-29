@@ -5832,6 +5832,52 @@ function updateScoreboardFlags() {
   }
 }
 
+// ============================================
+// FIRST-RUN INSTRUCTIONS
+// ============================================
+
+// Check if this is the user's first time
+function isFirstRun() {
+  return !localStorage.getItem('curlingpro_instructions_seen');
+}
+
+// Show first-run instructions if needed
+function showFirstRunInstructions() {
+  if (!isFirstRun()) return false;
+
+  const overlay = document.getElementById('first-run-overlay');
+  if (overlay) {
+    overlay.style.display = 'block';
+    return true;
+  }
+  return false;
+}
+
+// Dismiss first-run instructions
+window.dismissFirstRunInstructions = function() {
+  const overlay = document.getElementById('first-run-overlay');
+  const checkbox = document.getElementById('dont-show-instructions');
+
+  if (checkbox && checkbox.checked) {
+    localStorage.setItem('curlingpro_instructions_seen', 'true');
+  }
+
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+
+  // Continue to country selection
+  showCountrySelection();
+};
+
+// Allow viewing instructions again from settings (optional)
+window.showInstructions = function() {
+  const overlay = document.getElementById('first-run-overlay');
+  if (overlay) {
+    overlay.style.display = 'block';
+  }
+};
+
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
   updateDifficultyButtons(difficulty);
@@ -6309,6 +6355,8 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Show country selection screen to start setup flow
-  showCountrySelection();
+  // Show first-run instructions if needed, otherwise go to country selection
+  if (!showFirstRunInstructions()) {
+    showCountrySelection();
+  }
 }, remainingTime);
