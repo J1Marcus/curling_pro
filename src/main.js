@@ -2122,16 +2122,74 @@ function createSheet() {
 
   const iceMaterial = new THREE.MeshStandardMaterial({
     map: iceTexture,
-    roughness: 0.4,  // Less glossy to reduce harsh specular highlights
+    roughness: 0.35,  // Slightly glossy for realistic ice look
     metalness: 0.0,
     color: 0xffffff,
-    envMapIntensity: 0.1
+    envMapIntensity: 0.15,
+    emissive: 0xffffff,  // Add slight self-illumination for brighter white
+    emissiveIntensity: 0.08
   });
   const ice = new THREE.Mesh(iceGeometry, iceMaterial);
   ice.rotation.x = -Math.PI / 2;
   ice.position.z = SHEET_LENGTH / 2;
   ice.receiveShadow = true;
   scene.add(ice);
+
+  // Add subtle gradient edge shadows along the sides of the ice
+  const shadowWidth = 1.0;
+
+  // Create gradient texture for shadow
+  const shadowCanvas = document.createElement('canvas');
+  shadowCanvas.width = 64;
+  shadowCanvas.height = 4;
+  const shadowCtx = shadowCanvas.getContext('2d');
+
+  // Left shadow gradient: dark at left edge (0), transparent at right (width)
+  const leftGradient = shadowCtx.createLinearGradient(0, 0, 64, 0);
+  leftGradient.addColorStop(0, 'rgba(0, 0, 0, 0.25)');
+  leftGradient.addColorStop(0.3, 'rgba(0, 0, 0, 0.12)');
+  leftGradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.05)');
+  leftGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  shadowCtx.fillStyle = leftGradient;
+  shadowCtx.fillRect(0, 0, 64, 4);
+
+  const leftShadowTexture = new THREE.CanvasTexture(shadowCanvas);
+  const leftShadowGeo = new THREE.PlaneGeometry(shadowWidth, SHEET_LENGTH);
+  const leftShadowMat = new THREE.MeshBasicMaterial({
+    map: leftShadowTexture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const leftShadow = new THREE.Mesh(leftShadowGeo, leftShadowMat);
+  leftShadow.rotation.x = -Math.PI / 2;
+  leftShadow.position.set(-SHEET_WIDTH / 2 + shadowWidth / 2, 0.005, SHEET_LENGTH / 2);
+  scene.add(leftShadow);
+
+  // Right shadow gradient: transparent at left (0), dark at right edge (width)
+  const rightShadowCanvas = document.createElement('canvas');
+  rightShadowCanvas.width = 64;
+  rightShadowCanvas.height = 4;
+  const rightShadowCtx = rightShadowCanvas.getContext('2d');
+  const rightGradient = rightShadowCtx.createLinearGradient(0, 0, 64, 0);
+  rightGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  rightGradient.addColorStop(0.4, 'rgba(0, 0, 0, 0.05)');
+  rightGradient.addColorStop(0.7, 'rgba(0, 0, 0, 0.12)');
+  rightGradient.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+  rightShadowCtx.fillStyle = rightGradient;
+  rightShadowCtx.fillRect(0, 0, 64, 4);
+
+  const rightShadowTexture = new THREE.CanvasTexture(rightShadowCanvas);
+  const rightShadowMat = new THREE.MeshBasicMaterial({
+    map: rightShadowTexture,
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+  const rightShadow = new THREE.Mesh(leftShadowGeo.clone(), rightShadowMat);
+  rightShadow.rotation.x = -Math.PI / 2;
+  rightShadow.position.set(SHEET_WIDTH / 2 - shadowWidth / 2, 0.005, SHEET_LENGTH / 2);
+  scene.add(rightShadow);
 
   // Side borders (dark edges like real rinks)
   const borderMaterial = new THREE.MeshStandardMaterial({
@@ -3064,22 +3122,27 @@ function clearTargetMarker() {
 // AIMING LINE
 // ============================================
 function createAimLine() {
-  const material = new THREE.LineDashedMaterial({
+  // Use a visible mesh strip instead of Line (linewidth doesn't work in WebGL)
+  const lineWidth = 0.08;  // 8cm wide - visible on mobile
+  const lineLength = TEE_LINE_FAR - HACK_Z;
+
+  // Create a plane geometry for the aim line
+  const geometry = new THREE.PlaneGeometry(lineWidth, lineLength);
+
+  // Semi-transparent green material with glow effect
+  const material = new THREE.MeshBasicMaterial({
     color: 0x00ff00,
-    dashSize: 0.3,
-    gapSize: 0.15,
-    linewidth: 2
+    transparent: true,
+    opacity: 0.7,
+    side: THREE.DoubleSide
   });
 
-  // Create line from hack to far end
-  const points = [
-    new THREE.Vector3(0, 0.05, HACK_Z),
-    new THREE.Vector3(0, 0.05, TEE_LINE_FAR)
-  ];
+  const line = new THREE.Mesh(geometry, material);
 
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  const line = new THREE.Line(geometry, material);
-  line.computeLineDistances();  // Required for dashed lines
+  // Position at center of the line path, rotated to lie flat on ice
+  line.rotation.x = -Math.PI / 2;  // Lay flat
+  line.position.y = 0.02;  // Slightly above ice
+  line.position.z = HACK_Z + lineLength / 2;  // Center along length
   line.visible = false;
 
   scene.add(line);
@@ -3091,24 +3154,24 @@ function updateAimLine(angle) {
     gameState.aimLine = createAimLine();
   }
 
-  // Calculate end point based on angle - line length varies by difficulty
-  // Easy: longer line (12m) to help with aiming, Medium: 5m, Hard: 5m
+  // Line length varies by difficulty
+  // Easy: longer line (12m) to help with aiming, Medium/Hard: 5m
   const distance = gameState.settings.difficulty === 'easy' ? 12 : 5;
-  const endX = Math.sin(angle) * distance;
-  const endZ = HACK_Z + Math.cos(angle) * distance;
 
-  // Update line geometry
-  const positions = gameState.aimLine.geometry.attributes.position.array;
-  positions[0] = 0;      // Start X
-  positions[1] = 0.05;   // Start Y
-  positions[2] = HACK_Z; // Start Z
-  positions[3] = endX;   // End X
-  positions[4] = 0.05;   // End Y
-  positions[5] = endZ;   // End Z
+  // Update mesh scale and rotation for the aim line
+  const line = gameState.aimLine;
 
-  gameState.aimLine.geometry.attributes.position.needsUpdate = true;
-  gameState.aimLine.computeLineDistances();
-  gameState.aimLine.visible = true;
+  // Scale the line to the desired length
+  line.scale.y = distance / (TEE_LINE_FAR - HACK_Z);
+
+  // Position at center of the visible line
+  line.position.x = Math.sin(angle) * distance / 2;
+  line.position.z = HACK_Z + Math.cos(angle) * distance / 2;
+
+  // Rotate around Y axis to point in aim direction
+  line.rotation.y = -angle;
+
+  line.visible = true;
 }
 
 function hideAimLine() {
