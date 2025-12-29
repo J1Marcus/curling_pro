@@ -6022,6 +6022,7 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   const touch = e.touches[0];
   updatePull(touch.clientX, touch.clientY);
   updateSlidingAim(touch.clientX);  // Allow aiming during slide
+  updatePreviewCamera(touch.clientX, touch.clientY);  // Preview camera during aiming
   updateSweepFromMovement(touch.clientX, touch.clientY);  // Sweeping via touch drag
 });
 
