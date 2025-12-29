@@ -103,6 +103,11 @@ const gameState = {
   // Computer's current shot info for sweeping decisions
   computerShotTarget: null,  // { x, z, shotType, effort }
 
+  // Country selection
+  playerCountry: null,  // { id, name, flag, color }
+  opponentCountry: null,  // { id, name, flag, color }
+  setupComplete: false,  // Whether initial setup (country, toss) is done
+
   // Phases: 'aiming' -> 'charging' -> 'sliding' -> 'throwing' -> 'sweeping' -> 'waiting'
   phase: 'aiming',
   currentTeam: 'red',
@@ -213,6 +218,26 @@ const CAREER_LEVELS = [
   { id: 6, name: 'World Championship', difficulty: 0.04, winsToAdvance: 4, color: '#10b981', difficultyLabel: 'Hard' },
   { id: 7, name: 'Olympic Trials', difficulty: 0.03, winsToAdvance: 4, color: '#ec4899', difficultyLabel: 'Expert' },
   { id: 8, name: 'Olympics', difficulty: 0.02, winsToAdvance: null, color: '#ffd700', difficultyLabel: 'Elite' }  // Final level
+];
+
+// Curling nations with flag emojis
+const CURLING_COUNTRIES = [
+  { id: 'canada', name: 'Canada', flag: '🇨🇦', color: '#ef4444' },
+  { id: 'sweden', name: 'Sweden', flag: '🇸🇪', color: '#3b82f6' },
+  { id: 'switzerland', name: 'Switzerland', flag: '🇨🇭', color: '#ef4444' },
+  { id: 'norway', name: 'Norway', flag: '🇳🇴', color: '#ef4444' },
+  { id: 'usa', name: 'USA', flag: '🇺🇸', color: '#3b82f6' },
+  { id: 'scotland', name: 'Scotland', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', color: '#3b82f6' },
+  { id: 'japan', name: 'Japan', flag: '🇯🇵', color: '#ef4444' },
+  { id: 'south_korea', name: 'South Korea', flag: '🇰🇷', color: '#1e40af' },
+  { id: 'china', name: 'China', flag: '🇨🇳', color: '#ef4444' },
+  { id: 'italy', name: 'Italy', flag: '🇮🇹', color: '#22c55e' },
+  { id: 'germany', name: 'Germany', flag: '🇩🇪', color: '#1f2937' },
+  { id: 'denmark', name: 'Denmark', flag: '🇩🇰', color: '#ef4444' },
+  { id: 'russia', name: 'Russia', flag: '🇷🇺', color: '#3b82f6' },
+  { id: 'gb', name: 'Great Britain', flag: '🇬🇧', color: '#1e40af' },
+  { id: 'finland', name: 'Finland', flag: '🇫🇮', color: '#3b82f6' },
+  { id: 'netherlands', name: 'Netherlands', flag: '🇳🇱', color: '#f97316' }
 ];
 
 // Learn mode level definitions
@@ -5199,10 +5224,16 @@ function nextTurn() {
   updatePreviewStoneForTeam();  // Update preview stone color for new team
 
   // Update UI
-  const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
-  document.getElementById('turn').textContent =
-    `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+  let turnText;
+  if (gameState.playerCountry && gameState.opponentCountry) {
+    const country = gameState.currentTeam === 'red' ? gameState.playerCountry : gameState.opponentCountry;
+    turnText = `End ${gameState.end} - ${country.flag} ${country.name}'s Turn${isComputer ? ' (CPU)' : ''}`;
+  } else {
+    const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
+    turnText = `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+  }
+  document.getElementById('turn').textContent = turnText;
 
   // Camera will update via animation loop to target view
 
@@ -5551,10 +5582,13 @@ window.restartGame = function() {
       gameState.stonesThrown = { red: 0, yellow: 0 };
       gameState.currentTeam = 'red';
       gameState.phase = 'aiming';
-      gameState.previewHeight = 1;  // Start in target view
-      gameState.previewLocked = true;
+      gameState.previewHeight = 0;
+      gameState.previewLocked = false;
       gameState.curlDirection = null;  // Reset curl selection
       gameState.playerCurlDirection = null;
+      gameState.setupComplete = false;  // Reset setup
+      gameState.playerCountry = null;
+      gameState.opponentCountry = null;
 
       // Clear any remaining stones
       for (const stone of gameState.stones) {
@@ -5572,14 +5606,14 @@ window.restartGame = function() {
       updatePreviewStoneForTeam();  // Reset preview stone for red team
       updateCurlDisplay();  // Reset curl display to require selection
 
-      const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
-      document.getElementById('turn').textContent = `End 1 - Red's Turn${isComputer ? ' (Computer)' : ''}`;
+      // Reset scoreboard labels to RED/YELLOW
+      const redLabel = document.querySelector('#red-score-row .team-col');
+      const yellowLabel = document.querySelector('#yellow-score-row .team-col');
+      if (redLabel) redLabel.innerHTML = 'RED';
+      if (yellowLabel) yellowLabel.innerHTML = 'YELLOW';
 
-      resetCameraToThrower();
-
-      if (isComputer) {
-        setTimeout(() => executeComputerShot(), 1000);
-      }
+      // Show country selection to start new game setup
+      showCountrySelection();
     }, 500);
   }
 };
@@ -5623,6 +5657,180 @@ window.closeSettings = function() {
   // Trigger coach panel/tutorials now that menu is closed
   updateCoachPanel();
 };
+
+// ============================================
+// GAME SETUP FLOW
+// ============================================
+
+// Show country selection screen
+function showCountrySelection() {
+  const screen = document.getElementById('country-select-screen');
+  const grid = document.getElementById('country-grid');
+
+  if (!screen || !grid) return;
+
+  // Populate country grid
+  grid.innerHTML = '';
+  CURLING_COUNTRIES.forEach(country => {
+    const btn = document.createElement('button');
+    btn.className = 'country-btn';
+    btn.innerHTML = `
+      <div style="font-size: 36px; margin-bottom: 8px;">${country.flag}</div>
+      <div style="color: white; font-size: 14px;">${country.name}</div>
+    `;
+    btn.onclick = () => selectCountry(country);
+    grid.appendChild(btn);
+  });
+
+  screen.style.display = 'block';
+}
+
+// Handle country selection
+function selectCountry(country) {
+  gameState.playerCountry = country;
+
+  // Assign a random different country to opponent
+  const otherCountries = CURLING_COUNTRIES.filter(c => c.id !== country.id);
+  gameState.opponentCountry = otherCountries[Math.floor(Math.random() * otherCountries.length)];
+
+  // Hide country selection, show settings summary
+  document.getElementById('country-select-screen').style.display = 'none';
+  showSettingsSummary();
+}
+
+// Show settings summary screen
+function showSettingsSummary() {
+  const screen = document.getElementById('settings-summary-screen');
+
+  // Update summary with selected countries
+  document.getElementById('summary-player-flag').textContent = gameState.playerCountry.flag;
+  document.getElementById('summary-player-name').textContent = gameState.playerCountry.name;
+  document.getElementById('summary-opponent-flag').textContent = gameState.opponentCountry.flag;
+  document.getElementById('summary-opponent-name').textContent = gameState.opponentCountry.name;
+
+  // Update mode and level info
+  const level = getCurrentLevel();
+  const modeText = gameState.learnMode.enabled ? 'Learn Mode' :
+                   gameState.gameMode === '1player' ? 'Career Mode' : 'Quick Play';
+  document.getElementById('summary-mode').textContent = modeText;
+  document.getElementById('summary-level').textContent = level.name + ' Level';
+
+  screen.style.display = 'block';
+}
+
+// Start coin toss animation
+window.startCoinToss = function() {
+  document.getElementById('settings-summary-screen').style.display = 'none';
+
+  const overlay = document.getElementById('coin-toss-overlay');
+  const coin = document.getElementById('coin');
+  const result = document.getElementById('toss-result');
+  const subtitle = document.getElementById('toss-subtitle');
+  const title = document.getElementById('toss-title');
+
+  overlay.style.display = 'flex';
+  result.style.display = 'none';
+  title.textContent = 'Coin Toss';
+  subtitle.textContent = 'Flipping...';
+
+  // Start coin flip animation
+  coin.classList.add('coin-flipping');
+
+  // Determine winner (50/50)
+  const playerWins = Math.random() < 0.5;
+
+  // After animation, show result
+  setTimeout(() => {
+    coin.classList.remove('coin-flipping');
+
+    if (playerWins) {
+      result.textContent = `${gameState.playerCountry.flag} ${gameState.playerCountry.name} wins!`;
+      result.style.color = '#4ade80';
+      subtitle.textContent = 'You get to choose...';
+    } else {
+      result.textContent = `${gameState.opponentCountry.flag} ${gameState.opponentCountry.name} wins!`;
+      result.style.color = '#f59e0b';
+      subtitle.textContent = 'They choose hammer';
+    }
+    result.style.display = 'block';
+
+    // After showing result, proceed
+    setTimeout(() => {
+      overlay.style.display = 'none';
+
+      if (playerWins) {
+        // Show choice overlay
+        document.getElementById('toss-choice-overlay').style.display = 'flex';
+      } else {
+        // Computer chooses hammer
+        gameState.hammer = 'yellow';
+        gameState.currentTeam = 'red';  // Player throws first
+        startGame();
+      }
+    }, 2000);
+  }, 2000);
+};
+
+// Handle player's toss choice
+window.chooseTossOption = function(choice) {
+  document.getElementById('toss-choice-overlay').style.display = 'none';
+
+  if (choice === 'hammer') {
+    // Player takes hammer (throws last)
+    gameState.hammer = 'red';
+    gameState.currentTeam = 'yellow';  // Opponent throws first
+  } else {
+    // Player chooses color (throws first)
+    gameState.hammer = 'yellow';
+    gameState.currentTeam = 'red';  // Player throws first
+  }
+
+  startGame();
+};
+
+// Start the actual game after setup
+function startGame() {
+  gameState.setupComplete = true;
+
+  // Update scoreboard with flags
+  updateScoreboardFlags();
+
+  // Update turn display
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
+  const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
+  document.getElementById('turn').textContent = `End 1 - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
+
+  // Set camera to target view
+  gameState.previewHeight = 1;
+  gameState.previewLocked = true;
+
+  // If computer goes first, trigger their turn
+  if (isComputer) {
+    setTimeout(() => executeComputerShot(), 1500);
+  }
+
+  // Trigger coach panel/tutorials
+  updateCoachPanel();
+}
+
+// Update scoreboard to show flags instead of RED/YELLOW
+function updateScoreboardFlags() {
+  if (!gameState.playerCountry || !gameState.opponentCountry) return;
+
+  // Player is red, opponent is yellow
+  const redLabel = document.querySelector('#red-score-row .team-col');
+  const yellowLabel = document.querySelector('#yellow-score-row .team-col');
+
+  if (redLabel) {
+    redLabel.innerHTML = `<span style="font-size: 16px;">${gameState.playerCountry.flag}</span>`;
+    redLabel.title = gameState.playerCountry.name;
+  }
+  if (yellowLabel) {
+    yellowLabel.innerHTML = `<span style="font-size: 16px;">${gameState.opponentCountry.flag}</span>`;
+    yellowLabel.title = gameState.opponentCountry.name;
+  }
+}
 
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
@@ -6098,9 +6306,9 @@ const remainingTime = Math.max(0, splashMinTime - elapsed);
 
 setTimeout(() => {
   hideSplashScreen();
-  // Start in target view (raised camera) so player can place target immediately
-  gameState.previewHeight = 1;
-  gameState.previewLocked = true;
   animate();
   console.log('Curling game initialized!');
+
+  // Show country selection screen to start setup flow
+  showCountrySelection();
 }, remainingTime);
