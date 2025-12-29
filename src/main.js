@@ -3122,15 +3122,8 @@ function clearTargetMarker() {
 // AIMING LINE
 // ============================================
 function createAimLine() {
-  // Create a thick line using a thin box geometry
-  // This works better than Line which doesn't support linewidth in WebGL
-  const lineWidth = 0.06;  // 6cm wide - visible on mobile
-  const lineHeight = 0.02; // 2cm tall
-  const lineLength = 1;    // Will be scaled dynamically
-
-  const geometry = new THREE.BoxGeometry(lineWidth, lineHeight, lineLength);
-  // Move origin to one end of the box (so it extends from 0 to length)
-  geometry.translate(0, 0, lineLength / 2);
+  // Create an arrow (line with arrowhead) using a group
+  const arrowGroup = new THREE.Group();
 
   const material = new THREE.MeshBasicMaterial({
     color: 0x00ff00,
@@ -3138,12 +3131,29 @@ function createAimLine() {
     opacity: 0.8
   });
 
-  const line = new THREE.Mesh(geometry, material);
-  line.position.y = 0.03;  // Slightly above ice
-  line.visible = false;
+  // Line shaft (thin box)
+  const lineWidth = 0.06;  // 6cm wide
+  const lineHeight = 0.02; // 2cm tall
+  const shaftGeometry = new THREE.BoxGeometry(lineWidth, lineHeight, 1);
+  shaftGeometry.translate(0, 0, 0.5);  // Origin at start
+  const shaft = new THREE.Mesh(shaftGeometry, material);
+  arrowGroup.add(shaft);
 
-  scene.add(line);
-  return line;
+  // Arrowhead (cone pointing forward)
+  const headRadius = 0.15;  // 15cm radius
+  const headLength = 0.3;   // 30cm long
+  const headGeometry = new THREE.ConeGeometry(headRadius, headLength, 8);
+  headGeometry.rotateX(Math.PI / 2);  // Point forward (Z direction)
+  headGeometry.translate(0, 0, headLength / 2);  // Move so base is at origin
+  const head = new THREE.Mesh(headGeometry, material);
+  head.name = 'arrowhead';
+  arrowGroup.add(head);
+
+  arrowGroup.position.y = 0.03;  // Slightly above ice
+  arrowGroup.visible = false;
+
+  scene.add(arrowGroup);
+  return arrowGroup;
 }
 
 function updateAimLine(angle) {
@@ -3161,8 +3171,16 @@ function updateAimLine(angle) {
   line.position.x = 0;
   line.position.z = HACK_Z;
 
-  // Scale to desired length
+  // Scale shaft to desired length
   line.scale.z = distance;
+
+  // Position arrowhead at end of shaft
+  // Since shaft spans 0-1 in local coords (before scaling), put head at z=1
+  const arrowhead = line.getObjectByName('arrowhead');
+  if (arrowhead) {
+    arrowhead.position.z = 1;  // At end of shaft (local coords)
+    arrowhead.scale.z = 1 / distance;  // Compensate for parent scale to keep head proportional
+  }
 
   // Rotate to point in aim direction
   line.rotation.y = angle;
