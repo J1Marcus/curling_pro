@@ -3006,6 +3006,7 @@ function placeTargetMarker(screenX, screenY) {
 
       updateReturnButton();  // Show the return button
       updateMarkerHint();    // Hide the marker hint
+      setCurlDisplayVisible(true);  // Show curl selection
 
       // Show curl tutorial after target is selected (Learn Mode)
       if (gameState.learnMode.enabled) {
@@ -3026,6 +3027,7 @@ function clearTargetMarker() {
     gameState.targetMarker.visible = false;
     gameState.targetPosition = null;
   }
+  setCurlDisplayVisible(false);  // Hide curl selection
 }
 
 // ============================================
@@ -3576,6 +3578,14 @@ function setCurlButtonsEnabled(enabled) {
     outBtn.style.opacity = enabled ? '1' : '0.5';
     inBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
     outBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  }
+}
+
+// Show/hide curl display based on target placement
+function setCurlDisplayVisible(visible) {
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) {
+    curlDisplay.style.display = visible ? 'block' : 'none';
   }
 }
 
