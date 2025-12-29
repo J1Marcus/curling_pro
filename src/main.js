@@ -158,8 +158,8 @@ const gameState = {
   // Handle amount: 0-100, controls rotation rate
   // More handle = more rotation = straighter path (less curl)
   // Less handle = less rotation = more curl (but less predictable)
-  handleAmount: 50,  // Default to middle
-  playerHandleAmount: 50,  // Remember player's preference
+  handleAmount: 0,  // Default to neutral (middle of slider)
+  playerHandleAmount: 0,  // Remember player's preference
 
   // Sweeping
   isSweeping: false,
@@ -3747,7 +3747,7 @@ function setCurlDisplayVisible(visible) {
     const slider = document.getElementById('curl-slider');
     if (slider) {
       const direction = gameState.playerCurlDirection || 1;  // Default to IN
-      const handle = gameState.playerHandleAmount || 50;     // Default to 50%
+      const handle = gameState.playerHandleAmount ?? 0;      // Default to neutral (0)
       slider.value = direction * handle;
 
       // Apply the slider value to game state
