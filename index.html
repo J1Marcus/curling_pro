@@ -650,7 +650,7 @@
           border-radius: 50%;
           background: linear-gradient(135deg, #ffd700, #ffaa00);
           box-shadow: 0 4px 30px rgba(255, 215, 0, 0.5);
-          animation: none;
+          transform-style: preserve-3d;
         ">🪙</div>
         <p id="toss-result" style="color: #4ade80; font-size: 20px; font-weight: bold; display: none;"></p>
         <p id="toss-subtitle" style="color: #94a3b8; font-size: 14px; margin-top: 10px;"></p>
@@ -745,10 +745,6 @@
       }
       .coin-flipping {
         animation: coin-flip 2s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-      }
-      #coin {
-        transform-style: preserve-3d;
-        perspective: 1000px;
       }
       #play-button:hover {
         transform: scale(1.05);
