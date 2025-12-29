@@ -4614,7 +4614,7 @@ function updateSweeping() {
       if (isComputerStone) {
         indicator.textContent = canPlayerSweep ? 'SWEEP NOW!' : 'Waiting...';
       } else {
-        indicator.textContent = 'TAP & HOLD to sweep';
+        indicator.textContent = 'SWIPE to sweep';
       }
       indicator.style.color = '#4ade80';
     }
