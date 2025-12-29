@@ -181,20 +181,613 @@ const gameState = {
     level: 1,  // 1-8
     wins: 0,
     losses: 0
-  }
+  },
+
+  // Learn mode
+  learnMode: {
+    enabled: false,
+    level: 1,  // 1=Beginner, 2=Know Basics, 3=Intermediate, 4=Advanced
+    tutorialsShown: {},  // Track which tutorials have been shown
+    tutorialsDisabled: false,  // User opted out of tutorials
+    currentTutorial: null,  // Currently displayed tutorial ID
+    tutorialPaused: false,  // Physics paused for tutorial
+    currentSuggestion: null,  // Current shot suggestion
+    lastShotIntended: null,   // What the coach suggested
+    showOverlays: true,       // Show visual aids on ice
+    panelExpanded: true,      // Coach panel expanded or minimized
+    preThrowState: null       // Snapshot of stone positions before throw
+  },
+
+  // Coach target marker (Three.js mesh)
+  coachTargetMarker: null
 };
 
 // Level definitions
 const CAREER_LEVELS = [
-  { id: 1, name: 'Club', difficulty: 0.30, winsToAdvance: 2, color: '#6b7280', difficultyLabel: 'Beginner' },
-  { id: 2, name: 'Regional', difficulty: 0.22, winsToAdvance: 2, color: '#3b82f6', difficultyLabel: 'Beginner' },
-  { id: 3, name: 'Provincial', difficulty: 0.16, winsToAdvance: 3, color: '#8b5cf6', difficultyLabel: 'Easy' },
-  { id: 4, name: 'National', difficulty: 0.12, winsToAdvance: 3, color: '#ef4444', difficultyLabel: 'Medium' },
-  { id: 5, name: 'International', difficulty: 0.09, winsToAdvance: 3, color: '#f59e0b', difficultyLabel: 'Medium' },
-  { id: 6, name: 'World Championship', difficulty: 0.06, winsToAdvance: 4, color: '#10b981', difficultyLabel: 'Hard' },
-  { id: 7, name: 'Olympic Trials', difficulty: 0.045, winsToAdvance: 4, color: '#ec4899', difficultyLabel: 'Expert' },
-  { id: 8, name: 'Olympics', difficulty: 0.035, winsToAdvance: null, color: '#ffd700', difficultyLabel: 'Elite' }  // Final level
+  // Variance values: controls aim error in radians (0.10 = ±2.9°, 0.05 = ±1.4°)
+  { id: 1, name: 'Club', difficulty: 0.12, winsToAdvance: 2, color: '#6b7280', difficultyLabel: 'Beginner' },
+  { id: 2, name: 'Regional', difficulty: 0.10, winsToAdvance: 2, color: '#3b82f6', difficultyLabel: 'Beginner' },
+  { id: 3, name: 'Provincial', difficulty: 0.08, winsToAdvance: 3, color: '#8b5cf6', difficultyLabel: 'Easy' },
+  { id: 4, name: 'National', difficulty: 0.06, winsToAdvance: 3, color: '#ef4444', difficultyLabel: 'Medium' },
+  { id: 5, name: 'International', difficulty: 0.05, winsToAdvance: 3, color: '#f59e0b', difficultyLabel: 'Medium' },
+  { id: 6, name: 'World Championship', difficulty: 0.04, winsToAdvance: 4, color: '#10b981', difficultyLabel: 'Hard' },
+  { id: 7, name: 'Olympic Trials', difficulty: 0.03, winsToAdvance: 4, color: '#ec4899', difficultyLabel: 'Expert' },
+  { id: 8, name: 'Olympics', difficulty: 0.02, winsToAdvance: null, color: '#ffd700', difficultyLabel: 'Elite' }  // Final level
 ];
+
+// Learn mode level definitions
+const LEARN_LEVELS = [
+  {
+    id: 1,
+    name: 'Complete Beginner',
+    description: 'New to curling? Start here!',
+    color: '#4ade80',
+    features: ['Basic controls tutorial', 'Rules explanation', 'Simple shot suggestions', 'Heavy hand-holding']
+  },
+  {
+    id: 2,
+    name: 'Know the Basics',
+    description: 'Understand controls, learning strategy',
+    color: '#3b82f6',
+    features: ['Shot type explanations', 'Weight recommendations', 'Post-shot feedback', 'When to use each shot']
+  },
+  {
+    id: 3,
+    name: 'Intermediate',
+    description: 'Ready for strategic play',
+    color: '#f59e0b',
+    features: ['Strategic reasoning', 'Complex shot suggestions', 'Opponent analysis', 'Minimal hand-holding']
+  },
+  {
+    id: 4,
+    name: 'Advanced',
+    description: 'Expert-level coaching only when needed',
+    color: '#ef4444',
+    features: ['Situational tips only', 'Risk/reward analysis', 'Can disable suggestions', 'Post-game analysis']
+  }
+];
+
+// ============================================
+// TUTORIAL SYSTEM (Beginner Level)
+// ============================================
+
+// Tutorial definitions - only shown in Learn Mode Level 1 (Complete Beginner)
+const TUTORIALS = {
+  // PART 1: Game Basics & Rules
+  welcome: {
+    id: 'welcome',
+    icon: '🥌',
+    title: 'Welcome to Curling!',
+    text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.
+
+Each "end" (like an inning) consists of 16 stones total - 8 per team, thrown alternately.`,
+    hint: 'Your stones are RED. The computer plays YELLOW.',
+    step: 1,
+    total: 10
+  },
+  scoring: {
+    id: 'scoring',
+    icon: '🏆',
+    title: 'How Scoring Works',
+    text: `Only ONE team can score per end - the team with the stone closest to the button.
+
+You score 1 point for each of your stones that is closer to the button than the opponent's closest stone. If your two closest stones beat their closest, you score 2 points!
+
+Stones must be touching the house (the colored rings) to count.`,
+    hint: 'The team that doesn\'t score gets the "hammer" next end.',
+    step: 2,
+    total: 10
+  },
+  hammer: {
+    id: 'hammer',
+    icon: '🔨',
+    title: 'The Hammer',
+    text: `The "hammer" is the last stone of the end - a HUGE advantage! The team with hammer throws last, so they can always respond to the opponent.
+
+The team that scores gives up the hammer. If neither team scores (a "blank end"), the hammer stays with whoever had it.
+
+Strategy tip: Teams with hammer often try to score 2+ points. Scoring just 1 point ("getting forced") gives the opponent hammer.`,
+    hint: 'Yellow (computer) has hammer in the first end.',
+    step: 3,
+    total: 10
+  },
+  freeGuardZone: {
+    id: 'freeGuardZone',
+    icon: '🛡️',
+    title: 'Free Guard Zone Rule',
+    text: `Important rule: During the first 4 stones of each end, you CANNOT remove opponent's guards from play!
+
+Guards are stones between the hog line and the house. If you knock out a protected guard, the stones are reset and YOUR stone is removed.
+
+This rule encourages strategic play and prevents early aggressive takeouts.`,
+    hint: 'After stone 4, all stones are fair game!',
+    step: 4,
+    total: 10
+  },
+  shotTypes: {
+    id: 'shotTypes',
+    icon: '📋',
+    title: 'Types of Shots',
+    text: `Common shot types you'll see:
+
+• DRAW - A stone that stops in the house (scoring position)
+• GUARD - A stone that stops in front of the house to protect other stones
+• TAKEOUT - Removes an opponent's stone from play
+• FREEZE - Stops touching another stone (hard to remove)
+• PEEL - Removes a guard at high speed`,
+    hint: 'The Coach panel will suggest which shot type to play.',
+    step: 5,
+    total: 10
+  },
+
+  // PART 2: Controls
+  aiming: {
+    id: 'aiming',
+    icon: '🎯',
+    title: 'Aiming Your Shot',
+    text: `Drag LEFT and RIGHT to aim the stone. The green arrow shows where your stone will travel.
+
+Your Coach (the panel on the right) suggests where to aim based on the current game situation. Look for the green target marker on the ice.`,
+    hint: 'Tap when the aim arrow points toward your target.',
+    step: 6,
+    total: 10
+  },
+  curl: {
+    id: 'curl',
+    icon: '🌀',
+    title: 'Setting the Curl',
+    text: `Before you throw, you must select a curl direction. Curling stones rotate as they travel, causing them to curve near the end.
+
+Tap the IN or OUT button (bottom left):
+• IN-turn curls the stone LEFT
+• OUT-turn curls the stone RIGHT
+
+Curl helps you navigate around guards and reach positions you couldn't hit straight-on.`,
+    hint: 'You must select curl before you can throw!',
+    step: 7,
+    total: 10
+  },
+  effort: {
+    id: 'effort',
+    icon: '💪',
+    title: 'Setting the Weight',
+    text: `After setting curl, tap and drag DOWN to set the throwing power (called "weight").
+
+Different weights for different shots:
+• Guard weight (30-50%): Stops before the house
+• Draw weight (50-70%): Stops in the house
+• Takeout weight (70-85%): Hits and removes stones`,
+    hint: 'Watch the weight indicator on the left side of the screen.',
+    step: 8,
+    total: 10
+  },
+  throw: {
+    id: 'throw',
+    icon: '🚀',
+    title: 'Releasing the Stone',
+    text: `Once you've set your aim, weight, and curl, RELEASE to throw the stone!
+
+The stone will slide down the ice following the path determined by your aim. The curl effect increases as the stone slows down near the house.`,
+    hint: 'Release when you\'re happy with your weight setting.',
+    step: 9,
+    total: 10
+  },
+  sweeping: {
+    id: 'sweeping',
+    icon: '🧹',
+    title: 'Sweeping',
+    text: `While your stone is moving, you can SWEEP to make it travel farther and straighter!
+
+Tap and hold anywhere on the screen to sweep. Sweeping warms the ice, reducing friction. Use it to:
+• Help a light stone reach its target
+• Keep a stone straighter when it starts to curl too much`,
+    hint: 'You can only sweep your own team\'s stones!',
+    step: 10,
+    total: 10,
+    pausesGame: true  // Pause stone movement during this tutorial
+  },
+  // Intermediate version - focuses on directional sweeping
+  sweepingAdvanced: {
+    id: 'sweepingAdvanced',
+    icon: '🧹',
+    title: 'Directional Sweeping',
+    text: `You can influence your stone's path with directional sweeping!
+
+Sweep on one side of the stone to push it the opposite direction:
+• Sweep on the LEFT side → stone moves RIGHT
+• Sweep on the RIGHT side → stone moves LEFT
+
+Keep your sweeping motion aligned with the stone's travel direction for maximum effect.`,
+    hint: 'Use directional sweeping to fine-tune your line!',
+    step: 1,
+    total: 1,
+    pausesGame: true  // Pause stone movement during this tutorial
+  }
+};
+
+// Load tutorial preferences from localStorage
+function loadTutorialPrefs() {
+  try {
+    const saved = localStorage.getItem('curlingpro_tutorials');
+    if (saved) {
+      const data = JSON.parse(saved);
+      gameState.learnMode.tutorialsShown = data.shown || {};
+      gameState.learnMode.tutorialsDisabled = data.disabled || false;
+    }
+  } catch (e) {
+    console.warn('Failed to load tutorial prefs:', e);
+  }
+}
+
+// Save tutorial preferences to localStorage
+function saveTutorialPrefs() {
+  try {
+    localStorage.setItem('curlingpro_tutorials', JSON.stringify({
+      shown: gameState.learnMode.tutorialsShown,
+      disabled: gameState.learnMode.tutorialsDisabled
+    }));
+  } catch (e) {
+    console.warn('Failed to save tutorial prefs:', e);
+  }
+}
+
+// Show a tutorial popup
+function showTutorial(tutorialId) {
+  // Only show in Learn Mode
+  if (!gameState.learnMode.enabled) {
+    return false;
+  }
+
+  // Check if tutorials are disabled
+  if (gameState.learnMode.tutorialsDisabled) {
+    return false;
+  }
+
+  // Check if already shown
+  if (gameState.learnMode.tutorialsShown[tutorialId]) {
+    return false;
+  }
+
+  // Filter tutorials based on level
+  const level = gameState.learnMode.level;
+  const ruleTutorials = ['welcome', 'scoring', 'hammer', 'freeGuardZone', 'shotTypes'];
+  const controlTutorials = ['aiming', 'curl', 'effort', 'throw', 'sweeping'];
+
+  // Level 1 (Beginner): Show all tutorials
+  // Level 2 (Know Basics): Skip rules, show controls only
+  // Level 3 (Intermediate): Only show advanced sweeping
+  // Level 4 (Advanced): No tutorials
+  if (level === 4) {
+    return false;  // Advanced - no tutorials
+  } else if (level === 3) {
+    // Intermediate - only advanced sweeping tutorial
+    if (tutorialId !== 'sweepingAdvanced') return false;
+  } else if (level === 2) {
+    // Know the Basics - skip rules, show controls only
+    if (ruleTutorials.includes(tutorialId)) return false;
+  }
+  // Level 1 shows all tutorials
+
+  const tutorial = TUTORIALS[tutorialId];
+  if (!tutorial) return false;
+
+  // Update UI
+  const overlay = document.getElementById('tutorial-overlay');
+  const icon = document.getElementById('tutorial-icon');
+  const title = document.getElementById('tutorial-title');
+  const step = document.getElementById('tutorial-step');
+  const text = document.getElementById('tutorial-text');
+  const hintDiv = document.getElementById('tutorial-hint');
+  const hintText = document.getElementById('tutorial-hint-text');
+
+  if (!overlay) return false;
+
+  icon.textContent = tutorial.icon;
+  title.textContent = tutorial.title;
+  step.textContent = `Step ${tutorial.step} of ${tutorial.total}`;
+  text.innerHTML = tutorial.text.replace(/\n/g, '<br>');
+
+  if (tutorial.hint) {
+    hintDiv.style.display = 'block';
+    hintText.textContent = tutorial.hint;
+  } else {
+    hintDiv.style.display = 'none';
+  }
+
+  // Reset checkbox
+  const checkbox = document.getElementById('tutorial-dont-show');
+  if (checkbox) checkbox.checked = false;
+
+  // Update button text - "Next" if more tutorials, "Got it!" if last one
+  const nextBtn = document.getElementById('tutorial-next-btn');
+  if (nextBtn) {
+    nextBtn.textContent = tutorial.step < tutorial.total ? 'Next' : 'Got it!';
+  }
+
+  // Store current tutorial ID
+  gameState.learnMode.currentTutorial = tutorialId;
+
+  // Get popup element for animation
+  const popup = document.getElementById('tutorial-popup');
+
+  // If overlay is already visible (chaining tutorials), slide in from right
+  if (overlay.style.display === 'block' && popup) {
+    // Start from right side
+    popup.style.transition = 'none';  // Disable transition temporarily
+    popup.style.transform = 'translate(50%, -50%)';
+    popup.style.opacity = '0';
+
+    // Force reflow to apply the starting position
+    popup.offsetHeight;
+
+    // Re-enable transition and slide to center
+    popup.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+    requestAnimationFrame(() => {
+      popup.style.transform = 'translate(-50%, -50%)';
+      popup.style.opacity = '1';
+    });
+  } else {
+    // First tutorial - just show normally
+    overlay.style.display = 'block';
+    if (popup) {
+      popup.style.transform = 'translate(-50%, -50%)';
+      popup.style.opacity = '1';
+    }
+  }
+
+  // Pause physics if this tutorial requires it (e.g., sweeping tutorial)
+  if (tutorial.pausesGame) {
+    gameState.learnMode.tutorialPaused = true;
+  }
+
+  return true;
+}
+
+// Dismiss current tutorial with slide animation
+window.dismissTutorial = function() {
+  const overlay = document.getElementById('tutorial-overlay');
+  const popup = document.getElementById('tutorial-popup');
+
+  // Mark as shown
+  const tutorialId = gameState.learnMode.currentTutorial;
+  if (tutorialId) {
+    gameState.learnMode.tutorialsShown[tutorialId] = true;
+  }
+
+  // Check if user wants to disable tutorials
+  const checkbox = document.getElementById('tutorial-dont-show');
+  if (checkbox && checkbox.checked) {
+    gameState.learnMode.tutorialsDisabled = true;
+  }
+
+  // Save preferences
+  saveTutorialPrefs();
+
+  gameState.learnMode.currentTutorial = null;
+
+  // Resume physics if it was paused
+  gameState.learnMode.tutorialPaused = false;
+
+  // Slide out to the left
+  if (popup) {
+    popup.style.transform = 'translate(-150%, -50%)';
+    popup.style.opacity = '0';
+  }
+
+  // After slide-out animation, check for next tutorial
+  setTimeout(() => {
+    if (typeof updateCoachPanel === 'function') {
+      updateCoachPanel();
+    }
+
+    // If no new tutorial was shown, hide the overlay
+    if (!gameState.learnMode.currentTutorial && overlay) {
+      overlay.style.display = 'none';
+      // Reset popup position for next time
+      if (popup) {
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.opacity = '1';
+      }
+    }
+  }, 300);
+};
+
+// Reset tutorials (for testing or user request)
+window.resetTutorials = function() {
+  gameState.learnMode.tutorialsShown = {};
+  gameState.learnMode.tutorialsDisabled = false;
+  gameState.learnMode.currentTutorial = null;
+  saveTutorialPrefs();
+  console.log('[Tutorials] Reset complete - all tutorials will show again');
+
+  // Also reset game state to End 1, Stone 0 so tutorials can show
+  gameState.end = 1;
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.currentTeam = 'red';
+  gameState.phase = 'aiming';
+
+  // Clear any existing stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Make sure we're in Learn Mode Beginner
+  gameState.learnMode.enabled = true;
+  gameState.learnMode.level = 1;
+
+  // Update UI
+  if (typeof updateScoreDisplay === 'function') updateScoreDisplay();
+  if (typeof updateStoneCountDisplay === 'function') updateStoneCountDisplay();
+
+  // Trigger tutorials
+  setTimeout(() => {
+    if (typeof updateCoachPanel === 'function') {
+      updateCoachPanel();
+    }
+  }, 200);
+
+  console.log('[Tutorials] Game reset to End 1, Stone 0 in Learn Mode Beginner');
+};
+
+// ============================================
+// FREE GUARD ZONE RULE
+// ============================================
+// The Free Guard Zone (FGZ) rule: During stones 1-4, guards in the FGZ
+// (between hog line and the house) cannot be removed from play.
+// If violated, stones are reset and the thrown stone is removed.
+
+// FGZ boundaries: between far hog line and the house (12-foot ring edge)
+const FGZ_START = HOG_LINE_FAR;  // ~34.67m
+const FGZ_END = TEE_LINE_FAR - RING_12FT;  // ~39.24m (tee - 12ft radius)
+
+// State for FGZ tracking
+let fgzPreThrowGuards = [];  // Guards in FGZ before each throw
+let fgzThrownStone = null;   // Reference to the stone just thrown
+
+// Check if a stone position is in the Free Guard Zone
+function isInFGZ(z) {
+  return z >= FGZ_START && z < FGZ_END;
+}
+
+// Capture FGZ state before a throw
+function captureFGZState() {
+  const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
+
+  // Only track FGZ during stones 1-4 (first 4 stones of the end)
+  if (totalThrown >= 4) {
+    fgzPreThrowGuards = [];
+    return;
+  }
+
+  // Get the team that's about to throw
+  const throwingTeam = gameState.currentTeam;
+  const opponentTeam = throwingTeam === 'red' ? 'yellow' : 'red';
+
+  // Find opponent guards in the FGZ (guards that are protected)
+  fgzPreThrowGuards = [];
+  for (const stone of gameState.stones) {
+    if (stone.team === opponentTeam && !stone.outOfPlay) {
+      const z = stone.mesh.position.z;
+      if (isInFGZ(z)) {
+        fgzPreThrowGuards.push({
+          stone: stone,
+          originalX: stone.mesh.position.x,
+          originalZ: z,
+          bodyX: stone.body.position.x,
+          bodyY: stone.body.position.y
+        });
+      }
+    }
+  }
+
+  console.log(`[FGZ] Stone ${totalThrown + 1} of end - ${fgzPreThrowGuards.length} protected guards in FGZ`);
+}
+
+// Check for FGZ violation after stones stop
+function checkFGZViolation() {
+  const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
+
+  // FGZ only applies during stones 1-4
+  if (totalThrown > 4) {
+    return false;
+  }
+
+  // No guards were protected
+  if (fgzPreThrowGuards.length === 0) {
+    return false;
+  }
+
+  // Check if any protected guard was removed from play
+  for (const guardInfo of fgzPreThrowGuards) {
+    if (guardInfo.stone.outOfPlay) {
+      console.log('[FGZ] VIOLATION: Protected guard was removed from play!');
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Handle FGZ violation - reset stones and remove thrown stone
+function handleFGZViolation() {
+  console.log('[FGZ] Restoring stone positions...');
+
+  // Show violation message
+  showFGZViolationMessage();
+
+  // Restore protected guards to their original positions
+  for (const guardInfo of fgzPreThrowGuards) {
+    const stone = guardInfo.stone;
+    stone.outOfPlay = false;
+    stone.outOfPlayReason = null;
+
+    // Restore Three.js mesh position
+    stone.mesh.position.x = guardInfo.originalX;
+    stone.mesh.position.z = guardInfo.originalZ;
+    stone.mesh.position.y = STONE_RADIUS;
+    stone.mesh.visible = true;
+
+    // Restore Matter.js body position
+    Matter.Body.setPosition(stone.body, {
+      x: guardInfo.bodyX,
+      y: guardInfo.bodyY
+    });
+    Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+  }
+
+  // Remove the thrown stone (the last one thrown)
+  if (fgzThrownStone) {
+    moveStoneOutOfPlay(fgzThrownStone, 'FGZ violation - stone removed');
+    // Don't decrement stone count - the throw still counts
+  }
+
+  // Reset the out-of-play stone area so the removed stone shows properly
+  // (it's the offending stone, not the guard)
+}
+
+// Show FGZ violation message overlay
+function showFGZViolationMessage() {
+  // Create overlay if it doesn't exist
+  let overlay = document.getElementById('fgz-violation-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'fgz-violation-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(185, 28, 28, 0.95) 100%);
+      border: 3px solid #fca5a5;
+      border-radius: 16px;
+      padding: 24px 40px;
+      text-align: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      color: white;
+      z-index: 1000;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    `;
+    overlay.innerHTML = `
+      <div style="font-size: 32px; margin-bottom: 8px;">⚠️</div>
+      <div style="font-size: 18px; font-weight: bold; margin-bottom: 8px;">FREE GUARD ZONE VIOLATION</div>
+      <div style="font-size: 14px; color: #fee2e2;">
+        Stones 1-4 cannot remove opponent guards.<br>
+        Guard restored, your stone removed.
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  overlay.style.display = 'block';
+
+  // Hide after 3 seconds
+  setTimeout(() => {
+    overlay.style.display = 'none';
+  }, 3000);
+}
 
 // Career helper functions
 function getCurrentLevel() {
@@ -1154,19 +1747,6 @@ function createArena(level = 1) {
   frontSurround.receiveShadow = true;
   arenaGroup.add(frontSurround);
 
-  // Low curb/edge around the ice (just a small lip, not hockey boards)
-  const curbHeight = 0.08;
-  const curbMaterial = new THREE.MeshStandardMaterial({
-    color: 0x333333,
-    roughness: 0.6
-  });
-
-  [-1, 1].forEach(side => {
-    const curbGeo = new THREE.BoxGeometry(0.05, curbHeight, SHEET_LENGTH + 2);
-    const curb = new THREE.Mesh(curbGeo, curbMaterial);
-    curb.position.set(side * (SHEET_WIDTH / 2 + 0.025), curbHeight / 2, SHEET_LENGTH / 2);
-    arenaGroup.add(curb);
-  });
 
   // ========== BLACK DRAPING WITH SPONSOR BANNERS ==========
   const drapeMaterial = new THREE.MeshStandardMaterial({
@@ -1710,8 +2290,9 @@ let outOfPlayCount = 0;
 function moveStoneOutOfPlay(stone, reason) {
   if (stone.outOfPlay) return; // Already out of play
 
-  // Mark as out of play
+  // Mark as out of play and store reason
   stone.outOfPlay = true;
+  stone.outOfPlayReason = reason;
 
   // Calculate position along the back wall (spread them out)
   const xOffset = (outOfPlayCount % 8 - 3.5) * (STONE_RADIUS * 2.5);
@@ -1856,6 +2437,13 @@ function handleCollision(event) {
         if (gameState.activeStone === stone) {
           gameState.activeStone = null;
           gameState.isSweeping = false;
+          gameState._computerSweepSoundStarted = false;
+
+          // Stop sounds and hide sweep indicator
+          soundManager.stopSliding();
+          soundManager.stopSweeping();
+          const indicator = document.getElementById('sweep-indicator');
+          if (indicator) indicator.style.display = 'none';
 
           // Move to next turn after a delay
           setTimeout(() => {
@@ -2370,6 +2958,12 @@ function placeTargetMarker(screenX, screenY) {
 
       updateReturnButton();  // Show the return button
       updateMarkerHint();    // Hide the marker hint
+
+      // Show curl tutorial after target is selected (Learn Mode)
+      if (gameState.learnMode.enabled) {
+        showTutorial('curl');
+      }
+
       return true;  // Marker was placed
     }
   }
@@ -2571,11 +3165,30 @@ function startPull(x, y) {
     return;
   }
 
+  // Show tutorials before starting throw (Learn Mode)
+  if (gameState.learnMode.enabled) {
+    // Show effort and throw tutorials (curl was already shown before they could click)
+    if (showTutorial('effort')) {
+      return;  // Wait for user to dismiss tutorial before proceeding
+    }
+    if (showTutorial('throw')) {
+      return;
+    }
+  }
+
   gameState.phase = 'charging';
   gameState.pullStart = { x, y };
   gameState.pullCurrent = { x, y };
   gameState.maxPower = 0;
   gameState.currentPower = 0;
+
+  // Hide coach panel and target marker when throw starts
+  const coachPanel = document.getElementById('coach-panel');
+  if (coachPanel) coachPanel.style.display = 'none';
+  if (gameState.coachTargetMarker) {
+    scene.remove(gameState.coachTargetMarker);
+    gameState.coachTargetMarker = null;
+  }
 
   document.getElementById('power-display').style.display = 'block';
   document.getElementById('power-bar').style.display = 'block';
@@ -2701,17 +3314,10 @@ function pushOff() {
 }
 
 // Update aim during sliding phase based on mouse position
+// NOTE: Disabled - stone now follows the aim line exactly toward the target
 function updateSlidingAim(x) {
-  if (gameState.phase !== 'sliding') return;
-
-  // Calculate aim adjustment based on mouse X position relative to screen center
-  const screenCenter = window.innerWidth / 2;
-  const offset = x - screenCenter;
-
-  // Mouse adjusts relative to base aim angle (from target)
-  // Max adjustment of ~15 degrees either direction
-  const adjustment = (offset / screenCenter) * 0.25;
-  gameState.aimAngle = gameState.baseAimAngle + adjustment;
+  // Stone follows the projected aim line, no adjustment based on finger position
+  return;
 }
 
 // Update sliding phase - check for hog line violation and track timing
@@ -2782,6 +3388,39 @@ function hogViolation() {
 function releaseStone() {
   if (gameState.phase !== 'sliding') return;
 
+  // Capture FGZ state before the throw
+  captureFGZState();
+  fgzThrownStone = gameState.activeStone;  // Track the stone being thrown
+
+  // Capture pre-throw state for feedback (Learn Mode)
+  if (gameState.learnMode.enabled) {
+    const buttonPos = { x: 0, z: TEE_LINE_FAR };
+    gameState.learnMode.preThrowState = {
+      stones: gameState.stones.map(s => ({
+        team: s.team,
+        x: s.mesh.position.x,
+        z: s.mesh.position.z,
+        outOfPlay: s.outOfPlay,
+        distFromButton: Math.sqrt(
+          Math.pow(s.mesh.position.x - buttonPos.x, 2) +
+          Math.pow(s.mesh.position.z - buttonPos.z, 2)
+        )
+      })),
+      playerShotStone: gameState.stones.filter(s => s.team === 'red' && !s.outOfPlay)
+        .sort((a, b) => {
+          const distA = Math.sqrt(Math.pow(a.mesh.position.x, 2) + Math.pow(a.mesh.position.z - TEE_LINE_FAR, 2));
+          const distB = Math.sqrt(Math.pow(b.mesh.position.x, 2) + Math.pow(b.mesh.position.z - TEE_LINE_FAR, 2));
+          return distA - distB;
+        })[0]?.mesh.position.z || null,
+      opponentShotStone: gameState.stones.filter(s => s.team === 'yellow' && !s.outOfPlay)
+        .sort((a, b) => {
+          const distA = Math.sqrt(Math.pow(a.mesh.position.x, 2) + Math.pow(a.mesh.position.z - TEE_LINE_FAR, 2));
+          const distB = Math.sqrt(Math.pow(b.mesh.position.x, 2) + Math.pow(b.mesh.position.z - TEE_LINE_FAR, 2));
+          return distA - distB;
+        })[0]?.mesh.position.z || null
+    };
+  }
+
   gameState.phase = 'throwing';
   document.getElementById('hold-warning').style.display = 'none';
   document.getElementById('power-display').style.display = 'none';
@@ -2816,6 +3455,14 @@ function releaseStone() {
   setTimeout(() => {
     if (gameState.phase === 'throwing') {
       gameState.phase = 'sweeping';
+
+      // Show sweeping tutorial (Learn Mode, player's throw only)
+      const isPlayerThrow = gameState.activeStone && gameState.activeStone.team === 'red';
+      if (gameState.learnMode.enabled && isPlayerThrow) {
+        // Level 3 (Intermediate) gets advanced directional sweeping tutorial
+        const tutorialId = gameState.learnMode.level === 3 ? 'sweepingAdvanced' : 'sweeping';
+        showTutorial(tutorialId);
+      }
     }
   }, 500);
 }
@@ -2878,32 +3525,59 @@ window.setCurl = setCurlDirection;
 
 // Game mode toggle
 window.setGameMode = function(mode) {
-  gameState.gameMode = mode;
+  // Handle learn mode specially - it's a modifier on 1player mode
+  if (mode === 'learn') {
+    gameState.gameMode = '1player';
+    gameState.learnMode.enabled = true;
+  } else {
+    gameState.gameMode = mode;
+    gameState.learnMode.enabled = false;
+  }
 
   // Update button styles for new UI
   const btnCareer = document.getElementById('mode-career');
   const btnQuickplay = document.getElementById('mode-quickplay');
-  const levelSection = document.getElementById('quickplay-level-section');
-  const careerSection = document.querySelector('[style*="Career Progress"]')?.parentElement ||
-                        document.getElementById('career-progress-section');
+  const btnLearn = document.getElementById('learn-mode-btn');
+  const quickPlayLevelSection = document.getElementById('quickplay-level-section');
+  const learnLevelSection = document.getElementById('learn-level-section');
+  const learnBadge = document.getElementById('learn-mode-badge');
+
+  // Reset all buttons
+  btnCareer.style.background = '#333';
+  btnCareer.style.borderColor = '#666';
+  btnQuickplay.style.background = '#333';
+  btnQuickplay.style.borderColor = '#666';
+  if (btnLearn) {
+    btnLearn.style.background = '#333';
+    btnLearn.style.borderColor = '#666';
+  }
+
+  // Hide all level sections
+  if (quickPlayLevelSection) quickPlayLevelSection.style.display = 'none';
+  if (learnLevelSection) learnLevelSection.style.display = 'none';
+  if (learnBadge) learnBadge.style.display = 'none';
 
   if (mode === '1player') {
     // Career mode selected
     btnCareer.style.background = '#2d5a3d';
     btnCareer.style.borderColor = '#4ade80';
-    btnQuickplay.style.background = '#333';
-    btnQuickplay.style.borderColor = '#666';
-    // Hide level selector, show career progress
-    if (levelSection) levelSection.style.display = 'none';
-  } else {
+  } else if (mode === '2player') {
     // Quick play selected
     btnQuickplay.style.background = '#2d5a3d';
     btnQuickplay.style.borderColor = '#4ade80';
-    btnCareer.style.background = '#333';
-    btnCareer.style.borderColor = '#666';
-    // Show level selector
-    if (levelSection) levelSection.style.display = 'block';
+    if (quickPlayLevelSection) quickPlayLevelSection.style.display = 'block';
+  } else if (mode === 'learn') {
+    // Learn mode selected
+    if (btnLearn) {
+      btnLearn.style.background = '#2d5a3d';
+      btnLearn.style.borderColor = '#4ade80';
+    }
+    if (learnBadge) learnBadge.style.display = 'inline';
+    if (learnLevelSection) learnLevelSection.style.display = 'block';
   }
+
+  // Update coach panel visibility
+  updateCoachPanel();
 
   // Update arena for the new mode (Career uses career level, Quick Play uses selected difficulty)
   updateArenaForLevel();
@@ -2935,6 +3609,594 @@ window.setQuickPlayLevel = function(level) {
 
   // Update arena for the new level
   updateArenaForLevel();
+};
+
+// Learn mode level selector
+window.setLearnLevel = function(level) {
+  gameState.learnMode.level = level;
+
+  // Update button styles
+  const levelBtns = document.querySelectorAll('.learn-level-btn');
+  levelBtns.forEach(btn => {
+    const btnLevel = parseInt(btn.dataset.level);
+    if (btnLevel === level) {
+      btn.style.background = '#2d5a3d';
+      btn.style.borderColor = '#4ade80';
+    } else {
+      btn.style.background = '#333';
+      btn.style.borderColor = '#666';
+    }
+  });
+
+  // Update description
+  const levelInfo = LEARN_LEVELS[level - 1];
+  const desc = document.getElementById('learn-level-description');
+  if (desc && levelInfo) {
+    desc.textContent = levelInfo.description + ' - ' + levelInfo.features[0];
+  }
+};
+
+// Toggle coach panel expand/collapse
+window.toggleCoachPanel = function() {
+  gameState.learnMode.panelExpanded = !gameState.learnMode.panelExpanded;
+  const content = document.getElementById('coach-content');
+  const toggle = document.getElementById('coach-toggle');
+  if (content) {
+    content.style.display = gameState.learnMode.panelExpanded ? 'block' : 'none';
+  }
+  if (toggle) {
+    toggle.textContent = gameState.learnMode.panelExpanded ? '▼' : '▲';
+  }
+};
+
+// Dismiss/hide the coach panel
+window.dismissCoachSuggestion = function() {
+  const panel = document.getElementById('coach-panel');
+  const showBtn = document.getElementById('show-coach-btn');
+  if (panel) {
+    panel.style.display = 'none';
+  }
+  if (showBtn && gameState.learnMode.enabled) {
+    showBtn.style.display = 'block';
+  }
+};
+
+// Show the coach panel again
+window.showCoachPanel = function() {
+  const panel = document.getElementById('coach-panel');
+  const showBtn = document.getElementById('show-coach-btn');
+  if (panel) {
+    panel.style.display = 'block';
+    // Regenerate suggestion if needed
+    if (!gameState.learnMode.currentSuggestion && gameState.phase === 'aiming') {
+      generateCoachSuggestion();
+    }
+  }
+  if (showBtn) {
+    showBtn.style.display = 'none';
+  }
+};
+
+// Update coach panel visibility and content
+function updateCoachPanel() {
+  const panel = document.getElementById('coach-panel');
+  const showBtn = document.getElementById('show-coach-btn');
+  if (!panel) return;
+
+  // Only show in learn mode during player's turn
+  const isPlayerTurn = gameState.currentTeam !== gameState.computerTeam;
+  if (gameState.learnMode.enabled && isPlayerTurn && gameState.phase === 'aiming') {
+    panel.style.display = 'block';
+    if (showBtn) showBtn.style.display = 'none';  // Hide "show coach" button
+    generateCoachSuggestion();
+
+    // Show tutorials (only on first stone of first end, and only when settings menu is closed)
+    const settingsOverlay = document.getElementById('settings-overlay');
+    const menuOpen = settingsOverlay && settingsOverlay.style.display !== 'none';
+    if (gameState.learnMode.enabled && gameState.end === 1 && gameState.stonesThrown.red === 0 && !menuOpen) {
+      // Show rules/terminology tutorials first, then control tutorials
+      // Each tutorial only shows once (tracked in tutorialsShown)
+      const tutorialSequence = [
+        'welcome',        // 1. Basic intro
+        'scoring',        // 2. How scoring works
+        'hammer',         // 3. What hammer is
+        'freeGuardZone',  // 4. FGZ rule
+        'shotTypes',      // 5. Types of shots
+        'aiming'          // 6. How to aim
+        // curl tutorial is shown after selecting target (in placeTargetMarker)
+      ];
+
+      for (const tutorialId of tutorialSequence) {
+        if (showTutorial(tutorialId)) {
+          break;  // Show one at a time
+        }
+      }
+    }
+  } else {
+    panel.style.display = 'none';
+    if (showBtn) showBtn.style.display = 'none';  // Also hide when not player's turn
+  }
+}
+
+// Generate coach suggestion based on game state
+function generateCoachSuggestion() {
+  // Use the same logic as computer AI but generate human-readable suggestions
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+  const playerTeam = 'red';  // Player is always red
+
+  // Find all stones and categorize them (exclude out-of-play stones)
+  const houseStonesPlayer = [];
+  const houseStonesOpponent = [];
+  const guardsPlayer = [];
+  const guardsOpponent = [];
+
+  for (const stone of gameState.stones) {
+    // Skip out-of-play stones
+    if (stone.outOfPlay) continue;
+
+    const dx = stone.mesh.position.x - buttonPos.x;
+    const dz = stone.mesh.position.z - buttonPos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+
+    if (distance <= RING_12FT + STONE_RADIUS) {
+      // Stone is in the house
+      if (stone.team === playerTeam) {
+        houseStonesPlayer.push({ stone, distance, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      } else {
+        houseStonesOpponent.push({ stone, distance, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      }
+    } else if (stone.mesh.position.z >= HOG_LINE_FAR && stone.mesh.position.z < BACK_LINE_FAR) {
+      // Stone is past far hog line but not in house - it's a guard
+      if (stone.team === playerTeam) {
+        guardsPlayer.push({ stone, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      } else {
+        guardsOpponent.push({ stone, x: stone.mesh.position.x, z: stone.mesh.position.z });
+      }
+    }
+  }
+
+  // Debug logging
+  console.log('[Coach] Analyzing game state:', {
+    playerHouseStones: houseStonesPlayer.length,
+    opponentHouseStones: houseStonesOpponent.length,
+    playerGuards: guardsPlayer.length,
+    opponentGuards: guardsOpponent.length,
+    totalStones: gameState.stones.filter(s => !s.outOfPlay).length
+  });
+
+  houseStonesPlayer.sort((a, b) => a.distance - b.distance);
+  houseStonesOpponent.sort((a, b) => a.distance - b.distance);
+
+  const playerStonesLeft = 8 - gameState.stonesThrown[playerTeam];
+  const hasHammer = gameState.hammer === playerTeam;
+  const earlyEnd = playerStonesLeft >= 6;
+
+  const playerHasShot = houseStonesPlayer.length > 0 &&
+    (houseStonesOpponent.length === 0 || houseStonesPlayer[0].distance < houseStonesOpponent[0].distance);
+  const opponentHasShot = houseStonesOpponent.length > 0 &&
+    (houseStonesPlayer.length === 0 || houseStonesOpponent[0].distance < houseStonesPlayer[0].distance);
+
+  // Generate suggestion
+  let shotType, targetDesc, weight, curl, reason;
+  let targetX = 0, targetZ = TEE_LINE_FAR;
+
+  if (houseStonesPlayer.length === 0 && houseStonesOpponent.length === 0) {
+    // Empty house - check if we have guards set up
+    if (guardsPlayer.length > 0) {
+      // We have a guard - draw behind it to the house
+      shotType = 'Draw Behind Guard';
+      targetDesc = 'Behind your guard, into the house';
+      weight = 'Draw weight (55-62%)';
+      reason = 'You have a guard set up! Now draw behind it into the house for a protected scoring position.';
+      targetX = guardsPlayer[0].x * 0.8;  // Slightly toward center
+      targetZ = TEE_LINE_FAR - 0.5;  // Top of house
+      curl = targetX > 0 ? 1 : -1;  // Curl toward the guard line
+    } else if (earlyEnd && hasHammer) {
+      shotType = 'Guard';
+      targetDesc = 'In front of the house';
+      weight = 'Guard weight (40-50%)';
+      reason = 'With hammer early in the end, place a guard to set up scoring opportunities later.';
+      targetZ = HOG_LINE_FAR + 2;  // Just past far hog line
+      curl = 1;
+    } else if (earlyEnd && !hasHammer) {
+      shotType = 'Draw';
+      targetDesc = 'Top of the house (8-foot)';
+      weight = 'Draw weight (50-60%)';
+      reason = 'Without hammer, draw to the top of the house to establish position early.';
+      targetZ = TEE_LINE_FAR - 0.8;
+      curl = 1;
+    } else {
+      shotType = 'Draw to Button';
+      targetDesc = 'Center of the house (button)';
+      weight = 'Draw weight (55-65%)';
+      reason = 'Empty house - draw to the button to establish a scoring stone.';
+      curl = 1;
+    }
+  } else if (opponentHasShot) {
+    // Opponent has shot rock - need to respond
+    const shotStone = houseStonesOpponent[0];
+    if (shotStone.distance < 0.5) {
+      shotType = 'Takeout';
+      targetDesc = 'Opponent\'s shot stone';
+      weight = 'Takeout weight (72-80%)';
+      reason = 'Opponent has a stone close to the button. Remove it to take back control.';
+      targetX = shotStone.x;
+      targetZ = shotStone.z;
+      curl = targetX > 0 ? -1 : 1;
+    } else if (earlyEnd && guardsPlayer.length < 2) {
+      shotType = 'Guard';
+      targetDesc = 'Center guard position';
+      weight = 'Guard weight (45-50%)';
+      reason = 'Early in the end - consider a guard to protect future draws or make opponent\'s takeout harder.';
+      targetZ = HOG_LINE_FAR - 2;
+      curl = 1;
+    } else {
+      shotType = 'Takeout';
+      targetDesc = 'Opponent\'s shot stone';
+      weight = 'Takeout weight (70-78%)';
+      reason = 'Remove the opponent\'s scoring stone to prevent them from stealing points.';
+      targetX = shotStone.x;
+      targetZ = shotStone.z;
+      curl = targetX > 0 ? -1 : 1;
+    }
+  } else if (playerHasShot) {
+    // We have shot - protect it
+    if (guardsPlayer.length < 2 && houseStonesPlayer[0].distance < RING_8FT) {
+      shotType = 'Guard';
+      targetDesc = 'In front of your shot stone';
+      weight = 'Guard weight (45-52%)';
+      reason = 'You have shot! Protect it with a guard to make it harder for opponent to remove.';
+      targetX = houseStonesPlayer[0].x * 0.3;
+      targetZ = HOG_LINE_FAR - 1.5;
+      curl = targetX > 0.2 ? 1 : (targetX < -0.2 ? -1 : 1);
+    } else {
+      shotType = 'Draw';
+      targetDesc = 'Next to your shot stone (freeze)';
+      weight = 'Draw weight (52-58%)';
+      reason = 'Add another stone close to your shot to increase potential score.';
+      targetX = houseStonesPlayer[0].x + 0.3;
+      targetZ = houseStonesPlayer[0].z;
+      curl = targetX > 0 ? 1 : -1;
+    }
+  } else {
+    // Default - draw to button
+    shotType = 'Draw to Button';
+    targetDesc = 'Center of the house';
+    weight = 'Draw weight (55-65%)';
+    reason = 'Draw to the button to establish scoring position.';
+    curl = 1;
+  }
+
+  // Calculate aim point accounting for curl
+  // In this game's physics:
+  // IN-turn (curl=1) actually curls LEFT (-X direction)
+  // OUT-turn (curl=-1) actually curls RIGHT (+X direction)
+  // So to hit a center target with IN-turn, aim RIGHT so it curls left into center
+  const effort = weight.includes('70') || weight.includes('80') ? 75 :
+                 weight.includes('40') || weight.includes('50') ? 48 : 58;  // Estimate from weight description
+  const normalizedEffort = effort / 100;
+  const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 2.5;  // Same formula as computer AI
+  // Positive curl (IN) curls left, so aim right (+compensation)
+  // Negative curl (OUT) curls right, so aim left (-compensation)
+  const curlCompensation = curl * estimatedCurlDrift * 0.6;
+  const aimX = targetX + curlCompensation;
+
+  // Determine aim direction instruction
+  let aimInstruction = '';
+  if (Math.abs(curlCompensation) > 0.3) {
+    const aimDirection = curlCompensation > 0 ? 'RIGHT' : 'LEFT';
+    const curlDirection = curl === 1 ? 'left' : 'right';
+    aimInstruction = ` Aim ${aimDirection} of center - the stone will curl ${curlDirection} into the target.`;
+  }
+
+  // Store suggestion with both target and aim point
+  gameState.learnMode.currentSuggestion = {
+    shotType, targetX, targetZ, aimX, curl, weight, reason,
+    aimInstruction
+  };
+
+  // Debug logging
+  console.log('[Coach] Suggestion:', shotType, '| Target:', targetDesc, '| AimX:', aimX.toFixed(2), '| Curl:', curl);
+
+  // Update coach panel
+  const shotTypeEl = document.getElementById('coach-shot-type');
+  const weightEl = document.getElementById('coach-weight-value');
+  const curlEl = document.getElementById('coach-curl-value');
+  const reasonEl = document.getElementById('coach-reason-text');
+  const targetDescEl = document.getElementById('coach-target-desc');
+
+  if (shotTypeEl) shotTypeEl.textContent = shotType;
+  if (weightEl) weightEl.textContent = weight;
+
+  // Enhanced curl instruction with aim direction
+  const curlText = curl === 1 ? 'IN-turn (clockwise)' : 'OUT-turn (counter-clockwise)';
+  if (curlEl) curlEl.textContent = curlText;
+
+  if (reasonEl) {
+    reasonEl.textContent = reason + aimInstruction;
+  }
+  if (targetDescEl) targetDescEl.textContent = targetDesc;
+
+  // Update target marker on ice
+  updateCoachTargetMarker();
+}
+
+// Create/update coach target marker on ice
+function updateCoachTargetMarker() {
+  const suggestion = gameState.learnMode.currentSuggestion;
+  if (!suggestion || !gameState.learnMode.enabled) {
+    // Remove marker if it exists
+    if (gameState.coachTargetMarker) {
+      scene.remove(gameState.coachTargetMarker);
+      gameState.coachTargetMarker = null;
+    }
+    return;
+  }
+
+  // Create marker if it doesn't exist
+  if (!gameState.coachTargetMarker) {
+    const markerGroup = new THREE.Group();
+
+    // Outer ring (pulsing)
+    const outerRingGeo = new THREE.RingGeometry(0.35, 0.4, 32);
+    const outerRingMat = new THREE.MeshBasicMaterial({
+      color: 0x4ade80,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.6
+    });
+    const outerRing = new THREE.Mesh(outerRingGeo, outerRingMat);
+    outerRing.rotation.x = -Math.PI / 2;
+    outerRing.name = 'outerRing';
+    markerGroup.add(outerRing);
+
+    // Inner dot
+    const innerDotGeo = new THREE.CircleGeometry(0.08, 16);
+    const innerDotMat = new THREE.MeshBasicMaterial({
+      color: 0x4ade80,
+      side: THREE.DoubleSide
+    });
+    const innerDot = new THREE.Mesh(innerDotGeo, innerDotMat);
+    innerDot.rotation.x = -Math.PI / 2;
+    innerDot.position.y = 0.01;
+    markerGroup.add(innerDot);
+
+    markerGroup.position.y = 0.02;
+    gameState.coachTargetMarker = markerGroup;
+    scene.add(markerGroup);
+  }
+
+  // Update position - use aimX (where to aim) not targetX (where stone ends up)
+  gameState.coachTargetMarker.position.x = suggestion.aimX !== undefined ? suggestion.aimX : suggestion.targetX;
+  gameState.coachTargetMarker.position.z = suggestion.targetZ;
+
+  // Animate pulse effect
+  const outerRing = gameState.coachTargetMarker.getObjectByName('outerRing');
+  if (outerRing) {
+    const time = Date.now() * 0.003;
+    const scale = 1 + Math.sin(time) * 0.15;
+    outerRing.scale.set(scale, scale, 1);
+    outerRing.material.opacity = 0.4 + Math.sin(time) * 0.2;
+  }
+}
+
+// Show post-shot feedback after player's throw
+function showPostShotFeedback() {
+  const panel = document.getElementById('feedback-shot-panel');
+  if (!panel) {
+    // Fallback to normal flow if panel doesn't exist
+    setTimeout(() => nextTurn(), 1500);
+    return;
+  }
+
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+  let rating, result, tip;
+
+  // Analyze what changed from pre-throw state
+  const preState = gameState.learnMode.preThrowState;
+  const playerStonesInPlay = gameState.stones.filter(s => s.team === 'red' && !s.outOfPlay);
+  const playerStonesOutOfPlay = gameState.stones.filter(s => s.team === 'red' && s.outOfPlay);
+  const opponentStonesInPlay = gameState.stones.filter(s => s.team === 'yellow' && !s.outOfPlay);
+  const opponentStonesOutOfPlay = gameState.stones.filter(s => s.team === 'yellow' && s.outOfPlay);
+
+  // The thrown stone is the most recently added player stone
+  const thrownStone = gameState.stones.filter(s => s.team === 'red')[gameState.stonesThrown['red'] - 1];
+  const thrownStoneOut = thrownStone?.outOfPlay;
+  const thrownStoneReason = thrownStone?.outOfPlayReason;
+
+  // Count what happened
+  let opponentStonesRemoved = 0;
+  let opponentStonesPromoted = 0;  // Moved into better position (into house or closer to button)
+  let ownStonesKnockedOut = 0;
+
+  if (preState) {
+    // Check opponent stones
+    const preOpponentStones = preState.stones.filter(s => s.team === 'yellow' && !s.outOfPlay);
+
+    for (const prestone of preOpponentStones) {
+      // Find this stone's current state
+      const currentStone = opponentStonesInPlay.find(s =>
+        Math.abs(s.mesh.position.x - prestone.x) < 3 &&
+        Math.abs(s.mesh.position.z - prestone.z) < 3
+      ) || opponentStonesOutOfPlay.find(s => s.outOfPlay);
+
+      if (!currentStone || currentStone.outOfPlay) {
+        opponentStonesRemoved++;
+      } else {
+        // Check if opponent stone moved into a better position
+        const newDist = Math.sqrt(
+          Math.pow(currentStone.mesh.position.x - buttonPos.x, 2) +
+          Math.pow(currentStone.mesh.position.z - buttonPos.z, 2)
+        );
+        const wasInHouse = prestone.distFromButton <= RING_12FT + STONE_RADIUS;
+        const nowInHouse = newDist <= RING_12FT + STONE_RADIUS;
+
+        // Promoted = moved into house from outside, or moved significantly closer to button
+        if ((!wasInHouse && nowInHouse) || (newDist < prestone.distFromButton - 0.5 && nowInHouse)) {
+          opponentStonesPromoted++;
+        }
+      }
+    }
+
+    // Check own stones (excluding the just-thrown one which starts at the hack)
+    // Stones at z < 10 are at/near the hack and being thrown, not existing stones
+    const prePlayerStones = preState.stones.filter(s => s.team === 'red' && !s.outOfPlay && s.z > 10);
+    for (const prestone of prePlayerStones) {
+      const stillInPlay = playerStonesInPlay.some(s =>
+        Math.abs(s.mesh.position.x - prestone.x) < 3 &&
+        Math.abs(s.mesh.position.z - prestone.z) < 3
+      );
+      if (!stillInPlay) {
+        ownStonesKnockedOut++;
+      }
+    }
+  }
+
+  // Determine feedback based on outcome
+  if (thrownStoneOut) {
+    // Thrown stone went out of play
+    if (opponentStonesRemoved > 0 && thrownStoneReason === 'went past back line') {
+      // Successful takeout but rolled out (hit and roll)
+      rating = { text: 'Takeout!', color: '#4ade80' };
+      result = `You removed ${opponentStonesRemoved} opponent stone${opponentStonesRemoved > 1 ? 's' : ''}, but your stone rolled out.`;
+      tip = opponentStonesRemoved > 1 ? 'Great double takeout!' : 'Try to stick next time for better position.';
+    } else if (thrownStoneReason === 'did not reach far hog line') {
+      rating = { text: 'Too Light', color: '#ef4444' };
+      result = 'Your stone did not reach the hog line.';
+      tip = 'Try adding more weight or sweeping to help the stone travel further.';
+    } else if (thrownStoneReason === 'went past back line') {
+      rating = { text: 'Too Heavy', color: '#ef4444' };
+      result = 'Your stone went through the house and out the back.';
+      tip = 'Try using less weight next time.';
+    } else if (thrownStoneReason === 'hit side wall') {
+      rating = { text: 'Wide', color: '#ef4444' };
+      result = 'Your stone went out the side.';
+      tip = 'Check your aim direction and curl settings.';
+    } else {
+      rating = { text: 'Out of Play', color: '#ef4444' };
+      result = 'Your stone went out of play.';
+      tip = 'Try adjusting your weight and aim.';
+    }
+  } else if (opponentStonesPromoted > 0 && opponentStonesRemoved === 0) {
+    // Bad outcome - promoted opponent stone(s) into house
+    rating = { text: 'Uh Oh!', color: '#ef4444' };
+    result = `You accidentally promoted ${opponentStonesPromoted} opponent stone${opponentStonesPromoted > 1 ? 's' : ''} into a better position.`;
+    tip = 'Be careful when hitting stones - consider where they might end up.';
+  } else if (ownStonesKnockedOut > 0 && opponentStonesRemoved === 0) {
+    // Knocked own stone out
+    rating = { text: 'Own Goal!', color: '#ef4444' };
+    result = `You knocked ${ownStonesKnockedOut} of your own stone${ownStonesKnockedOut > 1 ? 's' : ''} out of play.`;
+    tip = 'Be careful with your aim to avoid hitting your own stones.';
+  } else if (opponentStonesRemoved > 0) {
+    // Successful takeout
+    const stonePos = thrownStone.mesh.position;
+    const distFromButton = Math.sqrt(
+      Math.pow(stonePos.x - buttonPos.x, 2) + Math.pow(stonePos.z - buttonPos.z, 2)
+    );
+    const inHouse = distFromButton <= RING_12FT + STONE_RADIUS;
+
+    if (opponentStonesRemoved > 1) {
+      rating = { text: 'Double!', color: '#4ade80' };
+      result = `Excellent! You removed ${opponentStonesRemoved} opponent stones!`;
+    } else if (inHouse) {
+      rating = { text: 'Hit & Stick!', color: '#4ade80' };
+      result = 'Great takeout! Your stone stayed in the house.';
+    } else {
+      rating = { text: 'Takeout!', color: '#4ade80' };
+      result = 'You removed an opponent stone.';
+      if (!inHouse) tip = 'Try to roll into the house after the hit for better position.';
+    }
+  } else {
+    // No collisions - evaluate based on where stone landed
+    const stonePos = thrownStone.mesh.position;
+    const distFromButton = Math.sqrt(
+      Math.pow(stonePos.x - buttonPos.x, 2) + Math.pow(stonePos.z - buttonPos.z, 2)
+    );
+
+    if (distFromButton <= BUTTON_RADIUS + STONE_RADIUS) {
+      rating = { text: 'Button!', color: '#4ade80' };
+      result = 'Perfect draw to the button!';
+    } else if (distFromButton <= RING_4FT + STONE_RADIUS) {
+      rating = { text: 'Great Shot!', color: '#4ade80' };
+      result = 'Your stone came to rest in the 4-foot ring.';
+    } else if (distFromButton <= RING_8FT + STONE_RADIUS) {
+      rating = { text: 'Good Shot!', color: '#3b82f6' };
+      result = 'Your stone came to rest in the 8-foot ring.';
+    } else if (distFromButton <= RING_12FT + STONE_RADIUS) {
+      rating = { text: 'In the House', color: '#f59e0b' };
+      result = 'Your stone came to rest in the 12-foot ring.';
+    } else if (stonePos.z >= HOG_LINE_FAR && stonePos.z < TEE_LINE_FAR - RING_12FT) {
+      rating = { text: 'Guard', color: '#3b82f6' };
+      result = 'Your stone is in guard position in front of the house.';
+    } else if (stonePos.z >= TEE_LINE_FAR + RING_12FT) {
+      rating = { text: 'Too Heavy', color: '#f59e0b' };
+      result = 'Your stone went through the house.';
+      tip = 'Try less weight next time.';
+    } else {
+      rating = { text: 'Okay', color: '#f59e0b' };
+      result = 'Your stone is in play but outside the scoring area.';
+    }
+
+    // Check suggestion accuracy - compare what was suggested vs what happened
+    const suggestion = gameState.learnMode.currentSuggestion;
+    if (suggestion) {
+      const targetDist = Math.sqrt(
+        Math.pow(stonePos.x - suggestion.targetX, 2) +
+        Math.pow(stonePos.z - suggestion.targetZ, 2)
+      );
+
+      // Determine what shot type was actually executed
+      const inHouse = distFromButton <= RING_12FT + STONE_RADIUS;
+      const isGuardPosition = stonePos.z >= HOG_LINE_FAR && stonePos.z < TEE_LINE_FAR - RING_12FT;
+      const suggestedGuard = suggestion.shotType === 'guard' || suggestion.shotType === 'centerGuard' || suggestion.shotType === 'cornerGuard';
+      const suggestedDraw = suggestion.shotType === 'draw' || suggestion.shotType === 'freeze' || suggestion.shotType === 'drawToButton';
+
+      if (targetDist < 0.5) {
+        tip = 'You hit the target! Great execution.';
+      } else if (targetDist < 1.5) {
+        tip = 'Close to the target - almost there!';
+      } else if (suggestedGuard && inHouse) {
+        // Called for guard but threw into the house
+        tip = 'The coach suggested a guard, but your stone ended up in the house. Try less weight for guards.';
+        rating = { text: 'Heavy', color: '#f59e0b' };
+      } else if (suggestedDraw && isGuardPosition) {
+        // Called for draw but came up short as a guard
+        tip = 'The coach suggested a draw to the house, but your stone stopped short. Try a bit more weight.';
+        rating = { text: 'Light', color: '#f59e0b' };
+      }
+    }
+  }
+
+  // Update panel content
+  const ratingEl = document.getElementById('feedback-shot-rating');
+  const resultEl = document.getElementById('feedback-shot-result');
+  const tipEl = document.getElementById('feedback-shot-tip');
+
+  if (ratingEl) {
+    ratingEl.textContent = rating.text;
+    ratingEl.style.color = rating.color;
+  }
+  if (resultEl) resultEl.textContent = result;
+  if (tipEl) {
+    if (tip) {
+      tipEl.textContent = tip;
+      tipEl.style.display = 'block';
+    } else {
+      tipEl.style.display = 'none';
+    }
+  }
+
+  // Show panel
+  panel.style.display = 'block';
+}
+
+// Dismiss shot feedback and continue
+window.dismissShotFeedback = function() {
+  const panel = document.getElementById('feedback-shot-panel');
+  if (panel) panel.style.display = 'none';
+
+  // Continue to next turn
+  setTimeout(() => nextTurn(), 500);
 };
 
 // Return to throw view button
@@ -3369,8 +4631,8 @@ function getComputerShot() {
         houseStonesPlayer.push({ stone, distance, x: stone.mesh.position.x, z: stone.mesh.position.z });
       }
     }
-    // Check if stone is a guard (in front of house, in play area)
-    else if (stone.mesh.position.z < HOG_LINE_FAR && stone.mesh.position.z > HOG_LINE_NEAR) {
+    // Check if stone is a guard (past far hog line but not in house)
+    else if (stone.mesh.position.z >= HOG_LINE_FAR) {
       if (stone.team === gameState.computerTeam) {
         guardsComputer.push({ stone, x: stone.mesh.position.x, z: stone.mesh.position.z });
       } else {
@@ -3451,8 +4713,8 @@ function getComputerShot() {
       // Early in end, try to set up guards first
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 2;
-      targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
-      effort = 48 + Math.random() * 8;
+      targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
+      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
     } else {
       // Standard takeout
       shotType = 'takeout';
@@ -3466,8 +4728,8 @@ function getComputerShot() {
       shotType = 'guard';
       // Place guard in front of scoring stones
       targetX = houseStonesComputer[0].x * 0.5;
-      targetZ = HOG_LINE_FAR - 1.5 - Math.random() * 2;
-      effort = 46 + Math.random() * 8;
+      targetZ = HOG_LINE_FAR + 1.5 + Math.random() * 2;  // Guards go AFTER far hog line
+      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
     } else {
       // Draw for more points
       shotType = 'draw';
@@ -3481,8 +4743,8 @@ function getComputerShot() {
       // Throw a guard
       shotType = 'guard';
       targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 1;
-      targetZ = HOG_LINE_FAR - 2 - Math.random() * 2;
-      effort = 47 + Math.random() * 8;
+      targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
+      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
     } else {
       // Freeze to our stone
       shotType = 'freeze';
@@ -3496,14 +4758,14 @@ function getComputerShot() {
       // Early with hammer - place guards
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 1.5;
-      targetZ = HOG_LINE_FAR - 2 - Math.random() * 3;
-      effort = 45 + Math.random() * 10;
+      targetZ = HOG_LINE_FAR + 2 + Math.random() * 3;  // Guards go AFTER far hog line
+      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
     } else if (earlyEnd && !hasHammer) {
       // Early without hammer - draw to top of house
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 1;
       targetZ = TEE_LINE_FAR - 1;
-      effort = 50 + Math.random() * 6;
+      effort = 60 + Math.random() * 6;  // ~60-66% for draw to top of house
     } else {
       // Draw to button
       shotType = 'draw';
@@ -3513,10 +4775,22 @@ function getComputerShot() {
     }
   } else if (guardsPlayer.length > 0 && !computerHasShot) {
     // Player has guards blocking - try to peel or come around
-    if (Math.random() > 0.4) {
-      // Peel the guard
+    // Check if FGZ rule applies (stones 1-4, guards in FGZ are protected)
+    const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
+    const fgzActive = totalThrown < 4;
+    const targetGuard = guardsPlayer[0];
+    const guardInFGZ = isInFGZ(targetGuard.z);
+
+    if (fgzActive && guardInFGZ) {
+      // Can't peel FGZ-protected guard - must come around or draw
+      console.log('[FGZ] Computer avoiding protected guard, playing around it');
+      shotType = 'come-around';
+      targetX = targetGuard.x > 0 ? -0.8 : 0.8;
+      targetZ = TEE_LINE_FAR;
+      effort = 52 + Math.random() * 6;
+    } else if (Math.random() > 0.4) {
+      // Peel the guard (FGZ not active or guard not in FGZ)
       shotType = 'peel';
-      const targetGuard = guardsPlayer[0];
       targetX = targetGuard.x;
       targetZ = targetGuard.z;
       effort = 85 + Math.random() * 10;
@@ -3544,26 +4818,27 @@ function getComputerShot() {
     curl = targetX > 0 ? 1 : -1;
   } else {
     // For draws/guards, pick curl direction to curve INTO the target
-    // If target is left of center, curl left (counter-clockwise, -1)
-    // If target is right of center, curl right (clockwise, +1)
-    curl = targetX > 0.2 ? 1 : (targetX < -0.2 ? -1 : (Math.random() > 0.5 ? 1 : -1));
+    // In this game: IN-turn (1) curls LEFT, OUT-turn (-1) curls RIGHT
+    // If target is left of center, use IN-turn to curl left into it
+    // If target is right of center, use OUT-turn to curl right into it
+    curl = targetX > 0.2 ? -1 : (targetX < -0.2 ? 1 : (Math.random() > 0.5 ? 1 : -1));
   }
 
   // Calculate aim angle with proper curl compensation
-  // Curl causes lateral drift - heavier throws drift less, lighter throws drift more
-  // Base curl drift is approximately 1.5-2.5 meters over full sheet for draw weight
-  // Takeout weight drifts less (~0.5-1m), guard weight drifts more (~2-3m)
+  // In this game's physics:
+  // IN-turn (curl=1) curls LEFT (-X direction)
+  // OUT-turn (curl=-1) curls RIGHT (+X direction)
   const normalizedEffort = effort / 100;
   // Curl drift decreases with effort (fast stones curl less)
   // At effort 50 (draw): ~2m drift, at effort 80 (takeout): ~0.8m drift
   const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 2.5;
 
-  // Curl direction affects which way we need to compensate
-  // If curling right (+1), stone drifts right, so aim LEFT of target
-  // If curling left (-1), stone drifts left, so aim RIGHT of target
-  const curlCompensation = -curl * estimatedCurlDrift * 0.6; // 60% compensation (not 100% to allow some curl)
+  // Compensate for curl:
+  // IN-turn (curl=1) curls left, so aim RIGHT (+compensation)
+  // OUT-turn (curl=-1) curls right, so aim LEFT (-compensation)
+  const curlCompensation = curl * estimatedCurlDrift * 0.6; // 60% compensation
 
-  // Adjust aim: compensate for curl by aiming opposite to curl direction
+  // Adjust aim: compensate for curl
   const aimX = targetX + curlCompensation;
   const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
@@ -3657,6 +4932,11 @@ function executeComputerShot() {
 // PHYSICS UPDATE
 // ============================================
 function updatePhysics() {
+  // Skip physics if tutorial is pausing the game
+  if (gameState.learnMode.tutorialPaused) {
+    return;
+  }
+
   Matter.Engine.update(engine, 1000 / 60);
 
   // Update sliding phase
@@ -3853,6 +5133,11 @@ function updatePhysics() {
         moveStoneOutOfPlay(gameState.activeStone, 'did not reach far hog line');
       }
 
+      // Check for Free Guard Zone violation
+      if (checkFGZViolation()) {
+        handleFGZViolation();
+      }
+
       gameState.phase = 'waiting';
       gameState.activeStone = null;
       gameState.isSweeping = false;
@@ -3876,10 +5161,16 @@ function updatePhysics() {
       // Clear target marker for next turn
       clearTargetMarker();
 
-      // Check if end is complete or switch turns
-      setTimeout(() => {
-        nextTurn();
-      }, 1500);
+      // Show post-shot feedback in learn mode (player's shots only)
+      const wasPlayerShot = gameState.currentTeam === 'red';
+      if (gameState.learnMode.enabled && wasPlayerShot) {
+        showPostShotFeedback();
+      } else {
+        // Check if end is complete or switch turns
+        setTimeout(() => {
+          nextTurn();
+        }, 1500);
+      }
     }
   }
 
@@ -3926,6 +5217,9 @@ function nextTurn() {
     updateSkipSignalArm();
     updatePreviewStoneRotation();
   }
+
+  // Update coach panel for learn mode
+  updateCoachPanel();
 }
 
 function calculateScore() {
@@ -4327,6 +5621,8 @@ window.closeSettings = function() {
   if (overlay) {
     overlay.style.display = 'none';
   }
+  // Trigger coach panel/tutorials now that menu is closed
+  updateCoachPanel();
 };
 
 window.setDifficulty = function(difficulty) {
@@ -4759,6 +6055,10 @@ function animate() {
     updatePreviewCamera(undefined, undefined, false);  // Continue smooth camera interpolation
     updateReturnButton();  // Update button visibility as camera moves
     updateMarkerHint();    // Update hint visibility as camera moves
+    // Update coach target marker animation (learn mode)
+    if (gameState.learnMode.enabled && gameState.coachTargetMarker) {
+      updateCoachTargetMarker();
+    }
   } else {
     updateCameraFollow();  // Follow stone during sliding/throwing phase
   }
@@ -4776,6 +6076,7 @@ updateLoadingProgress(50, 'Building ice sheet...');
 createSheet();
 updateLoadingProgress(60, 'Building arena...');
 loadCareer();  // Load saved career progress first to know the level
+loadTutorialPrefs();  // Load tutorial preferences
 updateArenaForLevel();  // Create arena based on career level
 updateLoadingProgress(70, 'Setting up UI...');
 updateStoneCountDisplay();  // Initialize stone count display

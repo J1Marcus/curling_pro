@@ -119,3 +119,8 @@ Players compete against each other on separate devices over the internet.
 - Strategy suggestion engine (could be rule-based or AI-powered)
 - Chat API integration for tutor functionality
 - Context-aware responses based on current game state
+
+### Sound Enhancements
+- Add crowd noise / ambient arena sounds
+- Crowd reactions to good shots, near misses, and scoring
+- Background arena atmosphere during gameplay
