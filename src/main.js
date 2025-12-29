@@ -204,7 +204,10 @@ const gameState = {
   },
 
   // Coach target marker (Three.js mesh)
-  coachTargetMarker: null
+  coachTargetMarker: null,
+
+  // First-run tutorial state (for regular mode)
+  firstRunTutorial: null  // { id, pausesGame }
 };
 
 // Level definitions
@@ -573,6 +576,25 @@ window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
 
+  // Check if this is a first-run tutorial (regular mode)
+  if (gameState.firstRunTutorial) {
+    dismissFirstRunTutorial();
+    // Slide out
+    if (popup) {
+      popup.style.transform = 'translate(-150%, -50%)';
+      popup.style.opacity = '0';
+    }
+    setTimeout(() => {
+      if (overlay) overlay.style.display = 'none';
+      if (popup) {
+        popup.style.transform = 'translate(-50%, -50%)';
+        popup.style.opacity = '1';
+      }
+    }, 300);
+    return;
+  }
+
+  // Learn Mode tutorial handling
   // Mark as shown
   const tutorialId = gameState.learnMode.currentTutorial;
   if (tutorialId) {
@@ -2987,6 +3009,9 @@ function placeTargetMarker(screenX, screenY) {
       // Show curl tutorial after target is selected (Learn Mode)
       if (gameState.learnMode.enabled) {
         showTutorial('curl');
+      } else {
+        // First-run tutorial for regular mode
+        showFirstRunTutorial('fr_curl');
       }
 
       return true;  // Marker was placed
@@ -3198,6 +3223,11 @@ function startPull(x, y) {
     }
     if (showTutorial('throw')) {
       return;
+    }
+  } else {
+    // First-run tutorial for regular mode
+    if (showFirstRunTutorial('fr_throw')) {
+      return;  // Wait for user to dismiss tutorial
     }
   }
 
@@ -3487,6 +3517,9 @@ function releaseStone() {
         // Level 3 (Intermediate) gets advanced directional sweeping tutorial
         const tutorialId = gameState.learnMode.level === 3 ? 'sweepingAdvanced' : 'sweeping';
         showTutorial(tutorialId);
+      } else if (isPlayerThrow) {
+        // First-run tutorial for regular mode
+        showFirstRunTutorial('fr_sweep');
       }
     }
   }, 500);
@@ -4975,7 +5008,8 @@ function updatePhysics() {
   }
 
   // Track hog line crossing after release for split time
-  if (gameState.activeStone && gameState.phase === 'throwing' && gameState.tLineCrossTime && !gameState.splitTime) {
+  // Check both 'throwing' and 'sweeping' phases since phase transitions 500ms after release
+  if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping') && gameState.tLineCrossTime && !gameState.splitTime) {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
     if (stoneZ >= HOG_LINE_NEAR) {
       gameState.splitTime = (Date.now() - gameState.tLineCrossTime) / 1000;
@@ -5805,6 +5839,11 @@ function startGame() {
   gameState.previewHeight = 1;
   gameState.previewLocked = true;
 
+  // Show first-run aim tutorial (if it's player's turn)
+  if (!isComputer) {
+    showFirstRunTutorial('fr_aim');
+  }
+
   // If computer goes first, trigger their turn
   if (isComputer) {
     setTimeout(() => executeComputerShot(), 1500);
@@ -5833,50 +5872,181 @@ function updateScoreboardFlags() {
 }
 
 // ============================================
-// FIRST-RUN INSTRUCTIONS
+// FIRST-RUN INTERACTIVE TUTORIALS
 // ============================================
 
-// Check if this is the user's first time
-function isFirstRun() {
-  return !localStorage.getItem('curlingpro_instructions_seen');
-}
+// First-run tutorials for new users (not in Learn Mode)
+const FIRST_RUN_TUTORIALS = {
+  fr_aim: {
+    id: 'fr_aim',
+    icon: '🎯',
+    title: 'Set Your Target',
+    text: `Tap anywhere on the ice to place your target marker. This is where you want your stone to stop.
 
-// Show first-run instructions if needed
-function showFirstRunInstructions() {
-  if (!isFirstRun()) return false;
+The green arrow shows your aim direction. Drag left or right to fine-tune your aim.`,
+    hint: 'Place your target in the house (colored rings) to score!',
+    step: 1,
+    total: 4
+  },
+  fr_curl: {
+    id: 'fr_curl',
+    icon: '🌀',
+    title: 'Choose Your Curl',
+    text: `Curling stones curve as they slow down! Tap IN or OUT (bottom left) to set the curl direction:
 
-  const overlay = document.getElementById('first-run-overlay');
-  if (overlay) {
-    overlay.style.display = 'block';
-    return true;
+• IN-turn → stone curves LEFT
+• OUT-turn → stone curves RIGHT`,
+    hint: 'Curl helps you navigate around other stones.',
+    step: 2,
+    total: 4
+  },
+  fr_throw: {
+    id: 'fr_throw',
+    icon: '💪',
+    title: 'Throw the Stone',
+    text: `Tap and drag DOWN to set your throwing power (weight). The bar on the left shows your power level.
+
+Release to throw! Tap again when the stone crosses the hog line to let go.`,
+    hint: 'More power = stone travels farther.',
+    step: 3,
+    total: 4
+  },
+  fr_sweep: {
+    id: 'fr_sweep',
+    icon: '🧹',
+    title: 'Sweep to Control',
+    text: `While your stone is moving, swipe back and forth to SWEEP!
+
+Sweeping makes your stone:
+• Travel farther
+• Stay straighter`,
+    hint: 'Sweep if your stone looks light!',
+    step: 4,
+    total: 4,
+    pausesGame: true
   }
-  return false;
+};
+
+// Get first-run tutorials shown from localStorage
+function getFirstRunTutorialsShown() {
+  const stored = localStorage.getItem('curlingpro_tutorials_shown');
+  return stored ? JSON.parse(stored) : {};
 }
 
-// Dismiss first-run instructions
-window.dismissFirstRunInstructions = function() {
-  const overlay = document.getElementById('first-run-overlay');
-  const checkbox = document.getElementById('dont-show-instructions');
+// Save first-run tutorial as shown
+function markFirstRunTutorialShown(tutorialId) {
+  const shown = getFirstRunTutorialsShown();
+  shown[tutorialId] = true;
+  localStorage.setItem('curlingpro_tutorials_shown', JSON.stringify(shown));
+}
 
+// Check if first-run tutorials are disabled
+function areFirstRunTutorialsDisabled() {
+  return localStorage.getItem('curlingpro_tutorials_disabled') === 'true';
+}
+
+// Disable all first-run tutorials
+function disableFirstRunTutorials() {
+  localStorage.setItem('curlingpro_tutorials_disabled', 'true');
+}
+
+// Show a first-run tutorial (for regular mode, not Learn Mode)
+function showFirstRunTutorial(tutorialId) {
+  // Don't show in Learn Mode (it has its own tutorials)
+  if (gameState.learnMode.enabled) {
+    return false;
+  }
+
+  // Check if tutorials are disabled
+  if (areFirstRunTutorialsDisabled()) {
+    return false;
+  }
+
+  // Check if already shown
+  const shown = getFirstRunTutorialsShown();
+  if (shown[tutorialId]) {
+    return false;
+  }
+
+  const tutorial = FIRST_RUN_TUTORIALS[tutorialId];
+  if (!tutorial) return false;
+
+  // Use the same tutorial overlay as Learn Mode
+  const overlay = document.getElementById('tutorial-overlay');
+  const icon = document.getElementById('tutorial-icon');
+  const title = document.getElementById('tutorial-title');
+  const step = document.getElementById('tutorial-step');
+  const text = document.getElementById('tutorial-text');
+  const hintDiv = document.getElementById('tutorial-hint');
+  const hintText = document.getElementById('tutorial-hint-text');
+
+  if (!overlay) return false;
+
+  icon.textContent = tutorial.icon;
+  title.textContent = tutorial.title;
+  step.textContent = `Step ${tutorial.step} of ${tutorial.total}`;
+  text.innerHTML = tutorial.text.replace(/\n/g, '<br>');
+
+  if (tutorial.hint) {
+    hintDiv.style.display = 'block';
+    hintText.textContent = tutorial.hint;
+  } else {
+    hintDiv.style.display = 'none';
+  }
+
+  // Reset checkbox
+  const checkbox = document.getElementById('tutorial-dont-show');
+  if (checkbox) checkbox.checked = false;
+
+  // Update button text
+  const nextBtn = document.getElementById('tutorial-next-btn');
+  if (nextBtn) {
+    nextBtn.textContent = tutorial.step < tutorial.total ? 'Next' : 'Got it!';
+  }
+
+  // Store current tutorial info for dismissal
+  gameState.firstRunTutorial = {
+    id: tutorialId,
+    pausesGame: tutorial.pausesGame || false
+  };
+
+  // Pause game if needed
+  if (tutorial.pausesGame) {
+    gameState.learnMode.tutorialPaused = true;
+  }
+
+  overlay.style.display = 'block';
+
+  return true;
+}
+
+// Dismiss first-run tutorial (called from the same button as Learn Mode)
+function dismissFirstRunTutorial() {
+  if (!gameState.firstRunTutorial) return;
+
+  const tutorialId = gameState.firstRunTutorial.id;
+
+  // Check if user wants to disable all tutorials
+  const checkbox = document.getElementById('tutorial-dont-show');
   if (checkbox && checkbox.checked) {
-    localStorage.setItem('curlingpro_instructions_seen', 'true');
+    disableFirstRunTutorials();
+  } else {
+    // Just mark this one as shown
+    markFirstRunTutorialShown(tutorialId);
   }
 
+  // Unpause game if it was paused
+  if (gameState.firstRunTutorial.pausesGame) {
+    gameState.learnMode.tutorialPaused = false;
+  }
+
+  gameState.firstRunTutorial = null;
+
+  const overlay = document.getElementById('tutorial-overlay');
   if (overlay) {
     overlay.style.display = 'none';
   }
-
-  // Continue to country selection
-  showCountrySelection();
-};
-
-// Allow viewing instructions again from settings (optional)
-window.showInstructions = function() {
-  const overlay = document.getElementById('first-run-overlay');
-  if (overlay) {
-    overlay.style.display = 'block';
-  }
-};
+}
 
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
@@ -6355,8 +6525,6 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Show first-run instructions if needed, otherwise go to country selection
-  if (!showFirstRunInstructions()) {
-    showCountrySelection();
-  }
+  // Go to country selection
+  showCountrySelection();
 }, remainingTime);
