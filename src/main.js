@@ -3122,27 +3122,24 @@ function clearTargetMarker() {
 // AIMING LINE
 // ============================================
 function createAimLine() {
-  // Use a visible mesh strip instead of Line (linewidth doesn't work in WebGL)
-  const lineWidth = 0.08;  // 8cm wide - visible on mobile
-  const lineLength = TEE_LINE_FAR - HACK_Z;
+  // Create a thick line using a thin box geometry
+  // This works better than Line which doesn't support linewidth in WebGL
+  const lineWidth = 0.06;  // 6cm wide - visible on mobile
+  const lineHeight = 0.02; // 2cm tall
+  const lineLength = 1;    // Will be scaled dynamically
 
-  // Create a plane geometry for the aim line
-  const geometry = new THREE.PlaneGeometry(lineWidth, lineLength);
+  const geometry = new THREE.BoxGeometry(lineWidth, lineHeight, lineLength);
+  // Move origin to one end of the box (so it extends from 0 to length)
+  geometry.translate(0, 0, lineLength / 2);
 
-  // Semi-transparent green material with glow effect
   const material = new THREE.MeshBasicMaterial({
     color: 0x00ff00,
     transparent: true,
-    opacity: 0.7,
-    side: THREE.DoubleSide
+    opacity: 0.8
   });
 
   const line = new THREE.Mesh(geometry, material);
-
-  // Position at center of the line path, rotated to lie flat on ice
-  line.rotation.x = -Math.PI / 2;  // Lay flat
-  line.position.y = 0.02;  // Slightly above ice
-  line.position.z = HACK_Z + lineLength / 2;  // Center along length
+  line.position.y = 0.03;  // Slightly above ice
   line.visible = false;
 
   scene.add(line);
@@ -3158,18 +3155,17 @@ function updateAimLine(angle) {
   // Easy: longer line (12m) to help with aiming, Medium/Hard: 5m
   const distance = gameState.settings.difficulty === 'easy' ? 12 : 5;
 
-  // Update mesh scale and rotation for the aim line
   const line = gameState.aimLine;
 
-  // Scale the line to the desired length
-  line.scale.y = distance / (TEE_LINE_FAR - HACK_Z);
+  // Position at the hack (start of throw)
+  line.position.x = 0;
+  line.position.z = HACK_Z;
 
-  // Position at center of the visible line
-  line.position.x = Math.sin(angle) * distance / 2;
-  line.position.z = HACK_Z + Math.cos(angle) * distance / 2;
+  // Scale to desired length
+  line.scale.z = distance;
 
-  // Rotate around Y axis to point in aim direction
-  line.rotation.y = -angle;
+  // Rotate to point in aim direction
+  line.rotation.y = angle;
 
   line.visible = true;
 }
