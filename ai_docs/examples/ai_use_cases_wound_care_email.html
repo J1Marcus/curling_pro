@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transform Your Wound Care Practice with AI - Clarity Business Solutions</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', 'Satoshi-Variable', sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8f9fa;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .header {
+            background: linear-gradient(90deg, #06a5b7 10%, #07d4d1 100%);
+            padding: 32px 24px;
+            text-align: center;
+            position: relative;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: 20%;
+            width: 60px;
+            height: 200px;
+            background: radial-gradient(ellipse,
+                rgba(12, 222, 220, 0.3) 0%,
+                rgba(12, 222, 220, 0.15) 30%,
+                rgba(12, 222, 220, 0.05) 60%,
+                transparent 100%);
+            filter: blur(8px);
+            transform: translateY(-50%) rotate(-15deg);
+            pointer-events: none;
+        }
+        
+        .logo {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 8px;
+        }
+        
+        .logo img {
+            height: 40px;
+            width: auto;
+            max-width: 200px;
+        }
+        
+        .header-subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 18px;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .content {
+            padding: 40px 24px;
+        }
+        
+        .greeting {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+        }
+        
+        .message {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 24px;
+            line-height: 1.7;
+        }
+        
+        .highlight-box {
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border: 2px solid #04ADC0;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 32px;
+        }
+        
+        .highlight-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .highlight-title::before {
+            content: '🚀';
+            margin-right: 8px;
+            font-size: 18px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            font-size: 15px;
+        }
+        
+        .stat-icon {
+            background: #04ADC0;
+            color: white;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: 600;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        
+        .stat-text {
+            color: #2d3748;
+            font-weight: 500;
+        }
+        
+        .use-case-section {
+            margin-bottom: 32px;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #04ADC0;
+        }
+        
+        .use-case-card {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border-left: 4px solid #04ADC0;
+        }
+        
+        .use-case-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+        }
+        
+        .use-case-description {
+            font-size: 14px;
+            color: #4a5568;
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        
+        .use-case-impact {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #04ADC0;
+            font-weight: 600;
+        }
+        
+        .use-case-impact::before {
+            content: '✓';
+            margin-right: 6px;
+            font-size: 14px;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 32px 24px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-radius: 12px;
+        }
+        
+        .cta-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+        
+        .cta-text {
+            font-size: 16px;
+            color: #4a5568;
+            margin-bottom: 24px;
+        }
+        
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 32px;
+            background: linear-gradient(90deg, #06a5b7 10%, #07d4d1 100%);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            box-shadow: 0 4px 12px rgba(6, 165, 183, 0.3);
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(6, 165, 183, 0.4);
+        }
+        
+        .additional-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 24px 0;
+            border-left: 4px solid #04ADC0;
+        }
+        
+        .additional-info h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 12px;
+        }
+        
+        .additional-info ul {
+            margin-left: 20px;
+            color: #4a5568;
+        }
+        
+        .additional-info li {
+            font-size: 14px;
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        
+        .footer {
+            background: #1a1a1a;
+            color: #ffffff;
+            padding: 32px 24px;
+            text-align: center;
+        }
+        
+        .footer-content {
+            margin-bottom: 16px;
+        }
+        
+        .footer-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .footer-text {
+            font-size: 14px;
+            color: #a0aec0;
+            line-height: 1.6;
+        }
+        
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+        }
+        
+        .footer-link {
+            color: #04ADC0;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+        
+        .divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent 0%, #04ADC0 50%, transparent 100%);
+            margin: 32px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .email-container {
+                margin: 0;
+                border-radius: 0;
+            }
+            
+            .content {
+                padding: 24px 16px;
+            }
+            
+            .header {
+                padding: 24px 16px;
+            }
+            
+            .highlight-box {
+                padding: 16px;
+            }
+            
+            .footer-links {
+                flex-direction: column;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://koxofrstjtsywvgflhyu.supabase.co/storage/v1/object/public/clarity-assets//Text%20Only%20-%20Flat%20White.png" alt="Clarity Business Solutions" />
+            </div>
+            <div class="header-subtitle">Transform Your Wound Care Practice with AI</div>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Ready to Save 60-90 Minutes Per Day?</div>
+            
+            <div class="message">
+                Wound care professionals are discovering how AI can dramatically reduce administrative burden while improving patient outcomes. We've identified specific, high-impact AI applications designed specifically for wound care clinics—no technical expertise required.
+            </div>
+            
+            <div class="highlight-box">
+                <div class="highlight-title">What You'll Achieve</div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-icon">75%</div>
+                        <div class="stat-text">Reduction in patient education material creation time</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">50%</div>
+                        <div class="stat-text">Faster clinical documentation and progress notes</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">85%</div>
+                        <div class="stat-text">First-time insurance authorization approval rate</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-icon">25%</div>
+                        <div class="stat-text">Improvement in wound healing times through optimized protocols</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="use-case-section">
+                <div class="section-title">🎯 Top AI Use Cases for Wound Care</div>
+                
+                <div class="use-case-card">
+                    <div class="use-case-title">1. Patient Education Material Generation</div>
+                    <div class="use-case-description">
+                        Create customized wound care instructions, discharge materials, and health literacy content in minutes instead of hours. Generate content for different reading levels and languages instantly.
+                    </div>
+                    <div class="use-case-impact">Save 2-3 hours per week per clinician</div>
+                </div>
+                
+                <div class="use-case-card">
+                    <div class="use-case-title">2. Clinical Documentation Assistance</div>
+                    <div class="use-case-description">
+                        Draft comprehensive wound assessments, progress notes, and treatment plans from your verbal or written observations. Reduce after-hours charting burden significantly.
+                    </div>
+                    <div class="use-case-impact">Save 30-45 minutes per day per provider</div>
+                </div>
+                
+                <div class="use-case-card">
+                    <div class="use-case-title">3. Insurance Authorization & Appeals</div>
+                    <div class="use-case-description">
+                        Generate comprehensive authorization requests with clinical justification and evidence-based support. Create compelling appeal letters that cite relevant guidelines.
+                    </div>
+                    <div class="use-case-impact">Free up 5-8 hours per week for administrative staff</div>
+                </div>
+                
+                <div class="use-case-card">
+                    <div class="use-case-title">4. Evidence-Based Treatment Research</div>
+                    <div class="use-case-description">
+                        Quickly access current wound care guidelines, treatment protocols, and emerging therapies for complex cases. Research in minutes instead of hours.
+                    </div>
+                    <div class="use-case-impact">Improve clinical decision confidence and outcomes</div>
+                </div>
+                
+                <div class="use-case-card">
+                    <div class="use-case-title">5. Wound Healing Outcome Analysis</div>
+                    <div class="use-case-description">
+                        Analyze healing data to identify patterns, predict healing trajectories, and optimize treatment protocols. Generate quality reports for regulatory compliance.
+                    </div>
+                    <div class="use-case-impact">Reduce healing time by 20-25% through data-driven protocols</div>
+                </div>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="additional-info">
+                <h3>💡 What Makes This Different?</h3>
+                <ul>
+                    <li><strong>No Technical Setup Required:</strong> Start using AI tools like ChatGPT or Claude immediately—no IT department needed</li>
+                    <li><strong>Wound Care Specific:</strong> Templates and prompts designed specifically for wound assessment, documentation, and patient education</li>
+                    <li><strong>Proven ROI:</strong> $75,000-$150,000 annual savings per clinic through efficiency gains</li>
+                    <li><strong>Quick Implementation:</strong> See results in weeks, not months, with our phased 6-month roadmap</li>
+                    <li><strong>Scalable Approach:</strong> Start simple, then progress to more advanced AI applications as your team gains confidence</li>
+                </ul>
+            </div>
+            
+            <div class="cta-section">
+                <div class="cta-title">Get Your Complete AI Implementation Guide</div>
+                <div class="cta-text">
+                    Download our comprehensive 9-page guide with specific use cases, implementation steps, success metrics, and a 6-month roadmap tailored for wound care practices.
+                </div>
+                <a href="mailto:marcus@claritybusinesssolutions.ca?subject=Wound%20Care%20AI%20Use%20Cases%20-%20Request%20Full%20Guide&body=Hi%20Marcus,%0D%0A%0D%0AI'm%20interested%20in%20learning%20more%20about%20implementing%20AI%20in%20our%20wound%20care%20practice.%20Please%20send%20me%20the%20complete%20implementation%20guide.%0D%0A%0D%0AName:%20%0D%0AOrganization:%20%0D%0ARole:%20%0D%0APhone:%20" class="btn-primary">
+                    Request Full Implementation Guide
+                </a>
+            </div>
+            
+            <div class="additional-info">
+                <h3>📋 What's Included in the Full Guide:</h3>
+                <ul>
+                    <li>9 detailed use cases with step-by-step implementation instructions</li>
+                    <li>Ready-to-use prompt templates for common wound care scenarios</li>
+                    <li>6-month phased implementation roadmap</li>
+                    <li>Success metrics and ROI tracking framework</li>
+                    <li>Tool recommendations and cost breakdowns</li>
+                    <li>Quality assurance and review protocols</li>
+                    <li>Progression pathway to advanced AI capabilities</li>
+                </ul>
+            </div>
+            
+            <div class="divider"></div>
+            
+            <div class="message">
+                <strong>Questions?</strong> I'm happy to discuss how these AI applications can be customized for your specific wound care practice. Reply to this email or schedule a 15-minute consultation to explore which use cases would deliver the most value for your team.
+            </div>
+            
+            <div class="message" style="margin-top: 24px;">
+                <em>Best regards,</em><br>
+                <strong>Marcus Swift</strong><br>
+                AI Adoption Strategy Consultant<br>
+                Clarity Business Solutions
+            </div>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-title">Clarity Business Solutions</div>
+                <div class="footer-text">
+                    Bringing clarity to your business operations through expert consultation and innovative AI solutions.
+                </div>
+            </div>
+            
+            <div class="footer-links">
+                <a href="mailto:marcus@claritybusinesssolutions.ca" class="footer-link">Contact Us</a>
+                <a href="https://claritybusinesssolutions.ca" class="footer-link">Visit Website</a>
+                <a href="mailto:marcus@claritybusinesssolutions.ca?subject=Schedule%20Consultation%20-%20Wound%20Care%20AI" class="footer-link">Schedule Consultation</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

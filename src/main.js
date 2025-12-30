@@ -94,7 +94,7 @@ const CURL_PHYSICS = {
   // Minimum angular velocity (below this = unpredictable "dumping")
   OMEGA_MIN: 0.4,
   // Base curl strength constant (tune for desired curl distance)
-  K_CURL: 0.00015,
+  K_CURL: 0.00001,  // Reduced significantly - was causing wall hits
   // Speed exponent (how much slower speed increases curl)
   P_SPEED: 1.5,
   // Rotation exponent (how much rotation affects curl, keep small)
@@ -2163,7 +2163,7 @@ function createSheet() {
   });
   const leftShadow = new THREE.Mesh(leftShadowGeo, leftShadowMat);
   leftShadow.rotation.x = -Math.PI / 2;
-  leftShadow.position.set(-SHEET_WIDTH / 2 + shadowWidth / 2, 0.005, SHEET_LENGTH / 2);
+  leftShadow.position.set(-SHEET_WIDTH / 2 + shadowWidth / 2, 0.02, SHEET_LENGTH / 2);
   scene.add(leftShadow);
 
   // Right shadow gradient: transparent at left (0), dark at right edge (width)
@@ -2188,7 +2188,7 @@ function createSheet() {
   });
   const rightShadow = new THREE.Mesh(leftShadowGeo.clone(), rightShadowMat);
   rightShadow.rotation.x = -Math.PI / 2;
-  rightShadow.position.set(SHEET_WIDTH / 2 - shadowWidth / 2, 0.005, SHEET_LENGTH / 2);
+  rightShadow.position.set(SHEET_WIDTH / 2 - shadowWidth / 2, 0.02, SHEET_LENGTH / 2);
   scene.add(rightShadow);
 
   // Side borders (dark edges like real rinks)
@@ -3611,8 +3611,13 @@ function releaseStone() {
   // Set angular velocity based on handle amount
   // More handle = more rotation (rad/s) = straighter path
   const omega = CURL_PHYSICS.HANDLE_TO_OMEGA(gameState.handleAmount);
+  const finalOmega = gameState.curlDirection * omega;
+
+  // Debug logging for throw
+  console.log(`THROW: curlDirection=${gameState.curlDirection}, handleAmount=${gameState.handleAmount}, omega=${omega.toFixed(2)}, finalOmega=${finalOmega.toFixed(2)}`);
+
   // Direction: positive for IN (clockwise), negative for OUT (counter-clockwise)
-  Matter.Body.setAngularVelocity(gameState.activeStone.body, gameState.curlDirection * omega);
+  Matter.Body.setAngularVelocity(gameState.activeStone.body, finalOmega);
 
   // Now apply ice friction since thrower released
   gameState.activeStone.body.frictionAir = ICE_FRICTION;
@@ -3664,6 +3669,9 @@ window.updateCurlSlider = function(value) {
   // Remember player's preferences
   gameState.playerCurlDirection = gameState.curlDirection;
   gameState.playerHandleAmount = gameState.handleAmount;
+
+  // Debug logging
+  console.log(`Curl slider: value=${sliderValue}, direction=${gameState.curlDirection === 1 ? 'IN' : 'OUT'}, handleAmount=${gameState.handleAmount}`);
 
   updateCurlDisplay();
   updateSkipSignalArm();
@@ -5241,64 +5249,39 @@ function updatePhysics() {
   // Level 8: 15% variation (realistic ice conditions that vary)
   const iceVariability = (levelId - 1) * 0.02;  // 0 to 0.14
 
-  // Rotation-based curl physics
-  // Real curling: MORE rotation = LESS curl (straighter path)
-  // Curl is caused by friction asymmetry, rotation averages out the effect
+  // Simple curl physics - angular velocity directly affects curl
+  // Positive angularVelocity (IN turn) curls RIGHT (+X)
+  // Negative angularVelocity (OUT turn) curls LEFT (-X)
   if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
     const body = gameState.activeStone.body;
     const vel = body.velocity;
     const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
 
-    // Apply angular velocity damping (stone loses spin over time)
-    const currentOmega = Math.abs(body.angularVelocity);
-    if (currentOmega > 0.01) {
-      const dampedOmega = body.angularVelocity * (1 - CURL_PHYSICS.SPIN_DAMP);
-      Matter.Body.setAngularVelocity(body, dampedOmega);
-    }
-
     if (speed > 0.3) {
-      // Get forward speed in m/s (Matter.js units / scale / 60fps)
-      const speedMs = speed / PHYSICS_SCALE * 60;
-      const omega = Math.max(Math.abs(body.angularVelocity), CURL_PHYSICS.OMEGA_MIN);
-
-      // Curl strength formula: more rotation = less curl
-      // curlStrength = K * (1/speed)^P_SPEED * (omega_ref/omega)^P_ROTATION
-      const speedFactor = Math.pow(1 / Math.max(speedMs, CURL_PHYSICS.V_MIN), CURL_PHYSICS.P_SPEED);
-      const rotationFactor = Math.pow(CURL_PHYSICS.OMEGA_REF / omega, CURL_PHYSICS.P_ROTATION);
+      const normalizedSpeed = Math.min(speed, 5) / 5;
+      // Curl increases as stone slows down (realistic curling behavior)
+      const curlMultiplier = 1 + Math.pow(1 - normalizedSpeed, 2) * 2.5;
 
       // Ice variability - slight random variation in curl (more at higher levels)
       const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability;
 
-      // Calculate curl force
-      // Direction: positive angularVelocity (IN turn) curls RIGHT (+X)
-      // Negative angularVelocity (OUT turn) curls LEFT (-X)
-      const direction = body.angularVelocity > 0 ? 1 : -1;
-      let curlForce = direction * CURL_PHYSICS.K_CURL * speedFactor * rotationFactor * iceRandomness;
+      // Calculate curl force - simple formula: angularVelocity * constant
+      let curlForce = -body.angularVelocity * 0.00012 * curlMultiplier * iceRandomness;
+      curlForce = Math.max(-0.0003, Math.min(0.0003, curlForce));  // Cap max lateral force
 
-      // Low rotation "dumping" effect - add unpredictability when handle is too light
-      if (omega < CURL_PHYSICS.OMEGA_MIN * 1.5) {
-        // Add random jitter for "dumpy" behavior
-        const dumpFactor = 1 - (omega / (CURL_PHYSICS.OMEGA_MIN * 1.5));
-        curlForce += (Math.random() - 0.5) * curlForce * dumpFactor * 0.5;
-      }
-
-      // Cap max lateral force
-      curlForce = Math.max(-0.0004, Math.min(0.0004, curlForce));
-
-      // Directional sweeping effect
+      // Directional sweeping effect:
+      // Sweeping to the right makes stone deflect LEFT (negative X)
+      // Sweeping to the left makes stone deflect RIGHT (positive X)
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.2) {
-        const normalizedSpeed = Math.min(speed, 5) / 5;
-        const curlMultiplier = 1 + Math.pow(1 - normalizedSpeed, 2) * 2.5;
         const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.00006 * curlMultiplier;
         curlForce += directionalForce;
       }
 
-      // Final cap on total lateral force
-      curlForce = Math.max(-0.0005, Math.min(0.0005, curlForce));
+      // Final cap on total lateral force to prevent unrealistic physics
+      curlForce = Math.max(-0.0004, Math.min(0.0004, curlForce));
       Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
 
       // Update sliding sound volume based on speed
-      const normalizedSpeed = Math.min(speed, 5) / 5;
       soundManager.updateSlidingVolume(normalizedSpeed);
     }
   }
