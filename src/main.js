@@ -6650,8 +6650,8 @@ function startNewEnd() {
   }
 
   gameState.phase = 'aiming';
-  gameState.previewHeight = 0;  // Reset to thrower's view
-  gameState.previewLocked = false;  // Reset pan mode
+  gameState.previewHeight = 1;  // Start in target view (like nextTurn)
+  gameState.previewLocked = true;  // Locked in target view
   clearTargetMarker();  // Remove target marker
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
   updatePreviewStoneForTeam();  // Update preview stone for current team
@@ -6660,7 +6660,6 @@ function startNewEnd() {
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   document.getElementById('turn').textContent =
     `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
-  resetCameraToThrower();
 
   // Trigger computer turn if applicable, or restore player's curl preference
   if (isComputer) {
