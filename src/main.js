@@ -6790,15 +6790,23 @@ renderer.domElement.addEventListener('mousedown', (e) => {
   }
 });
 
-// Double click to unlock preview and allow repositioning
+// Double click to toggle between throwing view and target view
 renderer.domElement.addEventListener('dblclick', (e) => {
-  if (gameState.phase === 'aiming' && gameState.previewLocked) {
-    // Unlock to allow repositioning marker (keep existing marker visible)
-    gameState.previewLocked = false;
-    updateReturnButton();
-    updateMarkerHint();
-    // Update last mouse position to prevent sudden jump
-    gameState.lastMousePos = { x: e.clientX, y: e.clientY };
+  if (gameState.phase === 'aiming') {
+    if (gameState.previewLocked) {
+      // In target view (locked) - unlock to allow repositioning
+      gameState.previewLocked = false;
+      updateReturnButton();
+      updateMarkerHint();
+      // Update last mouse position to prevent sudden jump
+      gameState.lastMousePos = { x: e.clientX, y: e.clientY };
+    } else if (gameState.previewHeight < 0.5) {
+      // In throwing view - switch to target view
+      gameState.previewHeight = 1;
+      gameState.previewLocked = true;
+      updateReturnButton();
+      updateMarkerHint();
+    }
   }
 });
 
@@ -6845,20 +6853,29 @@ renderer.domElement.addEventListener('touchstart', (e) => {
   const touch = e.touches[0];
   const now = Date.now();
 
-  // Double-tap detection for unlocking preview (mobile equivalent of double-click)
-  if (gameState.phase === 'aiming' && gameState.previewLocked) {
+  // Double-tap detection for view switching (mobile equivalent of mouse dragging / double-click)
+  if (gameState.phase === 'aiming') {
     const timeSinceLastTap = now - lastTapTime;
     const distFromLastTap = Math.sqrt(
       Math.pow(touch.clientX - lastTapPos.x, 2) +
       Math.pow(touch.clientY - lastTapPos.y, 2)
     );
 
-    // If double-tap detected (within 300ms and 50px), unlock preview
+    // If double-tap detected (within 300ms and 50px)
     if (timeSinceLastTap < 300 && distFromLastTap < 50) {
-      gameState.previewLocked = false;
-      updateReturnButton();
-      updateMarkerHint();
-      gameState.lastMousePos = { x: touch.clientX, y: touch.clientY };
+      if (gameState.previewLocked) {
+        // Already in target view - unlock for repositioning
+        gameState.previewLocked = false;
+        updateReturnButton();
+        updateMarkerHint();
+        gameState.lastMousePos = { x: touch.clientX, y: touch.clientY };
+      } else if (gameState.previewHeight < 0.5) {
+        // In throwing view - switch to target view
+        gameState.previewHeight = 1;
+        gameState.previewLocked = true;
+        updateReturnButton();
+        updateMarkerHint();
+      }
       lastTapTime = 0;  // Reset to prevent triple-tap triggering
       return;
     }
