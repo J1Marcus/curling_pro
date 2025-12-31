@@ -3055,6 +3055,11 @@ function updateSkipSignalArm() {
 }
 
 function placeTargetMarker(screenX, screenY) {
+  // Prevent player from placing marker during computer's turn
+  if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+    return false;
+  }
+
   // Raycast from screen position to ice surface
   const mouse = new THREE.Vector2(
     (screenX / window.innerWidth) * 2 - 1,
@@ -3318,6 +3323,11 @@ function resetCameraToThrower() {
 // Phase 1: Start aiming - click and drag back
 function startPull(x, y) {
   if (gameState.phase !== 'aiming') return;
+
+  // Prevent player from throwing during computer's turn
+  if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+    return;
+  }
 
   // Prevent throwing if curl direction not selected
   if (gameState.curlDirection === null) {
@@ -4458,6 +4468,11 @@ window.dismissShotFeedback = function() {
 
 // Return to throw view button
 window.returnToThrowView = function() {
+  // Prevent during computer's turn
+  if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+    return;
+  }
+
   if (gameState.phase === 'aiming' && gameState.previewLocked) {
     gameState.previewHeight = 0;  // Animate to thrower view
     updateReturnButton();
