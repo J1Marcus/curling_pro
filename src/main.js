@@ -5101,39 +5101,50 @@ function getComputerShot() {
   // OUT-turn (curl=-1) curls RIGHT (+X direction)
   const normalizedEffort = effort / 100;
   // Curl drift decreases with effort (fast stones curl less)
-  // At effort 50 (draw): ~2m drift, at effort 80 (takeout): ~0.8m drift
-  const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 2.5;
+  // At effort 50 (draw): ~1m drift, at effort 80 (takeout): ~0.4m drift
+  // Reduced from previous values to prevent over-compensation
+  const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 1.2;
 
   // Compensate for curl:
   // IN-turn (curl=1) curls left, so aim RIGHT (+compensation)
   // OUT-turn (curl=-1) curls right, so aim LEFT (-compensation)
-  const curlCompensation = curl * estimatedCurlDrift * 0.6; // 60% compensation
+  const curlCompensation = curl * estimatedCurlDrift * 0.4; // 40% compensation (conservative)
 
   // Adjust aim: compensate for curl
   const aimX = targetX + curlCompensation;
   const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
   // Add randomness based on difficulty setting
-  // Easy: Less accurate but still competent (not wildly off)
-  // Medium: Good accuracy with some variance
-  // Hard: Very precise
+  // All levels should be competent - difference is in precision, not wild misses
+  // Easy: Slightly off target (might miss button by 1-2 feet)
+  // Medium: Good accuracy (usually within 1 foot)
+  // Hard: Very precise (within inches)
   const difficultyVariance = {
-    easy: 0.08,    // ~4.5 degrees aim variance, ~2% effort variance
-    medium: 0.05,  // ~3 degrees aim variance, ~1.25% effort variance
-    hard: 0.02     // ~1 degree aim variance, ~0.5% effort variance
+    easy: 0.025,   // ~1.4 degrees aim variance, slight effort variance
+    medium: 0.015, // ~0.9 degrees aim variance
+    hard: 0.006    // ~0.3 degrees aim variance (very precise)
   };
   const variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
 
-  // Apply variance
+  // Apply variance - much smaller to prevent out-of-play shots
   const accuracyVariance = (Math.random() - 0.5) * variance;
-  const effortVariance = (Math.random() - 0.5) * variance * 25;
+  const effortVariance = (Math.random() - 0.5) * variance * 15;  // Reduced multiplier
+
+  const finalEffort = Math.min(100, Math.max(30, effort + effortVariance));  // Min 30% effort
+  const finalAimAngle = aimAngle + accuracyVariance;
+
+  console.log('[COMPUTER SHOT]', shotType,
+    '- target:', targetX.toFixed(2), targetZ.toFixed(2),
+    '- effort:', finalEffort.toFixed(0) + '%',
+    '- curl:', curl > 0 ? 'CCW' : 'CW',
+    '- aimAngle:', (finalAimAngle * 180 / Math.PI).toFixed(1) + '°');
 
   return {
     shotType,
     targetX,
     targetZ,
-    effort: Math.min(100, Math.max(0, effort + effortVariance)),
-    aimAngle: aimAngle + accuracyVariance,
+    effort: finalEffort,
+    aimAngle: finalAimAngle,
     curl
   };
 }
