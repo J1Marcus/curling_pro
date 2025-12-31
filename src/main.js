@@ -6837,10 +6837,37 @@ document.addEventListener('keydown', (e) => {
 
 // Touch support
 let touchStartedInAiming = false;
+let lastTapTime = 0;
+let lastTapPos = { x: 0, y: 0 };
 
 renderer.domElement.addEventListener('touchstart', (e) => {
   e.preventDefault();
   const touch = e.touches[0];
+  const now = Date.now();
+
+  // Double-tap detection for unlocking preview (mobile equivalent of double-click)
+  if (gameState.phase === 'aiming' && gameState.previewLocked) {
+    const timeSinceLastTap = now - lastTapTime;
+    const distFromLastTap = Math.sqrt(
+      Math.pow(touch.clientX - lastTapPos.x, 2) +
+      Math.pow(touch.clientY - lastTapPos.y, 2)
+    );
+
+    // If double-tap detected (within 300ms and 50px), unlock preview
+    if (timeSinceLastTap < 300 && distFromLastTap < 50) {
+      gameState.previewLocked = false;
+      updateReturnButton();
+      updateMarkerHint();
+      gameState.lastMousePos = { x: touch.clientX, y: touch.clientY };
+      lastTapTime = 0;  // Reset to prevent triple-tap triggering
+      return;
+    }
+  }
+
+  // Track this tap for double-tap detection
+  lastTapTime = now;
+  lastTapPos = { x: touch.clientX, y: touch.clientY };
+
   if (gameState.phase === 'aiming') {
     // If in preview mode (camera raised), handle marker placement
     if (gameState.previewHeight > 0.3) {
