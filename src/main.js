@@ -4701,12 +4701,12 @@ function updateComputerSweeping() {
   if (isPlayerStone && stoneZ >= TEE_LINE_FAR) {
     // Computer can defensively sweep player's stone to make it go too far
     // Sweep if the stone looks like it will stop in a good position
-    const distanceToBack = BACK_LINE - stoneZ;
+    const distanceToBack = BACK_LINE_FAR - stoneZ;
     const estimatedTravel = speed * 15; // Rough estimate of remaining distance
 
     // If stone will stop in the house (good for player), sweep it out
     const willStopInHouse = estimatedTravel < distanceToBack && estimatedTravel > 0.5;
-    const stoneNearButton = Math.abs(stoneX) < 1.5 && stoneZ < BACK_LINE - 1;
+    const stoneNearButton = Math.abs(stoneX) < 1.5 && stoneZ < BACK_LINE_FAR - 1;
 
     // Higher skill = more likely to defensively sweep at the right time
     const shouldDefensiveSweep = willStopInHouse && stoneNearButton && Math.random() < skillFactor * 0.8;
