@@ -4962,7 +4962,7 @@ function getComputerShot() {
       shotType = 'draw';
       targetX = 0;
       targetZ = TEE_LINE_FAR;
-      effort = 52 + Math.random() * 6;
+      effort = 46 + Math.random() * 6;  // Lighter draw weight
     }
   } else if (playerHasShot && playerPoints >= 2) {
     // Player scoring multiple - aggressive takeout
@@ -5006,7 +5006,7 @@ function getComputerShot() {
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 0.8;
       targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.5;
-      effort = 54 + Math.random() * 6;
+      effort = 46 + Math.random() * 6;  // Lighter draw weight
     }
   } else if (computerHasShot) {
     // We have shot - protect or add
@@ -5021,7 +5021,7 @@ function getComputerShot() {
       shotType = 'freeze';
       targetX = houseStonesComputer[0].x + (Math.random() - 0.5) * 0.3;
       targetZ = houseStonesComputer[0].z - STONE_RADIUS * 2.2;
-      effort = 53 + Math.random() * 5;
+      effort = 45 + Math.random() * 5;  // Light freeze weight
     }
   } else if (houseStonesComputer.length === 0 && houseStonesPlayer.length === 0) {
     // Empty house
@@ -5036,13 +5036,13 @@ function getComputerShot() {
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 1;
       targetZ = TEE_LINE_FAR - 1;
-      effort = 60 + Math.random() * 6;  // ~60-66% for draw to top of house
+      effort = 50 + Math.random() * 5;  // Lighter draw to top of house
     } else {
       // Draw to button
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 0.3;
       targetZ = TEE_LINE_FAR;
-      effort = 54 + Math.random() * 6;
+      effort = 46 + Math.random() * 6;  // Lighter draw weight
     }
   } else if (guardsPlayer.length > 0 && !computerHasShot) {
     // Player has guards blocking - try to peel or come around
@@ -5058,7 +5058,7 @@ function getComputerShot() {
       shotType = 'come-around';
       targetX = targetGuard.x > 0 ? -0.8 : 0.8;
       targetZ = TEE_LINE_FAR;
-      effort = 52 + Math.random() * 6;
+      effort = 46 + Math.random() * 5;  // Light come-around weight
     } else if (Math.random() > 0.4) {
       // Peel the guard (FGZ not active or guard not in FGZ)
       shotType = 'peel';
@@ -5070,14 +5070,14 @@ function getComputerShot() {
       shotType = 'come-around';
       targetX = guardsPlayer[0].x > 0 ? -0.8 : 0.8;
       targetZ = TEE_LINE_FAR;
-      effort = 52 + Math.random() * 6;
+      effort = 46 + Math.random() * 5;  // Light come-around weight
     }
   } else {
     // Default - draw to button area
     shotType = 'draw';
     targetX = (Math.random() - 0.5) * 0.6;
     targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.8;
-    effort = 53 + Math.random() * 7;
+    effort = 46 + Math.random() * 6;  // Lighter draw weight
   }
 
   // Determine curl direction based on target position and shot type
