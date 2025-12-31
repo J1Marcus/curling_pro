@@ -535,6 +535,167 @@
       ">v1.0.0</div>
     </div>
 
+    <!-- Mode Selection Screen -->
+    <div id="mode-select-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 60px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <img src="/curlingpro.png" alt="CurlingPro" style="
+          width: 100px;
+          height: auto;
+          margin-bottom: 20px;
+          filter: drop-shadow(0 4px 20px rgba(74, 222, 128, 0.3));
+        ">
+        <h1 style="
+          color: white;
+          font-size: 32px;
+          margin-bottom: 40px;
+        ">Select Game Mode</h1>
+
+        <button onclick="window.selectMode('career')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🏆 Career Mode</div>
+          <div style="color: #86efac; font-size: 13px; margin-top: 4px;">Start at Club level and work your way to the Olympics</div>
+        </button>
+
+        <button onclick="window.selectMode('quickplay')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #1e3a5f 0%, #2d5a7b 100%);
+          border: 2px solid #4a90c2;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🎮 Quick Play</div>
+          <div style="color: #93c5fd; font-size: 13px; margin-top: 4px;">Jump into a game at any difficulty level</div>
+        </button>
+
+        <button disabled style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: #252525;
+          border: 2px solid #444;
+          border-radius: 12px;
+          cursor: not-allowed;
+          text-align: left;
+          opacity: 0.7;
+        ">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: #666; font-size: 18px; font-weight: bold;">🌐 Online Multiplayer</span>
+            <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
+          </div>
+          <div style="color: #555; font-size: 13px; margin-top: 4px;">Challenge players worldwide</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Difficulty Selection Screen -->
+    <div id="difficulty-select-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 60px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <h1 style="
+          color: white;
+          font-size: 32px;
+          margin-bottom: 40px;
+        ">Select Difficulty</h1>
+
+        <button onclick="window.selectDifficulty('easy')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🌱 Easy</div>
+          <div style="color: #86efac; font-size: 13px; margin-top: 4px;">More forgiving throws, helpful hints</div>
+        </button>
+
+        <button onclick="window.selectDifficulty('medium')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #4d3d1a 0%, #6b5a2d 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">⚡ Medium</div>
+          <div style="color: #fde68a; font-size: 13px; margin-top: 4px;">Balanced challenge, standard physics</div>
+        </button>
+
+        <button onclick="window.selectDifficulty('hard')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #4d1a1a 0%, #6b2d2d 100%);
+          border: 2px solid #f87171;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🔥 Hard</div>
+          <div style="color: #fca5a5; font-size: 13px; margin-top: 4px;">Precise control required, smarter CPU</div>
+        </button>
+
+        <button onclick="window.goBackToModeSelect()" style="
+          margin-top: 20px;
+          padding: 12px 24px;
+          background: transparent;
+          border: 1px solid #64748b;
+          border-radius: 8px;
+          color: #94a3b8;
+          font-size: 14px;
+          cursor: pointer;
+        ">← Back</button>
+      </div>
+    </div>
+
     <!-- Country Selection Screen -->
     <div id="country-select-screen" style="
       display: none;
@@ -726,6 +887,79 @@
       </div>
     </div>
 
+    <!-- Color Choice Overlay (when player chooses color option) -->
+    <div id="color-choice-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 1001;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="text-align: center; padding: 20px;">
+        <h2 style="color: #4ade80; font-size: 24px; margin-bottom: 10px;">Choose Your Stone Color</h2>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 30px;">Your country will play with the color you choose</p>
+
+        <div style="display: flex; gap: 20px; justify-content: center;">
+          <button onclick="window.chooseColor('red')" style="
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 20px;
+            width: 140px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+          ">
+            <!-- Curling stone icon - realistic style -->
+            <div style="width: 70px; height: 58px; margin: 0 auto 12px; position: relative;">
+              <!-- Gray granite stone body -->
+              <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 32px; background: linear-gradient(to bottom, #9ca3af, #6b7280 40%, #4b5563); border-radius: 8px 8px 30px 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);"></div>
+              <!-- Red top cap -->
+              <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 48px; height: 16px; background: linear-gradient(to bottom, #f87171, #dc2626 50%, #b91c1c); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+              <!-- Handle - gooseneck style -->
+              <div style="position: absolute; top: 6px; left: 42%; width: 6px; height: 20px; background: linear-gradient(to right, #fca5a5, #ef4444, #dc2626); border-radius: 3px; transform: rotate(-15deg); transform-origin: bottom center;"></div>
+              <!-- Handle curve/grip -->
+              <div style="position: absolute; top: 0; left: 38%; width: 20px; height: 10px; background: linear-gradient(to bottom, #f87171, #dc2626); border-radius: 10px 10px 4px 4px; transform: rotate(-10deg);"></div>
+            </div>
+            <div>Red<br>Stones</div>
+          </button>
+
+          <button onclick="window.chooseColor('yellow')" style="
+            background: linear-gradient(135deg, #eab308, #ca8a04);
+            border: none;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            padding: 20px;
+            width: 140px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(234, 179, 8, 0.4);
+          ">
+            <!-- Curling stone icon - realistic style -->
+            <div style="width: 70px; height: 58px; margin: 0 auto 12px; position: relative;">
+              <!-- Gray granite stone body -->
+              <div style="position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 60px; height: 32px; background: linear-gradient(to bottom, #9ca3af, #6b7280 40%, #4b5563); border-radius: 8px 8px 30px 30px; box-shadow: 0 4px 8px rgba(0,0,0,0.5);"></div>
+              <!-- Yellow top cap -->
+              <div style="position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 48px; height: 16px; background: linear-gradient(to bottom, #fde047, #eab308 50%, #ca8a04); border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>
+              <!-- Handle - gooseneck style -->
+              <div style="position: absolute; top: 6px; left: 42%; width: 6px; height: 20px; background: linear-gradient(to right, #fef08a, #eab308, #ca8a04); border-radius: 3px; transform: rotate(-15deg); transform-origin: bottom center;"></div>
+              <!-- Handle curve/grip -->
+              <div style="position: absolute; top: 0; left: 38%; width: 20px; height: 10px; background: linear-gradient(to bottom, #fde047, #eab308); border-radius: 10px 10px 4px 4px; transform: rotate(-10deg);"></div>
+            </div>
+            <div>Yellow<br>Stones</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <style>
       @keyframes coin-flip {
         0% {
@@ -859,9 +1093,9 @@
         </div>
         <div class="curl-slider-container" style="position: relative; width: 100%; padding: 0 5px;">
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
-            <span>← OUT</span>
+            <span>↺ CCW</span>
             <span style="color: #f59e0b;">MORE CURL</span>
-            <span>IN →</span>
+            <span>CW ↻</span>
           </div>
           <input type="range" id="curl-slider" min="-100" max="100" value="0"
             oninput="window.updateCurlSlider(this.value)"

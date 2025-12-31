@@ -105,8 +105,10 @@ const CURL_PHYSICS = {
   // Stone loses ~25% spin over full run
   SPIN_DAMP: 0.001,
   // Map handle slider (0-100) to angular velocity (rad/s)
-  // 0 = minimum handle (~0.6 rad/s), 100 = maximum handle (~2.0 rad/s)
-  HANDLE_TO_OMEGA: (handle) => 0.6 + (handle / 100) * 1.4
+  // 0 = minimal rotation (0.1 rad/s) = maximum curl
+  // 100 = maximum rotation (0.5 rad/s) = straighter path
+  // Reduced for realistic visual spin speed
+  HANDLE_TO_OMEGA: (handle) => 0.1 + (handle / 100) * 0.4
 };
 
 function getShotType(effort) {
@@ -2795,8 +2797,8 @@ function createPreviewStone(team) {
 function updatePreviewStoneRotation() {
   if (!gameState.previewStone) return;
 
-  // Curl direction: 1 = IN (clockwise) -> handle at 2:00 position
-  //                -1 = OUT (counter-clockwise) -> handle at 10:00 position
+  // Curl direction: 1 = curl RIGHT (clockwise rotation) -> handle at 2:00 position
+  //                -1 = curl LEFT (counter-clockwise rotation) -> handle at 10:00 position
   //                null = not selected -> handle at 12:00 (straight)
   // 2:00 is 60 degrees clockwise from 12:00 (forward)
   // 10:00 is 60 degrees counter-clockwise from 12:00
@@ -2918,7 +2920,7 @@ function createTargetMarker() {
   const arrow = new THREE.Mesh(arrowGeometry, beaconMaterial);
   arrow.rotation.z = -Math.PI / 2;  // Point right by default
   arrow.position.set(0.5, 2.0, 0);
-  arrow.name = 'beacon';
+  arrow.name = 'curlArrow';
   group.add(arrow);
 
   // === SKIP BODY (smaller, behind beacon) ===
@@ -3076,12 +3078,17 @@ function placeTargetMarker(screenX, screenY) {
         gameState.targetMarker = createTargetMarker();
       }
 
-      // Position and show the marker (restore all parts including beacon)
+      // Position and show the marker (skip only, beacon hidden until throw view)
       gameState.targetMarker.position.x = intersection.x;
       gameState.targetMarker.position.z = intersection.z;
       gameState.targetMarker.visible = true;
+      // Show skip and broom, hide tall beacon parts (will show when returning to throw)
       gameState.targetMarker.traverse((child) => {
-        child.visible = true;
+        if (child.name === 'beacon' || child.name === 'curlArrow') {
+          child.visible = false;
+        } else {
+          child.visible = true;
+        }
       });
       gameState.targetPosition = { x: intersection.x, z: intersection.z };
 
@@ -3611,12 +3618,13 @@ function releaseStone() {
   // Set angular velocity based on handle amount
   // More handle = more rotation (rad/s) = straighter path
   const omega = CURL_PHYSICS.HANDLE_TO_OMEGA(gameState.handleAmount);
-  const finalOmega = gameState.curlDirection * omega;
+  // Negate because: clockwise rotation (negative omega) = curl RIGHT, counterclockwise (positive) = curl LEFT
+  const finalOmega = -gameState.curlDirection * omega;
 
   // Debug logging for throw
   console.log(`THROW: curlDirection=${gameState.curlDirection}, handleAmount=${gameState.handleAmount}, omega=${omega.toFixed(2)}, finalOmega=${finalOmega.toFixed(2)}`);
 
-  // Direction: positive for IN (clockwise), negative for OUT (counter-clockwise)
+  // Clockwise (negative omega) curls right, counterclockwise (positive) curls left
   Matter.Body.setAngularVelocity(gameState.activeStone.body, finalOmega);
 
   // Now apply ice friction since thrower released
@@ -3646,18 +3654,20 @@ function releaseStone() {
 }
 
 // Update curl from slider value (-100 to +100)
-// Negative = OUT turn, Positive = IN turn
+// Slider direction matches curl direction: left = curl left, right = curl right
 // Absolute value determines handle amount (rotation rate)
 window.updateCurlSlider = function(value) {
   const sliderValue = parseInt(value);
 
-  // Determine direction from sign
+  // Slider direction = curl direction (intuitive)
+  // Left (negative) = curl LEFT = counter-clockwise rotation
+  // Right (positive) = curl RIGHT = clockwise rotation
   if (sliderValue < 0) {
-    gameState.curlDirection = -1;  // OUT
+    gameState.curlDirection = -1;  // Curl LEFT
   } else if (sliderValue > 0) {
-    gameState.curlDirection = 1;   // IN
+    gameState.curlDirection = 1;   // Curl RIGHT
   } else {
-    // At exactly 0, keep previous direction or default to IN
+    // At exactly 0, keep previous direction or default
     if (gameState.curlDirection === null) {
       gameState.curlDirection = 1;
     }
@@ -3671,7 +3681,7 @@ window.updateCurlSlider = function(value) {
   gameState.playerHandleAmount = gameState.handleAmount;
 
   // Debug logging
-  console.log(`Curl slider: value=${sliderValue}, direction=${gameState.curlDirection === 1 ? 'IN' : 'OUT'}, handleAmount=${gameState.handleAmount}`);
+  console.log(`Curl slider: value=${sliderValue}, direction=${gameState.curlDirection === 1 ? 'CW' : 'CCW'}, handleAmount=${gameState.handleAmount}`);
 
   updateCurlDisplay();
   updateSkipSignalArm();
@@ -3684,10 +3694,10 @@ function setCurlDirection(direction) {
   gameState.playerCurlDirection = direction;
 
   // Set slider to match direction with current handle amount
+  // direction=-1 (curl left) → slider negative (left), direction=1 (curl right) → slider positive (right)
   const slider = document.getElementById('curl-slider');
   if (slider) {
-    const signedValue = direction * gameState.handleAmount;
-    slider.value = signedValue;
+    slider.value = direction * gameState.handleAmount;
   }
 
   updateCurlDisplay();
@@ -3700,8 +3710,8 @@ function updateCurlDisplay() {
   if (!handleValue) return;
 
   // Show direction and handle amount
-  const direction = gameState.curlDirection === 1 ? 'IN' :
-                    gameState.curlDirection === -1 ? 'OUT' : '—';
+  const direction = gameState.curlDirection === 1 ? 'CW ↻' :
+                    gameState.curlDirection === -1 ? 'CCW ↺' : '—';
   const handle = gameState.handleAmount;
 
   // Describe the handle amount
@@ -3724,9 +3734,9 @@ function updateCurlDisplay() {
   const curlDisplay = document.getElementById('curl-direction');
   if (curlDisplay) {
     if (gameState.curlDirection === 1) {
-      curlDisplay.style.color = '#22c55e';  // Green for IN
+      curlDisplay.style.color = '#22c55e';  // Green for RIGHT
     } else if (gameState.curlDirection === -1) {
-      curlDisplay.style.color = '#3b82f6';  // Blue for OUT
+      curlDisplay.style.color = '#3b82f6';  // Blue for LEFT
     } else {
       curlDisplay.style.color = '#f59e0b';  // Orange for unset
     }
@@ -3754,8 +3764,9 @@ function setCurlDisplayVisible(visible) {
     // Initialize slider with player's remembered preference or default
     const slider = document.getElementById('curl-slider');
     if (slider) {
-      const direction = gameState.playerCurlDirection || 1;  // Default to IN
+      const direction = gameState.playerCurlDirection || 1;  // Default to curl RIGHT
       const handle = gameState.playerHandleAmount ?? 0;      // Default to neutral (0)
+      // direction matches slider side: -1 (left) = curl left, 1 (right) = curl right
       slider.value = direction * handle;
 
       // Apply the slider value to game state
@@ -4451,6 +4462,16 @@ window.returnToThrowView = function() {
     gameState.previewHeight = 0;  // Animate to thrower view
     updateReturnButton();
     updateMarkerHint();
+
+    // Show the green beacon now that we're preparing to throw
+    if (gameState.targetMarker) {
+      gameState.targetMarker.traverse((child) => {
+        if (child.name === 'beacon' || child.name === 'curlArrow') {
+          child.visible = true;
+        }
+      });
+      updateSkipSignalArm();  // Update arrow direction
+    }
   }
 };
 
@@ -4923,6 +4944,10 @@ function getComputerShot() {
 
   let shotType, targetX, targetZ, effort, curl;
 
+  // On easy mode, computer plays simpler shots (fewer guards, more draws)
+  const isEasyMode = gameState.settings.difficulty === 'easy';
+  const shouldPlayGuard = !isEasyMode || Math.random() > 0.7;  // Only 30% guards on easy
+
   // Strategic decision making
   if (isLastStone && hasHammer) {
     // Last stone with hammer - maximize score or steal prevention
@@ -4955,12 +4980,12 @@ function getComputerShot() {
       targetX = houseStonesPlayer[0].x;
       targetZ = houseStonesPlayer[0].z;
       effort = 75 + Math.random() * 8;
-    } else if (earlyEnd && guardsComputer.length < 2) {
-      // Early in end, try to set up guards first
+    } else if (earlyEnd && guardsComputer.length < 2 && shouldPlayGuard) {
+      // Early in end, try to set up guards first (but not on easy mode often)
       shotType = 'guard';
-      targetX = (Math.random() - 0.5) * 2;
+      targetX = (Math.random() - 0.5) * 1.5;  // Keep guards more centered
       targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
+      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
     } else {
       // Standard takeout
       shotType = 'takeout';
@@ -4970,12 +4995,12 @@ function getComputerShot() {
     }
   } else if (computerHasShot && computerPoints >= 2) {
     // We're scoring multiple - protect with guard or add more
-    if (guardsComputer.length < 2 && Math.random() > 0.3) {
+    if (guardsComputer.length < 2 && shouldPlayGuard && Math.random() > 0.3) {
       shotType = 'guard';
       // Place guard in front of scoring stones
       targetX = houseStonesComputer[0].x * 0.5;
       targetZ = HOG_LINE_FAR + 1.5 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
+      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
     } else {
       // Draw for more points
       shotType = 'draw';
@@ -4985,12 +5010,12 @@ function getComputerShot() {
     }
   } else if (computerHasShot) {
     // We have shot - protect or add
-    if (Math.random() > 0.5 && guardsComputer.length < 2) {
+    if (shouldPlayGuard && Math.random() > 0.5 && guardsComputer.length < 2) {
       // Throw a guard
       shotType = 'guard';
-      targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 1;
+      targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 0.8;
       targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
+      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
     } else {
       // Freeze to our stone
       shotType = 'freeze';
@@ -5000,12 +5025,12 @@ function getComputerShot() {
     }
   } else if (houseStonesComputer.length === 0 && houseStonesPlayer.length === 0) {
     // Empty house
-    if (earlyEnd && hasHammer) {
-      // Early with hammer - place guards
+    if (earlyEnd && hasHammer && shouldPlayGuard) {
+      // Early with hammer - place guards (but not often on easy mode)
       shotType = 'guard';
-      targetX = (Math.random() - 0.5) * 1.5;
-      targetZ = HOG_LINE_FAR + 2 + Math.random() * 3;  // Guards go AFTER far hog line
-      effort = 56 + Math.random() * 8;  // ~56-64% for guard weight
+      targetX = (Math.random() - 0.5) * 1.2;  // Keep more centered
+      targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
+      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
     } else if (earlyEnd && !hasHammer) {
       // Early without hammer - draw to top of house
       shotType = 'draw';
@@ -5088,21 +5113,18 @@ function getComputerShot() {
   const aimX = targetX + curlCompensation;
   const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
-  // Add randomness based on career level (in 1-player mode) or difficulty setting
-  let variance;
-  if (gameState.gameMode === '1player') {
-    const level = getCurrentLevel();
-    variance = level.difficulty;
-  } else {
-    const difficultyVariance = {
-      easy: 0.25,
-      medium: 0.12,
-      hard: 0.04
-    };
-    variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
-  }
+  // Add randomness based on difficulty setting
+  // Easy: Less accurate but still competent (not wildly off)
+  // Medium: Good accuracy with some variance
+  // Hard: Very precise
+  const difficultyVariance = {
+    easy: 0.08,    // ~4.5 degrees aim variance, ~2% effort variance
+    medium: 0.05,  // ~3 degrees aim variance, ~1.25% effort variance
+    hard: 0.02     // ~1 degree aim variance, ~0.5% effort variance
+  };
+  const variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
 
-  // Apply variance (reduced for higher skill levels)
+  // Apply variance
   const accuracyVariance = (Math.random() - 0.5) * variance;
   const effortVariance = (Math.random() - 0.5) * variance * 25;
 
@@ -5116,8 +5138,44 @@ function getComputerShot() {
   };
 }
 
+// Schedule computer shot with retry mechanism to ensure it executes
+function scheduleComputerShot() {
+  const attemptComputerShot = (attempts = 0) => {
+    if (attempts >= 10) {
+      console.error('[COMPUTER] Failed to execute shot after 10 attempts');
+      return;
+    }
+
+    const canShoot = gameState.phase === 'aiming' &&
+                     gameState.gameMode === '1player' &&
+                     gameState.currentTeam === gameState.computerTeam;
+
+    if (canShoot) {
+      console.log('[COMPUTER] Conditions met, executing shot (attempt ' + (attempts + 1) + ')');
+      executeComputerShot();
+    } else {
+      console.log('[COMPUTER] Not ready (attempt ' + (attempts + 1) + '), phase:', gameState.phase,
+        'currentTeam:', gameState.currentTeam, 'computerTeam:', gameState.computerTeam);
+      setTimeout(() => attemptComputerShot(attempts + 1), 500);
+    }
+  };
+
+  // Initial delay before first attempt
+  setTimeout(() => attemptComputerShot(), 1000);
+}
+
 function executeComputerShot() {
-  if (!isComputerTurn()) return;
+  console.log('[COMPUTER] executeComputerShot called:',
+    'isComputerTurn():', isComputerTurn(),
+    'gameMode:', gameState.gameMode,
+    'currentTeam:', gameState.currentTeam,
+    'computerTeam:', gameState.computerTeam,
+    'phase:', gameState.phase);
+
+  if (!isComputerTurn()) {
+    console.log('[COMPUTER] Not computer turn - returning');
+    return;
+  }
 
   const shot = getComputerShot();
 
@@ -5265,20 +5323,36 @@ function updatePhysics() {
       // Ice variability - slight random variation in curl (more at higher levels)
       const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability;
 
-      // Calculate curl force - simple formula: angularVelocity * constant
-      let curlForce = -body.angularVelocity * 0.00012 * curlMultiplier * iceRandomness;
-      curlForce = Math.max(-0.0003, Math.min(0.0003, curlForce));  // Cap max lateral force
+      // Calculate curl force - INVERSE relationship: more rotation = straighter path
+      // Rotation direction: negative omega = clockwise = curl RIGHT, positive omega = counterclockwise = curl LEFT
+      // Magnitude is inversely proportional to rotation rate
+      //
+      // Physics analysis:
+      // - Sheet width = 4.75m = 475 physics units, walls at ±237.5
+      // - Target curl: 0.3-1.2m (30-120 physics units) over full travel
+      // - Stone travels ~900 frames at 60fps for a 15s shot
+      // - Force accumulates quadratically: displacement = 0.5 * (F/m) * frames²
+      // - For 100 units displacement over 900 frames with mass 20:
+      //   100 = 0.5 * (F/20) * 900² → F = 100 * 40 / 810000 = 0.000005
+      //
+      const omega = body.angularVelocity;
+      const absOmega = Math.abs(omega);
+      // Negative omega (clockwise) = curl left (-X), Positive omega (counterclockwise) = curl right (+X)
+      const curlDirection = omega < 0 ? -1 : 1;
 
-      // Directional sweeping effect:
-      // Sweeping to the right makes stone deflect LEFT (negative X)
-      // Sweeping to the left makes stone deflect RIGHT (positive X)
+      // Base curl force - adjusted for slower rotation speeds (0.1-0.5 rad/s)
+      // Increased for more noticeable curl effect
+      let curlForce = curlDirection * 0.000004 * curlMultiplier * iceRandomness / (absOmega + 0.15);
+      curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
+
+      // Directional sweeping effect (subtle)
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.2) {
-        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.00006 * curlMultiplier;
+        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.000002 * curlMultiplier;
         curlForce += directionalForce;
       }
 
-      // Final cap on total lateral force to prevent unrealistic physics
-      curlForce = Math.max(-0.0004, Math.min(0.0004, curlForce));
+      // Final cap to prevent any extreme cases
+      curlForce = Math.max(-0.00005, Math.min(0.00005, curlForce));
       Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
 
       // Update sliding sound volume based on speed
@@ -5419,7 +5493,8 @@ function updatePhysics() {
       clearTargetMarker();
 
       // Show post-shot feedback in learn mode (player's shots only)
-      const wasPlayerShot = gameState.currentTeam === 'red';
+      const wasPlayerShot = gameState.gameMode === '1player' &&
+        gameState.currentTeam !== gameState.computerTeam;
       if (gameState.learnMode.enabled && wasPlayerShot) {
         showPostShotFeedback();
       } else {
@@ -5471,7 +5546,8 @@ function nextTurn() {
 
   // Trigger computer turn if applicable, or restore player's curl preference
   if (isComputer) {
-    setTimeout(() => executeComputerShot(), 1000);
+    console.log('[COMPUTER] Scheduling computer turn in nextTurn()...');
+    scheduleComputerShot();
   } else {
     // Restore player's preferred curl direction
     gameState.curlDirection = gameState.playerCurlDirection;
@@ -5844,8 +5920,8 @@ window.restartGame = function() {
       if (redLabel) redLabel.innerHTML = 'RED';
       if (yellowLabel) yellowLabel.innerHTML = 'YELLOW';
 
-      // Show country selection to start new game setup
-      showCountrySelection();
+      // Show mode selection to start new game setup
+      showModeSelection();
     }, 500);
   }
 };
@@ -5893,6 +5969,51 @@ window.closeSettings = function() {
 // ============================================
 // GAME SETUP FLOW
 // ============================================
+
+// Show mode selection screen (first screen after splash)
+function showModeSelection() {
+  const screen = document.getElementById('mode-select-screen');
+  if (screen) {
+    screen.style.display = 'block';
+  }
+}
+
+// Handle mode selection
+window.selectMode = function(mode) {
+  document.getElementById('mode-select-screen').style.display = 'none';
+
+  if (mode === 'career') {
+    // Career Mode - 1 Player vs CPU, starts at easy difficulty
+    gameState.gameMode = '1player';
+    gameState.settings.difficulty = 'easy';  // Career starts at easy (Club level)
+    showCountrySelection();
+  } else if (mode === 'quickplay') {
+    // Quick Play - 1 Player vs CPU, let user choose difficulty
+    gameState.gameMode = '1player';
+    showDifficultySelection();
+  }
+};
+
+// Show difficulty selection screen
+function showDifficultySelection() {
+  const screen = document.getElementById('difficulty-select-screen');
+  if (screen) {
+    screen.style.display = 'block';
+  }
+}
+
+// Handle difficulty selection
+window.selectDifficulty = function(difficulty) {
+  gameState.settings.difficulty = difficulty;
+  document.getElementById('difficulty-select-screen').style.display = 'none';
+  showCountrySelection();
+};
+
+// Go back to mode selection
+window.goBackToModeSelect = function() {
+  document.getElementById('difficulty-select-screen').style.display = 'none';
+  showModeSelection();
+};
 
 // Show country selection screen
 function showCountrySelection() {
@@ -6011,10 +6132,31 @@ window.chooseTossOption = function(choice) {
     // Player takes hammer (throws last)
     gameState.hammer = 'red';
     gameState.currentTeam = 'yellow';  // Opponent throws first
+    startGame();
   } else {
-    // Player chooses color (throws first)
-    gameState.hammer = 'yellow';
+    // Player wants to choose color - show color selection overlay
+    document.getElementById('color-choice-overlay').style.display = 'flex';
+  }
+};
+
+// Handle player's color choice
+window.chooseColor = function(color) {
+  document.getElementById('color-choice-overlay').style.display = 'none';
+
+  if (color === 'red') {
+    // Player keeps red, opponent stays yellow (default setup)
+    gameState.hammer = 'yellow';  // Opponent gets hammer
     gameState.currentTeam = 'red';  // Player throws first
+  } else {
+    // Player wants yellow - swap the countries and computer team
+    const tempCountry = gameState.playerCountry;
+    gameState.playerCountry = gameState.opponentCountry;
+    gameState.opponentCountry = tempCountry;
+
+    // Player is now yellow, computer is red
+    gameState.computerTeam = 'red';
+    gameState.hammer = 'red';  // Computer (now red) gets hammer
+    gameState.currentTeam = 'yellow';  // Player (now yellow) throws first
   }
 
   startGame();
@@ -6044,7 +6186,8 @@ function startGame() {
 
   // If computer goes first, trigger their turn
   if (isComputer) {
-    setTimeout(() => executeComputerShot(), 1500);
+    console.log('[COMPUTER] Computer goes first, scheduling shot...');
+    scheduleComputerShot();
   }
 
   // Trigger coach panel/tutorials
@@ -6456,7 +6599,8 @@ function startNewEnd() {
 
   // Trigger computer turn if applicable, or restore player's curl preference
   if (isComputer) {
-    setTimeout(() => executeComputerShot(), 1000);
+    console.log('[COMPUTER] Scheduling computer turn in startNextEnd()...');
+    scheduleComputerShot();
   } else {
     // Restore player's preferred curl direction
     gameState.curlDirection = gameState.playerCurlDirection;
@@ -6736,6 +6880,6 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Go to country selection
-  showCountrySelection();
+  // Go to mode selection
+  showModeSelection();
 }, remainingTime);
