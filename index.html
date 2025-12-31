@@ -696,6 +696,128 @@
       </div>
     </div>
 
+    <!-- Level Selection Screen (Quick Play) -->
+    <div id="level-select-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 60px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <h1 style="
+          color: white;
+          font-size: 32px;
+          margin-bottom: 12px;
+        ">Career Level</h1>
+        <p style="
+          color: #94a3b8;
+          font-size: 14px;
+          margin-bottom: 30px;
+        ">Choose where to start your journey</p>
+
+        <button onclick="window.selectLevel('club')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #1a3d1a 0%, #2d5a2d 100%);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🏠 Club Level</div>
+          <div style="color: #86efac; font-size: 13px; margin-top: 4px;">Local club competitions - perfect for beginners</div>
+        </button>
+
+        <button onclick="window.selectLevel('regionals')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #1a3d4d 0%, #2d5a6b 100%);
+          border: 2px solid #38bdf8;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🏅 Regionals</div>
+          <div style="color: #7dd3fc; font-size: 13px; margin-top: 4px;">Regional championships - rising competition</div>
+        </button>
+
+        <button onclick="window.selectLevel('nationals')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #4d3d1a 0%, #6b5a2d 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🥇 Nationals</div>
+          <div style="color: #fde68a; font-size: 13px; margin-top: 4px;">National championships - elite competition</div>
+        </button>
+
+        <button onclick="window.selectLevel('worlds')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #3d1a4d 0%, #5a2d6b 100%);
+          border: 2px solid #c084fc;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🌍 World Championship</div>
+          <div style="color: #d8b4fe; font-size: 13px; margin-top: 4px;">Compete against the world's best</div>
+        </button>
+
+        <button onclick="window.selectLevel('olympics')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #4d1a1a 0%, #6b2d2d 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 24px;">🏅</span>
+            <span style="color: white; font-size: 18px; font-weight: bold;">Olympics</span>
+            <span style="font-size: 16px;">🥈🥉</span>
+          </div>
+          <div style="color: #fca5a5; font-size: 13px; margin-top: 4px;">The ultimate test - compete for gold</div>
+        </button>
+
+        <button onclick="window.goBackToDifficulty()" style="
+          margin-top: 20px;
+          padding: 12px 24px;
+          background: transparent;
+          border: 1px solid #64748b;
+          border-radius: 8px;
+          color: #94a3b8;
+          font-size: 14px;
+          cursor: pointer;
+        ">← Back</button>
+      </div>
+    </div>
+
     <!-- Country Selection Screen -->
     <div id="country-select-screen" style="
       display: none;

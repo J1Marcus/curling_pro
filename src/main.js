@@ -5140,9 +5140,19 @@ function getComputerShot() {
 
 // Schedule computer shot with retry mechanism to ensure it executes
 function scheduleComputerShot() {
+  // Cancel any existing scheduled shot
+  if (gameState._computerShotTimeout) {
+    clearTimeout(gameState._computerShotTimeout);
+  }
+
   const attemptComputerShot = (attempts = 0) => {
-    if (attempts >= 10) {
-      console.error('[COMPUTER] Failed to execute shot after 10 attempts');
+    if (attempts >= 15) {
+      console.error('[COMPUTER] Failed to execute shot after 15 attempts - forcing phase reset');
+      // Force phase to aiming and try one more time
+      if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+        gameState.phase = 'aiming';
+        executeComputerShot();
+      }
       return;
     }
 
@@ -5150,18 +5160,19 @@ function scheduleComputerShot() {
                      gameState.gameMode === '1player' &&
                      gameState.currentTeam === gameState.computerTeam;
 
+    console.log('[COMPUTER] Attempt', attempts + 1, '- canShoot:', canShoot,
+      'phase:', gameState.phase, 'currentTeam:', gameState.currentTeam, 'computerTeam:', gameState.computerTeam);
+
     if (canShoot) {
-      console.log('[COMPUTER] Conditions met, executing shot (attempt ' + (attempts + 1) + ')');
+      console.log('[COMPUTER] Conditions met, executing shot');
       executeComputerShot();
     } else {
-      console.log('[COMPUTER] Not ready (attempt ' + (attempts + 1) + '), phase:', gameState.phase,
-        'currentTeam:', gameState.currentTeam, 'computerTeam:', gameState.computerTeam);
-      setTimeout(() => attemptComputerShot(attempts + 1), 500);
+      gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(attempts + 1), 400);
     }
   };
 
   // Initial delay before first attempt
-  setTimeout(() => attemptComputerShot(), 1000);
+  gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(), 800);
 }
 
 function executeComputerShot() {
@@ -5345,6 +5356,15 @@ function updatePhysics() {
       let curlForce = curlDirection * 0.000004 * curlMultiplier * iceRandomness / (absOmega + 0.15);
       curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
 
+      // Sweeping reduces curl (makes stone go straighter)
+      // In real curling, sweeping melts the pebbles, reducing friction differential
+      // This reduces the curl effect significantly
+      if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
+        // Reduce curl by 40-70% based on sweep effectiveness
+        const curlReduction = 0.4 + gameState.sweepEffectiveness * 0.3;
+        curlForce *= (1 - curlReduction);
+      }
+
       // Directional sweeping effect (subtle)
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.2) {
         const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.000002 * curlMultiplier;
@@ -5513,6 +5533,8 @@ function updatePhysics() {
 // GAME FLOW
 // ============================================
 function nextTurn() {
+  console.log('[TURN] nextTurn called, stonesThrown:', gameState.stonesThrown);
+
   const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
 
   if (totalThrown >= 16) {
@@ -5522,8 +5544,13 @@ function nextTurn() {
   }
 
   // Switch teams
+  const previousTeam = gameState.currentTeam;
   gameState.currentTeam = gameState.currentTeam === 'red' ? 'yellow' : 'red';
   gameState.phase = 'aiming';
+
+  console.log('[TURN] Switched from', previousTeam, 'to', gameState.currentTeam,
+    '- computerTeam:', gameState.computerTeam,
+    '- isComputerTurn:', gameState.currentTeam === gameState.computerTeam);
   gameState.previewHeight = 1;  // Start in target view
   gameState.previewLocked = true;
   clearTargetMarker();  // Remove target marker from previous turn
@@ -5887,6 +5914,7 @@ window.restartGame = function() {
       gameState.scores = { red: 0, yellow: 0 };
       gameState.endScores = { red: [null, null, null, null, null, null, null, null, null, null], yellow: [null, null, null, null, null, null, null, null, null, null] };
       gameState.hammer = 'yellow';  // Reset hammer
+      gameState.computerTeam = 'yellow';  // Reset computer team to default
       gameState.stonesThrown = { red: 0, yellow: 0 };
       gameState.currentTeam = 'red';
       gameState.phase = 'aiming';
@@ -5897,6 +5925,8 @@ window.restartGame = function() {
       gameState.setupComplete = false;  // Reset setup
       gameState.playerCountry = null;
       gameState.opponentCountry = null;
+      gameState.selectedMode = null;  // Reset mode selection
+      gameState.careerLevel = null;  // Reset career level
 
       // Clear any remaining stones
       for (const stone of gameState.stones) {
@@ -5981,17 +6011,11 @@ function showModeSelection() {
 // Handle mode selection
 window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
+  gameState.gameMode = '1player';
+  gameState.selectedMode = mode;  // Store for later (career vs quickplay)
 
-  if (mode === 'career') {
-    // Career Mode - 1 Player vs CPU, starts at easy difficulty
-    gameState.gameMode = '1player';
-    gameState.settings.difficulty = 'easy';  // Career starts at easy (Club level)
-    showCountrySelection();
-  } else if (mode === 'quickplay') {
-    // Quick Play - 1 Player vs CPU, let user choose difficulty
-    gameState.gameMode = '1player';
-    showDifficultySelection();
-  }
+  // Always show difficulty selection first
+  showDifficultySelection();
 };
 
 // Show difficulty selection screen
@@ -6006,7 +6030,37 @@ function showDifficultySelection() {
 window.selectDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
   document.getElementById('difficulty-select-screen').style.display = 'none';
+
+  // Quick Play: show level selection (Club, Nationals, etc.)
+  // Career mode: start at Club level (or resume from saved progress)
+  if (gameState.selectedMode === 'quickplay') {
+    showLevelSelection();
+  } else {
+    // Career mode starts at club level (or saved progress)
+    gameState.careerLevel = gameState.savedCareerLevel || 'club';
+    showCountrySelection();
+  }
+};
+
+// Show level selection screen (for Quick Play)
+function showLevelSelection() {
+  const screen = document.getElementById('level-select-screen');
+  if (screen) {
+    screen.style.display = 'block';
+  }
+}
+
+// Handle level selection
+window.selectLevel = function(level) {
+  gameState.careerLevel = level;
+  document.getElementById('level-select-screen').style.display = 'none';
   showCountrySelection();
+};
+
+// Go back to difficulty selection
+window.goBackToDifficulty = function() {
+  document.getElementById('level-select-screen').style.display = 'none';
+  showDifficultySelection();
 };
 
 // Go back to mode selection
