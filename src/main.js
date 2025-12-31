@@ -6854,7 +6854,8 @@ renderer.domElement.addEventListener('touchstart', (e) => {
   const now = Date.now();
 
   // Double-tap detection for view switching (mobile equivalent of mouse dragging / double-click)
-  if (gameState.phase === 'aiming') {
+  // Check in both 'aiming' and 'charging' phases (first tap of double-tap may have started charging)
+  if (gameState.phase === 'aiming' || gameState.phase === 'charging') {
     const timeSinceLastTap = now - lastTapTime;
     const distFromLastTap = Math.sqrt(
       Math.pow(touch.clientX - lastTapPos.x, 2) +
@@ -6863,6 +6864,12 @@ renderer.domElement.addEventListener('touchstart', (e) => {
 
     // If double-tap detected (within 300ms and 50px)
     if (timeSinceLastTap < 300 && distFromLastTap < 50) {
+      // Cancel any charging that started from first tap
+      if (gameState.phase === 'charging') {
+        gameState.phase = 'aiming';
+        touchStartedInAiming = false;
+      }
+
       if (gameState.previewLocked) {
         // Already in target view - unlock for repositioning
         gameState.previewLocked = false;
