@@ -185,6 +185,10 @@
         0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.5); }
         50% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.9); }
       }
+      @keyframes pulse {
+        0%, 100% { box-shadow: 0 0 5px rgba(74, 222, 128, 0.3); }
+        50% { box-shadow: 0 0 15px rgba(74, 222, 128, 0.6); }
+      }
       .curl-btn {
         padding: 8px 16px;
         border: 2px solid #666;
@@ -466,9 +470,48 @@
         transform: translateY(-2px);
         box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
       }
+
+      /* Shot Feedback Toast */
+      .shot-feedback-toast {
+        position: fixed;
+        top: 35%;
+        left: 50%;
+        transform: translate(-50%, -50%) scale(0.8);
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        font-size: 24px;
+        font-weight: bold;
+        text-align: center;
+        z-index: 800;
+        pointer-events: none;
+        opacity: 0;
+        display: none;
+        transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+      .shot-feedback-toast.success {
+        background: linear-gradient(135deg, #059669 0%, #047857 100%);
+        color: white;
+        border: 2px solid #34d399;
+      }
+      .shot-feedback-toast.near-miss {
+        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+        color: white;
+        border: 2px solid #fbbf24;
+      }
+      @keyframes toast-pop {
+        0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+        50% { transform: translate(-50%, -50%) scale(1.1); }
+        100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
     </style>
   </head>
   <body>
+    <!-- Shot Feedback Toast -->
+    <div id="shot-feedback-toast" class="shot-feedback-toast"></div>
+
     <!-- Splash Screen -->
     <div id="splash-screen" style="
       position: fixed;
@@ -625,25 +668,252 @@
           <div style="color: #93c5fd; font-size: 13px; margin-top: 4px;">Jump into a game at any difficulty level</div>
         </button>
 
-        <button disabled style="
+        <button onclick="window.selectMode('practice')" style="
           width: 100%;
           padding: 20px;
           margin-bottom: 12px;
-          background: #252525;
-          border: 2px solid #444;
+          background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 100%);
+          border: 2px solid #a78bfa;
           border-radius: 12px;
-          cursor: not-allowed;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
           text-align: left;
-          opacity: 0.7;
         ">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="color: #666; font-size: 18px; font-weight: bold;">🌐 Online Multiplayer</span>
-            <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
-          </div>
-          <div style="color: #555; font-size: 13px; margin-top: 4px;">Challenge players worldwide</div>
+          <div style="color: white; font-size: 18px; font-weight: bold;">🎯 Practice Mode</div>
+          <div style="color: #c4b5fd; font-size: 13px; margin-top: 4px;">Master shot types with focused drills</div>
         </button>
       </div>
     </div>
+
+    <!-- Practice Drill Selection Screen -->
+    <div id="practice-drill-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+          <button onclick="window.showModeSelect()" style="
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            padding: 8px 12px;
+            cursor: pointer;
+          ">←</button>
+          <h1 style="color: white; font-size: 28px; margin: 0;">Practice Mode</h1>
+        </div>
+
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">
+          Select a shot type to practice. Master each drill to improve your game.
+        </p>
+
+        <!-- Drill Grid -->
+        <div id="practice-drill-grid" style="
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        ">
+          <!-- Drill cards populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Practice Scenario Selection Screen -->
+    <div id="practice-scenario-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+          <button onclick="window.showPracticeDrills()" style="
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            padding: 8px 12px;
+            cursor: pointer;
+          ">←</button>
+          <div>
+            <h1 id="scenario-drill-title" style="color: white; font-size: 24px; margin: 0;">Takeouts</h1>
+            <p id="scenario-drill-desc" style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">Remove opponent stones</p>
+          </div>
+        </div>
+
+        <!-- Drill Stats -->
+        <div style="
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: space-around;
+          text-align: center;
+        ">
+          <div>
+            <div id="drill-success-rate" style="color: #4ade80; font-size: 24px; font-weight: bold;">0%</div>
+            <div style="color: #64748b; font-size: 12px;">Success Rate</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+          <div>
+            <div id="drill-attempts" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+            <div style="color: #64748b; font-size: 12px;">Attempts</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+          <div>
+            <div id="drill-unlocked" style="color: #a78bfa; font-size: 24px; font-weight: bold;">1/5</div>
+            <div style="color: #64748b; font-size: 12px;">Unlocked</div>
+          </div>
+        </div>
+
+        <!-- Scenario List -->
+        <div id="practice-scenario-list">
+          <!-- Scenarios populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .practice-drill-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+      }
+      .practice-drill-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: #a78bfa;
+        transform: translateY(-2px);
+      }
+      .practice-drill-card:active {
+        transform: scale(0.98);
+      }
+      .practice-drill-icon {
+        font-size: 36px;
+        margin-bottom: 8px;
+      }
+      .practice-drill-name {
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+      .practice-drill-rate {
+        color: #4ade80;
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .practice-drill-rate.no-data {
+        color: #64748b;
+      }
+
+      .practice-scenario-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .practice-scenario-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .practice-scenario-card.locked {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .practice-scenario-card.locked:hover {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      .scenario-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+      .scenario-name {
+        color: white;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .scenario-difficulty {
+        display: flex;
+        gap: 3px;
+      }
+      .scenario-difficulty .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #334155;
+      }
+      .scenario-difficulty .dot.filled {
+        background: #a78bfa;
+      }
+      .scenario-description {
+        color: #94a3b8;
+        font-size: 13px;
+        margin-bottom: 8px;
+      }
+      .scenario-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .scenario-best {
+        color: #64748b;
+        font-size: 12px;
+      }
+      .scenario-start-btn {
+        background: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-size: 12px;
+        font-weight: 600;
+        padding: 6px 14px;
+        cursor: pointer;
+      }
+      .scenario-lock {
+        color: #64748b;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+    </style>
 
     <!-- Difficulty Selection Screen -->
     <div id="difficulty-select-screen" style="
@@ -1903,6 +2173,32 @@
           </p>
         </div>
 
+        <!-- Help & FAQ -->
+        <div style="margin-bottom: 20px;">
+          <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Help</h3>
+          <button onclick="window.showFAQ()" style="
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #6366f1;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          ">
+            <span style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 18px;">❓</span>
+              <span>FAQ & How to Play</span>
+            </span>
+            <span style="color: #6366f1;">→</span>
+          </button>
+        </div>
+
         <!-- Legal Links -->
         <div style="margin-bottom: 20px; display: flex; gap: 10px;">
           <button onclick="window.showPrivacyPolicy()" style="
@@ -1944,6 +2240,164 @@
         ">Done</button>
       </div>
     </div>
+
+    <!-- FAQ Screen -->
+    <div id="faq-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9100;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+          <button onclick="window.closeFAQ()" style="
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            padding: 8px 12px;
+            cursor: pointer;
+          ">←</button>
+          <h1 style="color: white; font-size: 28px; margin: 0;">FAQ</h1>
+        </div>
+
+        <!-- Category List (shown first) -->
+        <div id="faq-categories" style="display: block;">
+          <!-- Categories populated dynamically -->
+        </div>
+
+        <!-- Question List (shown when category selected) -->
+        <div id="faq-questions" style="display: none;">
+          <button onclick="window.showFAQCategories()" style="
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 14px;
+            padding: 0;
+            margin-bottom: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          ">← All Categories</button>
+          <h2 id="faq-category-title" style="color: white; font-size: 22px; margin: 0 0 20px 0;"></h2>
+          <div id="faq-question-list">
+            <!-- Questions populated dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <style>
+      .faq-category-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .faq-category-card:hover {
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(255, 255, 255, 0.2);
+      }
+      .faq-category-card:active {
+        transform: scale(0.98);
+      }
+      .faq-category-icon {
+        font-size: 32px;
+        width: 48px;
+        height: 48px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+      }
+      .faq-category-info {
+        flex: 1;
+      }
+      .faq-category-name {
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+      .faq-category-count {
+        color: #64748b;
+        font-size: 13px;
+      }
+      .faq-category-arrow {
+        color: #64748b;
+        font-size: 18px;
+      }
+
+      .faq-question-item {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        margin-bottom: 10px;
+        overflow: hidden;
+      }
+      .faq-question-header {
+        padding: 16px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .faq-question-header:hover {
+        background: rgba(255, 255, 255, 0.03);
+      }
+      .faq-question-text {
+        color: white;
+        font-size: 15px;
+        font-weight: 500;
+        flex: 1;
+      }
+      .faq-question-toggle {
+        color: #64748b;
+        font-size: 18px;
+        transition: transform 0.2s;
+      }
+      .faq-question-item.open .faq-question-toggle {
+        transform: rotate(180deg);
+      }
+      .faq-answer {
+        max-height: 0;
+        overflow: hidden;
+        transition: max-height 0.3s ease-out;
+      }
+      .faq-question-item.open .faq-answer {
+        max-height: 500px;
+      }
+      .faq-answer-content {
+        padding: 0 16px 16px 16px;
+        color: #94a3b8;
+        font-size: 14px;
+        line-height: 1.6;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding-top: 16px;
+      }
+    </style>
+
     <!-- Feedback Form Modal -->
     <div id="feedback-overlay" style="
       display: none;
@@ -2665,6 +3119,812 @@
             transition: all 0.2s;
           ">Got it!</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Club Selection Screen (Career Mode Start) -->
+    <div id="club-select-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <button onclick="window.goBackToModeSelect()" style="
+          background: none;
+          border: none;
+          color: #64748b;
+          font-size: 14px;
+          cursor: pointer;
+          margin-bottom: 16px;
+        ">← Back</button>
+
+        <h1 style="color: white; font-size: 28px; margin: 0 0 8px 0;">Start Your Career</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0 0 24px 0;">
+          Choose your home club. You'll represent them in local and regional events as you work your way up.
+        </p>
+
+        <!-- Club Selection Grid -->
+        <div id="club-grid" style="
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 24px;
+        ">
+          <!-- Club cards populated dynamically -->
+        </div>
+
+        <!-- Custom Club Name (shown when Custom selected) -->
+        <div id="custom-club-section" style="display: none; margin-bottom: 24px;">
+          <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 8px;">Club Name</label>
+          <input type="text" id="custom-club-name" placeholder="Enter club name..." maxlength="24" style="
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+          ">
+        </div>
+
+        <!-- Team Name Input -->
+        <div style="margin-bottom: 24px;">
+          <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 8px;">Team Name</label>
+          <input type="text" id="team-name-input" placeholder="Team [Your Name]" maxlength="20" style="
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+          ">
+        </div>
+
+        <!-- Difficulty Selection -->
+        <div style="margin-bottom: 24px;">
+          <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 12px;">Difficulty</label>
+          <div style="display: flex; gap: 8px;">
+            <button id="diff-easy" onclick="window.selectCareerDifficulty('easy')" style="
+              flex: 1;
+              padding: 12px;
+              background: rgba(74, 222, 128, 0.2);
+              border: 2px solid #4ade80;
+              border-radius: 8px;
+              color: #4ade80;
+              font-size: 14px;
+              cursor: pointer;
+            ">Easy</button>
+            <button id="diff-medium" onclick="window.selectCareerDifficulty('medium')" style="
+              flex: 1;
+              padding: 12px;
+              background: rgba(255, 255, 255, 0.05);
+              border: 2px solid rgba(255, 255, 255, 0.2);
+              border-radius: 8px;
+              color: #94a3b8;
+              font-size: 14px;
+              cursor: pointer;
+            ">Medium</button>
+            <button id="diff-hard" onclick="window.selectCareerDifficulty('hard')" style="
+              flex: 1;
+              padding: 12px;
+              background: rgba(255, 255, 255, 0.05);
+              border: 2px solid rgba(255, 255, 255, 0.2);
+              border-radius: 8px;
+              color: #94a3b8;
+              font-size: 14px;
+              cursor: pointer;
+            ">Hard</button>
+          </div>
+        </div>
+
+        <!-- Start Career Button -->
+        <button id="start-career-btn" onclick="window.startNewCareer()" style="
+          width: 100%;
+          padding: 18px;
+          background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+        ">Start Career</button>
+      </div>
+    </div>
+
+    <!-- Country Unlock Screen (shown when reaching national tier) -->
+    <div id="country-unlock-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9500;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 60px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <!-- Celebratory Header -->
+        <div style="
+          font-size: 48px;
+          margin-bottom: 16px;
+        ">🏆</div>
+        <h1 style="color: white; font-size: 28px; margin: 0 0 8px 0;">National Eligibility</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin: 0 0 32px 0; line-height: 1.6;">
+          Your success at <span id="unlock-club-name" style="color: #4ade80;">your club</span> has earned you the chance to represent your country on the national stage.
+        </p>
+
+        <div style="
+          background: rgba(251, 191, 36, 0.1);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          text-align: left;
+        ">
+          <div style="color: #fbbf24; font-size: 12px; font-weight: bold; margin-bottom: 8px;">Choose Wisely</div>
+          <div style="color: #fde68a; font-size: 13px; line-height: 1.5;">
+            This choice is permanent for your career. You'll represent this country in all national and international competitions.
+          </div>
+        </div>
+
+        <p style="color: #64748b; font-size: 14px; margin-bottom: 16px;">Which country will you represent?</p>
+
+        <!-- Country Selection Grid -->
+        <div id="country-unlock-grid" style="
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+          margin-bottom: 24px;
+        ">
+          <!-- Country cards populated dynamically -->
+        </div>
+
+        <!-- Confirm Button -->
+        <button id="confirm-country-btn" onclick="window.confirmCountrySelection()" style="
+          width: 100%;
+          padding: 18px;
+          background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+          opacity: 0.5;
+          pointer-events: none;
+        " disabled>Select a Country</button>
+      </div>
+    </div>
+
+    <!-- Season Overview Screen (Career Mode Hub) -->
+    <div id="season-overview-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header with Season Info -->
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 24px;
+        ">
+          <div>
+            <div id="season-year" style="color: #64748b; font-size: 14px;">Season 1 • 2026</div>
+            <h1 style="color: white; font-size: 28px; margin: 4px 0;">Career Mode</h1>
+          </div>
+          <div id="tier-badge" style="
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            border-radius: 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            text-transform: uppercase;
+          ">Club</div>
+        </div>
+
+        <!-- Player Stats Card -->
+        <div id="player-stats-card" style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 20px;
+        ">
+          <!-- Team/Club Header -->
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <div id="player-club-crest" style="font-size: 28px;">🥌</div>
+            <div style="flex: 1;">
+              <div id="player-team-name" style="color: white; font-size: 16px; font-weight: bold;">Team Player</div>
+              <div id="player-club-name" style="color: #64748b; font-size: 12px;">Club Name</div>
+            </div>
+            <div id="player-country-badge" style="display: none; font-size: 24px;"></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span id="player-identity-label" style="color: #94a3b8; font-size: 12px;">Club Level</span>
+            <span id="player-ranking" style="color: #fbbf24; font-size: 14px;">Ranking: 1000</span>
+          </div>
+          <div style="display: flex; gap: 24px;">
+            <div>
+              <div id="season-wins" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+              <div style="color: #64748b; font-size: 12px;">Wins</div>
+            </div>
+            <div>
+              <div id="season-losses" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+              <div style="color: #64748b; font-size: 12px;">Losses</div>
+            </div>
+            <div>
+              <div id="season-tournaments" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+              <div style="color: #64748b; font-size: 12px;">Trophies</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Qualifications Section -->
+        <div id="qualifications-section" style="
+          background: rgba(74, 222, 128, 0.1);
+          border: 1px solid rgba(74, 222, 128, 0.3);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          display: none;
+        ">
+          <div style="color: #4ade80; font-size: 14px; font-weight: bold; margin-bottom: 8px;">Qualifications Earned</div>
+          <div id="qualifications-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+            <!-- Qualification badges added dynamically -->
+          </div>
+        </div>
+
+        <!-- Available Tournaments Section -->
+        <div style="margin-bottom: 20px;">
+          <h2 style="color: white; font-size: 18px; margin-bottom: 16px;">Available Tournaments</h2>
+          <div id="available-tournaments" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Tournament cards added dynamically -->
+          </div>
+        </div>
+
+        <!-- Active Tournament Banner (if in tournament) -->
+        <div id="active-tournament-banner" style="
+          display: none;
+          background: linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 20px;
+          cursor: pointer;
+        " onclick="window.showBracket()">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="color: #86efac; font-size: 12px; text-transform: uppercase;">Currently Competing In</div>
+              <div id="active-tournament-name" style="color: white; font-size: 18px; font-weight: bold;">Tournament Name</div>
+            </div>
+            <div style="color: #4ade80; font-size: 24px;">→</div>
+          </div>
+        </div>
+
+        <!-- Bottom Actions -->
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+          <button onclick="window.goBackToModeSelect()" style="
+            flex: 1;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid #64748b;
+            border-radius: 8px;
+            color: #94a3b8;
+            font-size: 14px;
+            cursor: pointer;
+          ">← Back</button>
+          <button onclick="window.startNewSeason()" id="new-season-btn" style="
+            flex: 1;
+            padding: 14px;
+            background: linear-gradient(135deg, #4a5568 0%, #374151 100%);
+            border: 1px solid #6b7280;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            display: none;
+          ">Start New Season</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tournament Entry Screen -->
+    <div id="tournament-entry-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header -->
+        <button onclick="window.showSeasonOverview()" style="
+          background: none;
+          border: none;
+          color: #64748b;
+          font-size: 14px;
+          cursor: pointer;
+          margin-bottom: 16px;
+        ">← Back to Season</button>
+
+        <!-- Tournament Info Card -->
+        <div id="tournament-info-card" style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          border-radius: 16px;
+          overflow: hidden;
+          margin-bottom: 24px;
+        ">
+          <!-- Tournament Header -->
+          <div id="tournament-header" style="
+            padding: 24px;
+            background: linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          ">
+            <div id="tournament-tier-label" style="
+              color: #86efac;
+              font-size: 12px;
+              text-transform: uppercase;
+              letter-spacing: 1px;
+              margin-bottom: 8px;
+            ">Club Tournament</div>
+            <h1 id="tournament-name-display" style="
+              color: white;
+              font-size: 24px;
+              margin: 0 0 8px 0;
+            ">Tournament Name</h1>
+            <div id="tournament-format" style="color: #a7f3d0; font-size: 14px;">
+              Single Elimination • 4 Teams
+            </div>
+          </div>
+
+          <!-- Tournament Details -->
+          <div style="padding: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+              <div>
+                <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Reward</div>
+                <div id="tournament-reward" style="color: white; font-size: 16px; font-weight: bold;">+25 Points</div>
+              </div>
+              <div>
+                <div style="color: #64748b; font-size: 12px; margin-bottom: 4px;">Qualification</div>
+                <div id="tournament-qualification" style="color: #4ade80; font-size: 16px; font-weight: bold;">—</div>
+              </div>
+            </div>
+
+            <!-- Requirements (if any) -->
+            <div id="tournament-requirements" style="
+              display: none;
+              padding: 12px;
+              background: rgba(251, 191, 36, 0.1);
+              border: 1px solid rgba(251, 191, 36, 0.3);
+              border-radius: 8px;
+              margin-bottom: 16px;
+            ">
+              <div style="color: #fbbf24; font-size: 12px; font-weight: bold; margin-bottom: 4px;">Entry Requirement</div>
+              <div id="tournament-req-text" style="color: #fde68a; font-size: 14px;">Qualification needed</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Field Preview -->
+        <div style="margin-bottom: 24px;">
+          <h2 style="color: white; font-size: 16px; margin-bottom: 12px;">Expected Field</h2>
+          <div id="tournament-field-preview" style="
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          ">
+            <!-- Team previews added dynamically -->
+          </div>
+        </div>
+
+        <!-- Enter Tournament Button -->
+        <button id="enter-tournament-btn" onclick="window.enterSelectedTournament()" style="
+          width: 100%;
+          padding: 18px;
+          background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+          transition: all 0.2s;
+        ">Enter Tournament</button>
+
+        <!-- Locked State Button (shown when requirements not met) -->
+        <button id="tournament-locked-btn" style="
+          display: none;
+          width: 100%;
+          padding: 18px;
+          background: #374151;
+          border: 1px solid #4b5563;
+          border-radius: 12px;
+          color: #9ca3af;
+          font-size: 16px;
+          cursor: not-allowed;
+        ">🔒 Qualification Required</button>
+      </div>
+    </div>
+
+    <!-- Bracket Display Screen -->
+    <div id="bracket-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow: hidden;
+    ">
+      <!-- Bracket Header -->
+      <div style="
+        position: sticky;
+        top: 0;
+        left: 0;
+        right: 0;
+        padding: max(16px, env(safe-area-inset-top)) 16px 12px;
+        background: rgba(13, 17, 23, 0.95);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 10;
+      ">
+        <div style="max-width: 800px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;">
+          <button onclick="window.showSeasonOverview()" style="
+            background: none;
+            border: none;
+            color: #64748b;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+          ">← Season</button>
+          <div style="text-align: center;">
+            <div id="bracket-tournament-name" style="color: white; font-size: 16px; font-weight: bold; font-family: 'Segoe UI', system-ui, sans-serif;">Tournament</div>
+            <div id="bracket-phase" style="color: #64748b; font-size: 12px; font-family: 'Segoe UI', system-ui, sans-serif;">Playoffs</div>
+          </div>
+          <div style="width: 60px;"></div>
+        </div>
+      </div>
+
+      <!-- Bracket Container (scrollable) -->
+      <div id="bracket-container" style="
+        width: 100%;
+        height: calc(100% - 120px);
+        overflow: auto;
+        padding: 20px;
+        -webkit-overflow-scrolling: touch;
+      ">
+        <div id="bracket-grid" style="
+          display: flex;
+          gap: 40px;
+          min-width: max-content;
+          padding-bottom: 20px;
+        ">
+          <!-- Bracket rounds added dynamically -->
+        </div>
+      </div>
+
+      <!-- Bottom Action Bar -->
+      <div style="
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 16px 20px max(20px, env(safe-area-inset-bottom));
+        background: rgba(13, 17, 23, 0.98);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      ">
+        <div style="max-width: 500px; margin: 0 auto;">
+          <button id="play-next-match-btn" onclick="window.playNextMatch()" style="
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+            font-family: 'Segoe UI', system-ui, sans-serif;
+          ">Play Next Match</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pre-Match Screen -->
+    <div id="pre-match-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <!-- Tournament Context -->
+        <div id="match-context" style="
+          color: #64748b;
+          font-size: 14px;
+          margin-bottom: 8px;
+        ">Semifinals • Club Bonspiel</div>
+
+        <h1 style="color: white; font-size: 24px; margin-bottom: 32px;">Next Match</h1>
+
+        <!-- VS Display -->
+        <div style="display: flex; align-items: center; justify-content: center; gap: 24px; margin-bottom: 32px;">
+          <!-- Player Card -->
+          <div style="
+            flex: 1;
+            max-width: 150px;
+            background: rgba(74, 222, 128, 0.1);
+            border: 2px solid #4ade80;
+            border-radius: 12px;
+            padding: 20px 16px;
+          ">
+            <div style="
+              width: 60px;
+              height: 60px;
+              background: linear-gradient(135deg, #4ade80, #22c55e);
+              border-radius: 50%;
+              margin: 0 auto 12px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 24px;
+            ">👤</div>
+            <div style="color: white; font-size: 16px; font-weight: bold;">You</div>
+            <div style="color: #86efac; font-size: 12px;">Team Player</div>
+          </div>
+
+          <!-- VS Badge -->
+          <div style="
+            color: #64748b;
+            font-size: 20px;
+            font-weight: bold;
+          ">VS</div>
+
+          <!-- Opponent Card -->
+          <div id="opponent-card" style="
+            flex: 1;
+            max-width: 150px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 20px 16px;
+          ">
+            <div style="
+              width: 60px;
+              height: 60px;
+              background: linear-gradient(135deg, #ef4444, #dc2626);
+              border-radius: 50%;
+              margin: 0 auto 12px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 24px;
+            ">🥌</div>
+            <div id="opponent-name" style="color: white; font-size: 16px; font-weight: bold;">Opponent</div>
+            <div id="opponent-team" style="color: #fca5a5; font-size: 12px;">Team Name</div>
+          </div>
+        </div>
+
+        <!-- Opponent Info -->
+        <div id="opponent-info-card" style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          text-align: left;
+        ">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+            <span style="color: #64748b; font-size: 14px;">Personality</span>
+            <span id="opponent-personality-badge" style="
+              padding: 4px 12px;
+              background: rgba(251, 191, 36, 0.2);
+              border-radius: 12px;
+              color: #fbbf24;
+              font-size: 12px;
+            ">Balanced</span>
+          </div>
+          <div id="opponent-bio" style="color: #94a3b8; font-size: 13px; line-height: 1.5;">
+            Opponent bio text...
+          </div>
+
+          <!-- Rivalry History (if applicable) -->
+          <div id="rivalry-history" style="
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+          ">
+            <div style="color: #fbbf24; font-size: 12px; font-weight: bold; margin-bottom: 4px;">🔥 Rivalry History</div>
+            <div id="rivalry-record" style="color: #fde68a; font-size: 13px;">You: 2 | Them: 1</div>
+          </div>
+        </div>
+
+        <!-- Start Match Button -->
+        <button onclick="window.startTournamentMatch()" style="
+          width: 100%;
+          padding: 18px;
+          background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+        ">Start Match</button>
+      </div>
+    </div>
+
+    <!-- Post-Match Screen -->
+    <div id="post-match-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <!-- Result Banner -->
+        <div id="match-result-banner" style="
+          padding: 24px;
+          background: linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%);
+          border-radius: 16px;
+          margin-bottom: 24px;
+        ">
+          <div id="match-result-text" style="
+            color: white;
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+          ">VICTORY!</div>
+          <div id="match-final-score" style="
+            color: #86efac;
+            font-size: 24px;
+          ">7 - 4</div>
+        </div>
+
+        <!-- Match Summary -->
+        <div style="
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+        ">
+          <div id="match-opponent-defeated" style="color: #94a3b8; font-size: 14px; margin-bottom: 12px;">
+            Defeated John Smith
+          </div>
+          <div style="display: flex; justify-content: center; gap: 32px;">
+            <div>
+              <div id="post-match-wins" style="color: white; font-size: 20px; font-weight: bold;">3</div>
+              <div style="color: #64748b; font-size: 12px;">Season Wins</div>
+            </div>
+            <div>
+              <div id="post-match-points" style="color: #fbbf24; font-size: 20px; font-weight: bold;">+25</div>
+              <div style="color: #64748b; font-size: 12px;">Points Earned</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tournament Progress (mini bracket) -->
+        <div id="tournament-progress-section" style="margin-bottom: 24px;">
+          <div style="color: #64748b; font-size: 14px; margin-bottom: 12px;">Tournament Progress</div>
+          <div id="mini-bracket-preview" style="
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            padding: 16px;
+          ">
+            <!-- Mini bracket added dynamically -->
+          </div>
+        </div>
+
+        <!-- Next Action -->
+        <div id="post-match-next-info" style="
+          color: #94a3b8;
+          font-size: 14px;
+          margin-bottom: 16px;
+        ">Next: Finals vs. Sarah Johnson</div>
+
+        <button id="continue-tournament-btn" onclick="window.continueTournament()" style="
+          width: 100%;
+          padding: 18px;
+          background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
+        ">Continue</button>
+
+        <!-- Return to Season (after tournament ends) -->
+        <button id="return-to-season-btn" onclick="window.showSeasonOverview()" style="
+          display: none;
+          width: 100%;
+          padding: 18px;
+          margin-top: 12px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+        ">Return to Season</button>
       </div>
     </div>
 

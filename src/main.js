@@ -245,7 +245,20 @@ const gameState = {
   // App backgrounding state (iOS lifecycle)
   isPaused: false,
   pausedPhase: null,  // Phase when paused (for resume)
-  activeTimers: []    // Track setTimeout IDs for cleanup on pause
+  activeTimers: [],    // Track setTimeout IDs for cleanup on pause
+
+  // Practice mode state
+  practiceMode: {
+    active: false,
+    currentDrill: null,      // 'takeout' | 'bump' | 'draw' | 'guard' | 'freeze' | 'hitroll'
+    currentScenario: null,   // Scenario ID within drill
+    difficulty: 1,           // 1-5 progressive difficulty
+    attempts: 0,             // Attempts on current scenario
+    successes: 0,            // Successes on current scenario
+    currentStreak: 0,        // Current success streak
+    showHints: true,         // Show hint panel
+    lastOutcome: null        // 'success' | 'fail' | null
+  }
 };
 
 // Level definitions
@@ -279,6 +292,1118 @@ const CURLING_COUNTRIES = [
   { id: 'gb', name: 'Great Britain', flag: '🇬🇧', color: '#1e40af' },
   { id: 'finland', name: 'Finland', flag: '🇫🇮', color: '#3b82f6' },
   { id: 'netherlands', name: 'Netherlands', flag: '🇳🇱', color: '#f97316' }
+];
+
+// ============================================
+// SHOT FEEDBACK SYSTEM
+// ============================================
+
+// Feedback configuration - thresholds can be tuned per difficulty
+const SHOT_FEEDBACK_CONFIG = {
+  // Distance thresholds (in game units, relative to stone radius ~0.14)
+  thresholds: {
+    button: 0.2,          // Within button (perfect draw)
+    fourFoot: 0.61,       // Within 4-foot ring
+    eightFoot: 1.22,      // Within 8-foot ring
+    twelveFoot: 1.83,     // Within 12-foot ring (house)
+    nearMissBuffer: 0.4,  // Extra buffer for "almost" in house
+    guardZoneStart: null, // Set dynamically based on HOG_LINE_FAR
+    guardZoneEnd: null    // Set dynamically based on TEE_LINE_FAR
+  },
+
+  // Success messages by shot outcome
+  successMessages: {
+    button: ['Button!', 'Perfect!', 'Bullseye!'],
+    fourFoot: ['Great Draw!', 'Nice Shot!', 'In the 4-foot!'],
+    eightFoot: ['Good Shot!', 'In the House!', 'Solid Draw!'],
+    twelveFoot: ['In the House!', 'Counting!'],
+    guard: ['Nice Guard!', 'Great Position!', 'Guard Set!'],
+    takeout: ['Nice Takeout!', 'Got it!', 'Cleared!'],
+    doubleTakeout: ['Double!', 'Two Birds!', 'Cleared them out!'],
+    hitAndStick: ['Hit & Stick!', 'Perfect Takeout!', 'Textbook!'],
+    freeze: ['Great Freeze!', 'Frozen!', 'Perfectly Placed!']
+  },
+
+  // Near-miss messages
+  nearMissMessages: {
+    justHeavy: ['Just heavy!', 'A touch too much!', 'Just through!'],
+    justLight: ['Just light!', 'Almost there!', 'Needed a bit more!'],
+    justWide: ['Just wide!', 'Barely missed!', 'So close!'],
+    almostHouse: ['Ooh, so close!', 'Almost in!', 'Just short!'],
+    almostTakeout: ['Clipped it!', 'Just grazed!', 'Almost got it!'],
+    rubbed: ['Rubbed!', 'Picked!', 'Deflected!']
+  },
+
+  // Timing settings
+  displayDuration: 2000,  // How long to show feedback (ms)
+  fadeOutDuration: 300    // Fade animation duration (ms)
+};
+
+// Track last shot info for feedback evaluation
+let lastShotInfo = {
+  team: null,
+  targetX: null,
+  targetZ: null,
+  shotType: null,
+  effort: null,
+  preThrowState: null  // Snapshot of stones before throw
+};
+
+// ============================================
+// FAQ DATA
+// ============================================
+
+const FAQ_DATA = [
+  {
+    category: 'Getting Started',
+    icon: '🎮',
+    questions: [
+      {
+        q: 'How do I throw a stone?',
+        a: 'Tap and hold anywhere on the ice to set your target, then release to throw. The longer you hold, the more power you apply. On mobile, you can also swipe to throw.'
+      },
+      {
+        q: 'What are the basic controls?',
+        a: 'Tap to aim, hold for power, release to throw. Use the left/right curl buttons to add spin. Tap the broom icon to toggle sweeping while the stone is moving.'
+      },
+      {
+        q: 'What does sweeping do?',
+        a: 'Sweeping heats the ice, reducing friction and making the stone travel farther and straighter. Use it to help a stone reach its target or to reduce curl.'
+      },
+      {
+        q: 'How do I switch between camera views?',
+        a: 'Double-tap anywhere on the screen to toggle between the overhead view and the throwing view. You can also use the camera button in the corner.'
+      }
+    ]
+  },
+  {
+    category: 'Curling Rules & Scoring',
+    icon: '📋',
+    questions: [
+      {
+        q: 'How is scoring calculated?',
+        a: 'After all 16 stones are thrown (8 per team), only one team scores. The team with the stone closest to the button scores one point for each of their stones that is closer than the opponent\'s closest stone.'
+      },
+      {
+        q: 'What is the "hammer" and why does it matter?',
+        a: 'The hammer is the last stone advantage. The team with hammer throws last in an end, giving them the final chance to score. The team that doesn\'t score gets hammer in the next end.'
+      },
+      {
+        q: 'What is the Free Guard Zone rule?',
+        a: 'Stones in the Free Guard Zone (between the hog line and the house, excluding the house) cannot be removed from play by the opposing team until after the first 4 stones of the end have been thrown.'
+      },
+      {
+        q: 'What happens if a stone goes out of play?',
+        a: 'A stone that crosses the back line, touches the side boards, or stops before the far hog line is removed from play and doesn\'t count for scoring.'
+      },
+      {
+        q: 'How many ends are in a game?',
+        a: 'A standard game has 8 ends. In Career Mode, difficulty and tournament type may vary the number of ends. The team with the most points after all ends wins.'
+      }
+    ]
+  },
+  {
+    category: 'Shot Types',
+    icon: '🥌',
+    questions: [
+      {
+        q: 'What is a draw?',
+        a: 'A draw is a shot intended to come to rest in a specific position, usually in the house (scoring area). Draws require precise weight control.'
+      },
+      {
+        q: 'What is a takeout?',
+        a: 'A takeout removes an opponent\'s stone from play by hitting it with enough force. Takeouts are used to eliminate scoring threats or clear the house.'
+      },
+      {
+        q: 'What is a guard?',
+        a: 'A guard is a stone placed in front of the house to protect other stones from being hit. Guards are often used early in the end to set up scoring opportunities.'
+      },
+      {
+        q: 'What is a freeze?',
+        a: 'A freeze is a draw that comes to rest touching another stone. This makes it difficult for the opponent to remove without also affecting their own stone.'
+      },
+      {
+        q: 'What is a hit-and-roll?',
+        a: 'A hit-and-roll removes an opponent\'s stone while your thrown stone "rolls" to a new position, ideally behind cover or into a scoring position.'
+      },
+      {
+        q: 'How do I control shot power?',
+        a: 'Hold longer before releasing for more power. The power indicator shows your current weight. For draws, use lighter weight; for takeouts, use heavier weight.'
+      }
+    ]
+  },
+  {
+    category: 'Career Mode',
+    icon: '🏆',
+    questions: [
+      {
+        q: 'How does career progression work?',
+        a: 'Start at Club level competing in local bonspiels. Win tournaments to earn qualifications for higher-tier competitions, eventually reaching Provincial, National, and Olympic levels.'
+      },
+      {
+        q: 'What are the different tournament tiers?',
+        a: 'From lowest to highest: Club (local bonspiels), Regional (playdowns), Provincial (championships), National, International (World Championships), and Olympic.'
+      },
+      {
+        q: 'How do I qualify for higher-level tournaments?',
+        a: 'Win or place highly in tournaments at your current tier. Winning a Club League qualifies you for Regionals, winning Regionals qualifies for Provincials, and so on.'
+      },
+      {
+        q: 'What happens if I lose a tournament?',
+        a: 'Losing means you\'re eliminated from that tournament, but you can enter other available tournaments. There\'s no demotion - you keep your tier and try again next season.'
+      },
+      {
+        q: 'Can I be demoted to a lower tier?',
+        a: 'No. Once you\'ve qualified for a tier, you maintain that status. If you fail to advance, you simply retry in the next season with your current qualifications intact.'
+      },
+      {
+        q: 'Why can\'t I select my country at the start?',
+        a: 'Career Mode follows real curling progression: you start representing your local club. Once you reach National/International tier, you\'ll be prompted to select a country to represent.'
+      }
+    ]
+  },
+  {
+    category: 'Tournaments & Brackets',
+    icon: '🗓️',
+    questions: [
+      {
+        q: 'What is the Page Playoff system?',
+        a: 'The Page Playoff is used in major curling events. The top 4 teams after round-robin play: 1v2 (winner to final), 3v4 (loser out), then the 1v2 loser plays the 3v4 winner for the other finals spot.'
+      },
+      {
+        q: 'How does single elimination work?',
+        a: 'In single elimination, one loss and you\'re out. Win and advance to the next round. Club bonspiels often use this format for faster tournaments.'
+      },
+      {
+        q: 'What are rivals?',
+        a: 'Rivals are recurring opponents you\'ll face throughout your career. They have memorable personalities and your win/loss record against them is tracked. Beat them to earn bragging rights!'
+      },
+      {
+        q: 'Do results carry over between seasons?',
+        a: 'Your tier level, club identity, and lifetime stats carry over. However, tournament qualifications (except your base tier) reset each season - you must re-earn Worlds and Olympic spots annually.'
+      }
+    ]
+  },
+  {
+    category: 'Difficulty & AI',
+    icon: '🤖',
+    questions: [
+      {
+        q: 'What do the difficulty levels affect?',
+        a: 'Difficulty affects AI accuracy, strategic decision-making, and consistency. Beginner AI makes more mistakes, while Expert AI plays near-perfect shots and uses advanced strategy.'
+      },
+      {
+        q: 'Why do some opponents play aggressively?',
+        a: 'AI opponents have personalities that affect their playstyle. Aggressive opponents favor takeouts and risky shots, while conservative opponents prefer guards and safe draws.'
+      },
+      {
+        q: 'What are AI personality types?',
+        a: 'Opponents can be Aggressive (lots of takeouts), Patient (builds up position), Risk-Taker (attempts difficult shots), Conservative (plays it safe), or Balanced (adapts to situation).'
+      }
+    ]
+  },
+  {
+    category: 'Saves & Progress',
+    icon: '💾',
+    questions: [
+      {
+        q: 'Is my progress saved automatically?',
+        a: 'Yes! Career progress is automatically saved to your browser\'s local storage after each match and tournament. Your progress persists between sessions.'
+      },
+      {
+        q: 'Can I have multiple career saves?',
+        a: 'Currently, the game supports one career save. Starting a new career will overwrite your existing progress. A multiple-save feature may come in a future update.'
+      },
+      {
+        q: 'How do I reset my career?',
+        a: 'Open Settings (gear icon) during a game, scroll to the Career Progress section, and tap "Reset Career". This will erase all progress and let you start fresh.'
+      }
+    ]
+  }
+];
+
+// ============================================
+// PRACTICE MODE - Drill Scenarios
+// ============================================
+
+const PRACTICE_DRILLS = {
+  takeout: { name: 'Takeouts', icon: '⚡', description: 'Remove opponent stones from play' },
+  bump: { name: 'Bumps & Taps', icon: '👆', description: 'Gentle touches to adjust positions' },
+  draw: { name: 'Draws', icon: '🎯', description: 'Precision placement shots' },
+  guard: { name: 'Guards', icon: '🛡️', description: 'Strategic protection shots' },
+  freeze: { name: 'Freezes', icon: '❄️', description: 'Come to rest touching another stone' },
+  hitroll: { name: 'Hit & Roll', icon: '🎱', description: 'Takeout with controlled roll' }
+};
+
+// TEE_LINE_FAR = 41.07, BUTTON position is (0, 41.07)
+// Stone positions use game coordinates (x, z) where z is along the sheet
+const PRACTICE_SCENARIOS = {
+  takeout: [
+    {
+      id: 'takeout_1',
+      name: 'Open Takeout',
+      difficulty: 1,
+      description: 'Remove the opponent stone with a clear path',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.07 }  // Stone on button
+      ],
+      target: { type: 'takeout', minRemoved: 1 },
+      hint: 'Aim directly at the stone, use 70-80% power'
+    },
+    {
+      id: 'takeout_2',
+      name: 'Offset Takeout',
+      difficulty: 1,
+      description: 'Hit the stone slightly off-center',
+      stones: [
+        { team: 'yellow', x: 0.5, z: 40.5 }  // Stone offset right
+      ],
+      target: { type: 'takeout', minRemoved: 1 },
+      hint: 'Aim at the center of the stone, adjust for the angle'
+    },
+    {
+      id: 'takeout_3',
+      name: 'Angled Takeout',
+      difficulty: 2,
+      description: 'Remove a stone at a sharper angle',
+      stones: [
+        { team: 'yellow', x: 1.0, z: 40.2 }  // Stone further offset
+      ],
+      target: { type: 'takeout', minRemoved: 1 },
+      hint: 'Use inside-out curl to hit the stone cleanly'
+    },
+    {
+      id: 'takeout_4',
+      name: 'Guarded Takeout',
+      difficulty: 3,
+      description: 'Navigate around a guard to hit the target',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.07 },   // Target on button
+        { team: 'yellow', x: 0.3, z: 38.5 }   // Guard in front
+      ],
+      target: { type: 'takeout', minRemoved: 1, targetIndex: 0 },
+      hint: 'Curl around the guard to find the target'
+    },
+    {
+      id: 'takeout_5',
+      name: 'Double Takeout',
+      difficulty: 4,
+      description: 'Remove two stones with one shot',
+      stones: [
+        { team: 'yellow', x: -0.3, z: 41.0 },  // Two stones close together
+        { team: 'yellow', x: 0.3, z: 40.8 }
+      ],
+      target: { type: 'takeout', minRemoved: 2 },
+      hint: 'Hit the first stone to drive it into the second'
+    }
+  ],
+
+  bump: [
+    {
+      id: 'bump_1',
+      name: 'Nudge to Button',
+      difficulty: 1,
+      description: 'Bump your stone closer to the center',
+      stones: [
+        { team: 'red', x: 0, z: 40.0 }  // Own stone in front of button
+      ],
+      target: { type: 'bump', stoneIndex: 0, zone: 'button' },
+      hint: 'Use light weight (40-50%) to gently push the stone'
+    },
+    {
+      id: 'bump_2',
+      name: 'Tap Back',
+      difficulty: 2,
+      description: 'Push the opponent stone to the back of the house',
+      stones: [
+        { team: 'yellow', x: 0, z: 40.5 }  // Opponent stone
+      ],
+      target: { type: 'bump', zone: 'backHouse' },
+      hint: 'Medium weight to move it back without removing'
+    },
+    {
+      id: 'bump_3',
+      name: 'Promotion',
+      difficulty: 3,
+      description: 'Bump your guard into scoring position',
+      stones: [
+        { team: 'red', x: 0, z: 38.0 }  // Own guard
+      ],
+      target: { type: 'bump', stoneIndex: 0, zone: 'house' },
+      hint: 'Promote your guard into the rings with controlled weight'
+    }
+  ],
+
+  draw: [
+    {
+      id: 'draw_1',
+      name: 'Open Draw',
+      difficulty: 1,
+      description: 'Draw to the 12-foot ring with an empty house',
+      stones: [],  // Empty house
+      target: { type: 'draw', ring: 'twelveFoot' },
+      hint: 'Aim for the button, use 50-60% power'
+    },
+    {
+      id: 'draw_2',
+      name: 'Draw to 8-foot',
+      difficulty: 2,
+      description: 'Tighter placement in the 8-foot ring',
+      stones: [],
+      target: { type: 'draw', ring: 'eightFoot' },
+      hint: 'Focus on weight control, aim for the rings'
+    },
+    {
+      id: 'draw_3',
+      name: 'Draw to 4-foot',
+      difficulty: 3,
+      description: 'Precision draw to the 4-foot ring',
+      stones: [],
+      target: { type: 'draw', ring: 'fourFoot' },
+      hint: 'Light weight with good line'
+    },
+    {
+      id: 'draw_4',
+      name: 'Draw to Button',
+      difficulty: 4,
+      description: 'Perfect draw to the button',
+      stones: [],
+      target: { type: 'draw', ring: 'button' },
+      hint: 'Perfect weight and perfect line'
+    },
+    {
+      id: 'draw_5',
+      name: 'Draw Behind Cover',
+      difficulty: 5,
+      description: 'Navigate around a guard to score',
+      stones: [
+        { team: 'red', x: 0.4, z: 38.0 }  // Own guard for cover
+      ],
+      target: { type: 'draw', ring: 'eightFoot', behindGuard: true },
+      hint: 'Use curl to wrap behind the guard'
+    }
+  ],
+
+  guard: [
+    {
+      id: 'guard_1',
+      name: 'Center Guard',
+      difficulty: 1,
+      description: 'Place a guard on the centerline',
+      stones: [],
+      target: { type: 'guard', zone: 'center' },
+      hint: 'Stop the stone between hog line and house, on center'
+    },
+    {
+      id: 'guard_2',
+      name: 'Corner Guard',
+      difficulty: 2,
+      description: 'Place a guard off to one side',
+      stones: [],
+      target: { type: 'guard', zone: 'corner', x: 0.8 },
+      hint: 'Aim off-center, light weight to stop short of house'
+    },
+    {
+      id: 'guard_3',
+      name: 'Tight Guard',
+      difficulty: 3,
+      description: 'Place a guard just in front of the house',
+      stones: [],
+      target: { type: 'guard', zone: 'tight' },
+      hint: 'Almost in the house but not quite'
+    },
+    {
+      id: 'guard_4',
+      name: 'Long Guard',
+      difficulty: 4,
+      description: 'Place a guard far from the house',
+      stones: [],
+      target: { type: 'guard', zone: 'long' },
+      hint: 'Light weight, stop well before the house'
+    }
+  ],
+
+  freeze: [
+    {
+      id: 'freeze_1',
+      name: 'Open Freeze',
+      difficulty: 1,
+      description: 'Freeze to a stone on the button',
+      stones: [
+        { team: 'red', x: 0, z: 41.07 }  // Own stone on button
+      ],
+      target: { type: 'freeze', stoneIndex: 0 },
+      hint: 'Come to rest just touching the stone'
+    },
+    {
+      id: 'freeze_2',
+      name: 'Side Freeze',
+      difficulty: 2,
+      description: 'Freeze to the side of a stone',
+      stones: [
+        { team: 'red', x: 0.5, z: 40.5 }
+      ],
+      target: { type: 'freeze', stoneIndex: 0 },
+      hint: 'Angle in to touch the side of the stone'
+    },
+    {
+      id: 'freeze_3',
+      name: 'Opponent Freeze',
+      difficulty: 3,
+      description: 'Freeze to an opponent stone to protect it',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.07 }  // Opponent on button
+      ],
+      target: { type: 'freeze', stoneIndex: 0 },
+      hint: 'Freeze makes it hard for them to remove cleanly'
+    }
+  ],
+
+  hitroll: [
+    {
+      id: 'hitroll_1',
+      name: 'Basic Hit-Roll',
+      difficulty: 1,
+      description: 'Hit the stone and roll to the side',
+      stones: [
+        { team: 'yellow', x: 0, z: 40.5 }  // Target stone
+      ],
+      target: { type: 'hitroll', rollZone: 'house' },
+      hint: 'Hit at an angle to roll off into position'
+    },
+    {
+      id: 'hitroll_2',
+      name: 'Roll to Button',
+      difficulty: 2,
+      description: 'Hit and roll to scoring position',
+      stones: [
+        { team: 'yellow', x: 0.5, z: 40.0 }
+      ],
+      target: { type: 'hitroll', rollZone: 'fourFoot' },
+      hint: 'Thin hit to maximize roll distance'
+    },
+    {
+      id: 'hitroll_3',
+      name: 'Roll Behind Cover',
+      difficulty: 3,
+      description: 'Hit and roll behind a guard',
+      stones: [
+        { team: 'yellow', x: -0.5, z: 40.5 },  // Target
+        { team: 'red', x: 0.5, z: 38.0 }       // Guard to hide behind
+      ],
+      target: { type: 'hitroll', rollZone: 'behindGuard', guardIndex: 1 },
+      hint: 'Hit the outside of the stone to roll toward the guard'
+    }
+  ]
+};
+
+// Practice stats persistence
+let practiceStats = {
+  takeout: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  bump: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  draw: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  guard: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  freeze: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
+};
+
+// ============================================
+// CAREER MODE - Tournament System
+// ============================================
+
+// Career tier progression order
+const CAREER_TIERS = ['club', 'regional', 'provincial', 'national', 'international', 'olympic'];
+
+// Tournament definitions by tier
+const TOURNAMENT_DEFINITIONS = [
+  // Club Tier
+  {
+    id: 'club_bonspiel',
+    name: 'Club Bonspiel',
+    shortName: 'Bonspiel',
+    tier: 'club',
+    format: {
+      type: 'single_elimination',
+      teams: 4,
+      bestOf: 1
+    },
+    requirements: { minTier: 'club' },
+    rewards: { points: 25, qualifiesFor: null, tierAdvance: false },
+    color: '#6b7280'
+  },
+  {
+    id: 'club_championship',
+    name: 'Club Championship',
+    shortName: 'Club Champ',
+    tier: 'club',
+    format: {
+      type: 'single_elimination',
+      teams: 8,
+      bestOf: 1
+    },
+    requirements: { minTier: 'club' },
+    rewards: { points: 50, qualifiesFor: 'regionalQualified', tierAdvance: true },
+    color: '#6b7280'
+  },
+  // Regional Tier
+  {
+    id: 'regional_playdowns',
+    name: 'Regional Playdowns',
+    shortName: 'Regionals',
+    tier: 'regional',
+    format: {
+      type: 'single_elimination',
+      teams: 8,
+      bestOf: 1
+    },
+    requirements: { minTier: 'regional', qualification: 'regionalQualified' },
+    rewards: { points: 100, qualifiesFor: 'provincialQualified', tierAdvance: true },
+    color: '#3b82f6'
+  },
+  // Provincial Tier
+  {
+    id: 'provincial_championship',
+    name: 'Provincial Championship',
+    shortName: 'Provincials',
+    tier: 'provincial',
+    format: {
+      type: 'page_playoff',
+      teams: 8,
+      bestOf: 1
+    },
+    requirements: { minTier: 'provincial', qualification: 'provincialQualified' },
+    rewards: { points: 200, qualifiesFor: 'nationalQualified', tierAdvance: true },
+    color: '#8b5cf6'
+  },
+  // National Tier
+  {
+    id: 'national_championship',
+    name: 'National Championship',
+    shortName: 'Nationals',
+    tier: 'national',
+    format: {
+      type: 'page_playoff',
+      teams: 8,
+      bestOf: 1
+    },
+    requirements: { minTier: 'national', qualification: 'nationalQualified' },
+    rewards: { points: 500, qualifiesFor: 'worldsQualified', tierAdvance: true },
+    color: '#ef4444'
+  },
+  // International Tier
+  {
+    id: 'world_championship',
+    name: 'World Championship',
+    shortName: 'Worlds',
+    tier: 'international',
+    format: {
+      type: 'page_playoff',
+      teams: 8,
+      bestOf: 1
+    },
+    requirements: { minTier: 'international', qualification: 'worldsQualified' },
+    rewards: { points: 1000, qualifiesFor: 'olympicTrialsQualified', tierAdvance: true },
+    color: '#10b981'
+  },
+  // Olympic Tier
+  {
+    id: 'olympic_trials',
+    name: 'Olympic Trials',
+    shortName: 'Trials',
+    tier: 'olympic',
+    format: {
+      type: 'page_playoff',
+      teams: 8,
+      bestOf: 3
+    },
+    requirements: { minTier: 'international', qualification: 'olympicTrialsQualified' },
+    rewards: { points: 800, qualifiesFor: 'olympicsQualified', tierAdvance: false },
+    color: '#ec4899'
+  },
+  {
+    id: 'olympics',
+    name: 'Winter Olympics',
+    shortName: 'Olympics',
+    tier: 'olympic',
+    format: {
+      type: 'single_elimination',
+      teams: 8,
+      bestOf: 1,
+      thirdPlaceGame: true
+    },
+    requirements: { minTier: 'international', qualification: 'olympicsQualified' },
+    rewards: { points: 2000, qualifiesFor: null, tierAdvance: false, isEndgame: true },
+    color: '#ffd700'
+  }
+];
+
+// Season state (persisted to localStorage)
+const seasonState = {
+  currentSeason: 1,
+  seasonYear: 2026,
+  careerTier: 'club',
+
+  activeTournament: null,  // TournamentState when in tournament
+
+  qualifications: {
+    regionalQualified: false,
+    provincialQualified: false,
+    nationalQualified: false,
+    worldsQualified: false,
+    olympicTrialsQualified: false,
+    olympicsQualified: false
+  },
+
+  seasonCalendar: {
+    completed: [],  // TournamentResult[]
+    available: []   // Tournament IDs available this season
+  },
+
+  stats: {
+    totalWins: 0,
+    totalLosses: 0,
+    tournamentsWon: 0,
+    tournamentsEntered: 0,
+    seasonsPlayed: 0
+  },
+
+  rivalryHistory: {},  // { rivalId: { wins, losses, lastMet } }
+
+  playerTeam: {
+    name: 'Team Player',
+    ranking: 1000,
+
+    // Club identity (selected at career start)
+    club: {
+      id: null,
+      name: 'My Club',
+      colors: { primary: '#4ade80', secondary: '#1a1a2e' },
+      crest: '🥌'  // Emoji or icon identifier
+    },
+
+    // Country identity (deferred until national/international)
+    country: null,           // Country object (null until unlocked)
+    countryLocked: false,    // Once true, cannot change
+    countryUnlockShown: false  // Track if we've shown the unlock prompt
+  },
+
+  // Career progression stage for UI decisions
+  careerStage: 'club'  // 'club' | 'regional' | 'national' | 'international'
+};
+
+// Club definitions for selection
+const CLUB_OPTIONS = [
+  { id: 'granite', name: 'Granite Curling Club', crest: '🏔️', colors: { primary: '#64748b', secondary: '#1e293b' } },
+  { id: 'maple', name: 'Maple Leaf CC', crest: '🍁', colors: { primary: '#dc2626', secondary: '#450a0a' } },
+  { id: 'northern', name: 'Northern Lights CC', crest: '✨', colors: { primary: '#22c55e', secondary: '#14532d' } },
+  { id: 'highland', name: 'Highland CC', crest: '⛰️', colors: { primary: '#7c3aed', secondary: '#1e1b4b' } },
+  { id: 'coastal', name: 'Coastal Curling Club', crest: '🌊', colors: { primary: '#0ea5e9', secondary: '#0c4a6e' } },
+  { id: 'prairie', name: 'Prairie CC', crest: '🌾', colors: { primary: '#eab308', secondary: '#422006' } },
+  { id: 'metro', name: 'Metro Curling Club', crest: '🏙️', colors: { primary: '#f97316', secondary: '#431407' } },
+  { id: 'custom', name: 'Custom Club', crest: '🥌', colors: { primary: '#4ade80', secondary: '#1a1a2e' } }
+];
+
+// Name pools for random opponent generation
+const OPPONENT_NAME_DATA = {
+  firstNames: {
+    canada: ['Brad', 'Kevin', 'Mike', 'Jennifer', 'Rachel', 'Mark', 'Glenn', 'Ben', 'John', 'Colleen'],
+    sweden: ['Niklas', 'Anna', 'Fredrik', 'Sara', 'Oskar', 'Emma', 'Rasmus', 'Agnes', 'Christoffer', 'Sofia'],
+    scotland: ['David', 'Eve', 'Thomas', 'Vicky', 'Bruce', 'Hamish', 'Morag', 'Ross', 'Grant', 'Jennifer'],
+    norway: ['Thomas', 'Steffen', 'Torger', 'Marianne', 'Kristin', 'Magnus', 'Lars', 'Ingrid', 'Håvard', 'Camilla'],
+    usa: ['John', 'Matt', 'Tyler', 'Cory', 'Tabitha', 'Nina', 'Becca', 'Pete', 'Craig', 'Aileen'],
+    switzerland: ['Benoit', 'Peter', 'Silvana', 'Alina', 'Yannick', 'Marcel', 'Irene', 'Sven', 'Manuela', 'Romano'],
+    japan: ['Yusuke', 'Satsuki', 'Chinami', 'Mari', 'Yurika', 'Tetsuro', 'Kosei', 'Ayumi', 'Kotomi', 'Yumi'],
+    default: ['Alex', 'Chris', 'Sam', 'Jordan', 'Taylor', 'Morgan', 'Casey', 'Riley', 'Quinn', 'Avery']
+  },
+  lastNames: {
+    canada: ['Gushue', 'Koe', 'Martin', 'Howard', 'Jones', 'Lawes', 'Ferbey', 'Homan', 'Carey', 'Jacobs'],
+    sweden: ['Edin', 'Hasselborg', 'Lindahl', 'Wrana', 'Eriksson', 'Sundgren', 'McManus', 'Kjellberg', 'Norberg', 'Arman'],
+    scotland: ['Mouat', 'Muirhead', 'Brewster', 'Dodds', 'Kyle', 'Morrison', 'Smith', 'Gray', 'Henderson', 'Sheridan'],
+    norway: ['Ulsrud', 'Nergård', 'Svae', 'Walstad', 'Ramsfjell', 'Skaslien', 'Loen', 'Petersson', 'Hovden', 'Kjaer'],
+    usa: ['Shuster', 'Hamilton', 'Landsteiner', 'Christensen', 'Peterson', 'Roth', 'Brown', 'Plys', 'Sinclair', 'Persinger'],
+    switzerland: ['Schwarz', 'De Cruz', 'Tirinzoni', 'Pätz', 'Michel', 'Brunner', 'Hürlimann', 'Schnider', 'Amstutz', 'Hefti'],
+    japan: ['Fujisawa', 'Yoshida', 'Suzuki', 'Morozumi', 'Iwai', 'Matsumura', 'Ogasawara', 'Kitazawa', 'Yamamoto', 'Tanaka'],
+    default: ['Smith', 'Johnson', 'Williams', 'Brown', 'Miller', 'Davis', 'Wilson', 'Anderson', 'Taylor', 'Thomas']
+  }
+};
+
+const DAY_JOBS = [
+  'Accountant', 'Plumber', 'Teacher', 'Farmer', 'Electrician',
+  'Nurse', 'Software Developer', 'Carpenter', 'Chef', 'Lawyer',
+  'Sales Rep', 'Firefighter', 'Banker', 'Engineer', 'Pharmacist',
+  'Contractor', 'Real Estate Agent', 'Graphic Designer', 'Marketing Manager', 'Physiotherapist',
+  null, null, null, null  // null = professional curler (more common at higher tiers)
+];
+
+const HOME_CLUBS = {
+  canada: ['Granite Curling Club', 'Saville Centre', 'Kelowna Curling Club', 'Royal Montreal', 'Rideau CC', 'St. Paul\'s CC', 'Brier Island CC'],
+  sweden: ['Karlstad CK', 'Uppsala CK', 'Sundbybergs CK', 'Härnösands CK', 'Söderhamns CK', 'Stockholm CK'],
+  scotland: ['Royal Caledonian CC', 'Murrayfield CC', 'Greenacres CC', 'Braehead CC', 'Hamilton CC', 'Lockerbie Ice Rink'],
+  norway: ['Snarøya CC', 'Oppdal CC', 'Lillehammer CC', 'Oslo CC', 'Trondheim CK', 'Bergen CK'],
+  usa: ['Denver CC', 'Madison CC', 'Seattle CC', 'Duluth CC', 'St. Paul CC', 'Fargo CC', 'Chaska CC'],
+  switzerland: ['CC Bern', 'CC Zürich', 'CC Genève', 'CC Adelboden', 'Curling Arena Wetzikon'],
+  japan: ['Karuizawa CC', 'Sapporo CC', 'Nagano CC', 'Tokoro CC', 'Kitami CC'],
+  default: ['Central CC', 'City Curling Club', 'Metro CC', 'Capital CC', 'Highland CC']
+};
+
+// Persistent Rivals - memorable opponents at each tier
+const PERSISTENT_RIVALS = [
+  // CLUB TIER (3 rivals)
+  {
+    id: 'rival_earl',
+    firstName: 'Earl',
+    lastName: 'Thompson',
+    nickname: 'Steady Eddie',
+    countryId: 'canada',
+    dayJob: 'Plumber',
+    teamName: null,
+    homeClub: 'Riverside Curling Club',
+    skills: { draw: 65, takeout: 55, strategy: 70, pressure: 45, sweeping: 60 },
+    personality: { aggression: 25, riskTolerance: 20, patience: 85, clutchFactor: 40, consistency: 80 },
+    bio: "Been curling at Riverside for 35 years. Don't let the gray hair fool you - Earl's draw weight is legendary.",
+    catchphrase: "Let's just make our shots.",
+    tierRange: { min: 1, max: 2 }
+  },
+  {
+    id: 'rival_dakota',
+    firstName: 'Dakota',
+    lastName: 'Chen',
+    nickname: 'The Hammer',
+    countryId: 'canada',
+    dayJob: 'Electrician',
+    teamName: null,
+    homeClub: 'Valley View CC',
+    skills: { draw: 50, takeout: 75, strategy: 55, pressure: 60, sweeping: 70 },
+    personality: { aggression: 85, riskTolerance: 75, patience: 25, clutchFactor: 65, consistency: 45 },
+    bio: "Young gun with a cannon arm. Every stone is a potential takeout.",
+    catchphrase: "Why tap when you can peel?",
+    tierRange: { min: 1, max: 3 }
+  },
+  {
+    id: 'rival_margaret',
+    firstName: 'Margaret',
+    lastName: 'O\'Brien',
+    nickname: 'Maggie',
+    countryId: 'scotland',
+    dayJob: 'Teacher',
+    teamName: null,
+    homeClub: 'Highland CC',
+    skills: { draw: 70, takeout: 60, strategy: 65, pressure: 55, sweeping: 65 },
+    personality: { aggression: 45, riskTolerance: 40, patience: 70, clutchFactor: 50, consistency: 75 },
+    bio: "Primary school teacher by day, fierce competitor on weekends. Known for her patience and textbook delivery.",
+    catchphrase: "Patience wins games.",
+    tierRange: { min: 1, max: 2 }
+  },
+
+  // REGIONAL TIER (3 rivals)
+  {
+    id: 'rival_jake',
+    firstName: 'Jake',
+    lastName: 'Lindstrom',
+    nickname: null,
+    countryId: 'usa',
+    dayJob: 'Contractor',
+    teamName: 'Team Lindstrom',
+    homeClub: 'Minneapolis CC',
+    skills: { draw: 68, takeout: 72, strategy: 65, pressure: 62, sweeping: 70 },
+    personality: { aggression: 60, riskTolerance: 55, patience: 50, clutchFactor: 58, consistency: 65 },
+    bio: "Builds houses in summer, dominates bonspiels in winter. Physical player who relies on power.",
+    catchphrase: "Let's get to work.",
+    tierRange: { min: 2, max: 4 }
+  },
+  {
+    id: 'rival_yuki',
+    firstName: 'Yuki',
+    lastName: 'Tanaka',
+    nickname: 'Ice Queen',
+    countryId: 'japan',
+    dayJob: null,
+    teamName: 'Team Tanaka',
+    homeClub: 'Karuizawa CC',
+    skills: { draw: 78, takeout: 65, strategy: 75, pressure: 70, sweeping: 72 },
+    personality: { aggression: 35, riskTolerance: 45, patience: 80, clutchFactor: 72, consistency: 78 },
+    bio: "Rising star from Karuizawa with ice in her veins. Her precision draws are a thing of beauty.",
+    catchphrase: "Read the ice.",
+    tierRange: { min: 2, max: 5 }
+  },
+  {
+    id: 'rival_anders',
+    firstName: 'Anders',
+    lastName: 'Berglund',
+    nickname: null,
+    countryId: 'sweden',
+    dayJob: 'Pharmacist',
+    teamName: 'Team Berglund',
+    homeClub: 'Uppsala CK',
+    skills: { draw: 72, takeout: 70, strategy: 68, pressure: 65, sweeping: 68 },
+    personality: { aggression: 50, riskTolerance: 50, patience: 60, clutchFactor: 60, consistency: 70 },
+    bio: "Methodical and precise, Anders brings scientific rigor to his game. Never rattled.",
+    catchphrase: "Trust the process.",
+    tierRange: { min: 2, max: 4 }
+  },
+
+  // PROVINCIAL TIER (4 rivals)
+  {
+    id: 'rival_heather',
+    firstName: 'Heather',
+    lastName: 'MacDonald',
+    nickname: 'The General',
+    countryId: 'canada',
+    dayJob: null,
+    teamName: 'Team MacDonald',
+    homeClub: 'Granite Curling Club',
+    skills: { draw: 80, takeout: 75, strategy: 82, pressure: 78, sweeping: 75 },
+    personality: { aggression: 55, riskTolerance: 50, patience: 65, clutchFactor: 80, consistency: 75 },
+    bio: "Three-time provincial champion with a tactical mind. Commands her team like a general on the ice.",
+    catchphrase: "Execute the plan.",
+    tierRange: { min: 3, max: 6 }
+  },
+  {
+    id: 'rival_marco',
+    firstName: 'Marco',
+    lastName: 'Bianchi',
+    nickname: null,
+    countryId: 'italy',
+    dayJob: 'Chef',
+    teamName: 'Team Italia',
+    homeClub: 'Cortina CC',
+    skills: { draw: 75, takeout: 78, strategy: 70, pressure: 68, sweeping: 72 },
+    personality: { aggression: 65, riskTolerance: 60, patience: 45, clutchFactor: 62, consistency: 68 },
+    bio: "Passionate and expressive, Marco brings Italian flair to the ice. Loves the big shot.",
+    catchphrase: "Perfetto!",
+    tierRange: { min: 3, max: 5 }
+  },
+  {
+    id: 'rival_emily',
+    firstName: 'Emily',
+    lastName: 'Ross',
+    nickname: null,
+    countryId: 'scotland',
+    dayJob: null,
+    teamName: 'Team Ross',
+    homeClub: 'Braehead CC',
+    skills: { draw: 82, takeout: 72, strategy: 78, pressure: 75, sweeping: 74 },
+    personality: { aggression: 40, riskTolerance: 45, patience: 75, clutchFactor: 78, consistency: 80 },
+    bio: "Emerging Scottish talent with exceptional draw weight. Cool under pressure.",
+    catchphrase: "Stay in the moment.",
+    tierRange: { min: 3, max: 6 }
+  },
+  {
+    id: 'rival_olaf',
+    firstName: 'Olaf',
+    lastName: 'Henriksen',
+    nickname: 'The Viking',
+    countryId: 'norway',
+    dayJob: null,
+    teamName: 'Team Henriksen',
+    homeClub: 'Oslo CC',
+    skills: { draw: 74, takeout: 82, strategy: 72, pressure: 70, sweeping: 78 },
+    personality: { aggression: 75, riskTolerance: 70, patience: 35, clutchFactor: 68, consistency: 65 },
+    bio: "Aggressive player who loves to hit. Built like a Viking and throws like one too.",
+    catchphrase: "HURRY HARD!",
+    tierRange: { min: 3, max: 5 }
+  },
+
+  // NATIONAL TIER (4 rivals)
+  {
+    id: 'rival_jennifer',
+    firstName: 'Jennifer',
+    lastName: 'Blackwood',
+    nickname: null,
+    countryId: 'scotland',
+    dayJob: null,
+    teamName: 'Team Blackwood',
+    homeClub: 'Royal Caledonian CC',
+    skills: { draw: 85, takeout: 80, strategy: 88, pressure: 85, sweeping: 80 },
+    personality: { aggression: 50, riskTolerance: 55, patience: 70, clutchFactor: 90, consistency: 85 },
+    bio: "Three-time Scottish champion. Her ice reading is uncanny - she knows where your stone stops before you throw.",
+    catchphrase: "The ice tells you everything.",
+    tierRange: { min: 4, max: 7 }
+  },
+  {
+    id: 'rival_pierre',
+    firstName: 'Pierre',
+    lastName: 'Dubois',
+    nickname: 'Le Professeur',
+    countryId: 'switzerland',
+    dayJob: null,
+    teamName: 'Team Dubois',
+    homeClub: 'CC Genève',
+    skills: { draw: 88, takeout: 78, strategy: 90, pressure: 82, sweeping: 76 },
+    personality: { aggression: 30, riskTolerance: 35, patience: 90, clutchFactor: 85, consistency: 88 },
+    bio: "Swiss precision personified. Pierre plays curling like chess - always three ends ahead.",
+    catchphrase: "Every stone has a purpose.",
+    tierRange: { min: 4, max: 7 }
+  },
+  {
+    id: 'rival_sarah',
+    firstName: 'Sarah',
+    lastName: 'Mitchell',
+    nickname: null,
+    countryId: 'canada',
+    dayJob: null,
+    teamName: 'Team Mitchell',
+    homeClub: 'Saville Centre',
+    skills: { draw: 84, takeout: 85, strategy: 82, pressure: 80, sweeping: 82 },
+    personality: { aggression: 60, riskTolerance: 58, patience: 55, clutchFactor: 78, consistency: 78 },
+    bio: "All-around threat with no weaknesses. National team regular with Olympic aspirations.",
+    catchphrase: "Let's go!",
+    tierRange: { min: 4, max: 8 }
+  },
+  {
+    id: 'rival_kim',
+    firstName: 'Min-jun',
+    lastName: 'Kim',
+    nickname: null,
+    countryId: 'south_korea',
+    dayJob: null,
+    teamName: 'Team Kim',
+    homeClub: 'Gangneung CC',
+    skills: { draw: 86, takeout: 80, strategy: 84, pressure: 88, sweeping: 85 },
+    personality: { aggression: 45, riskTolerance: 50, patience: 65, clutchFactor: 92, consistency: 82 },
+    bio: "Olympic medalist with nerves of steel. Thrives in pressure situations.",
+    catchphrase: "Focus.",
+    tierRange: { min: 4, max: 8 }
+  },
+
+  // INTERNATIONAL/WORLDS TIER (5 rivals)
+  {
+    id: 'rival_magnus',
+    firstName: 'Magnus',
+    lastName: 'Eriksson',
+    nickname: 'The Professor',
+    countryId: 'sweden',
+    dayJob: null,
+    teamName: 'Team Eriksson',
+    homeClub: 'Karlstad CK',
+    skills: { draw: 95, takeout: 90, strategy: 98, pressure: 92, sweeping: 88 },
+    personality: { aggression: 45, riskTolerance: 40, patience: 90, clutchFactor: 95, consistency: 92 },
+    bio: "Olympic gold medalist and the most decorated skip in Swedish history. Plays curling like chess.",
+    catchphrase: "Every stone has a purpose.",
+    tierRange: { min: 5, max: 8 }
+  },
+  {
+    id: 'rival_anna',
+    firstName: 'Anna',
+    lastName: 'Hasselborg',
+    nickname: null,
+    countryId: 'sweden',
+    dayJob: null,
+    teamName: 'Team Hasselborg',
+    homeClub: 'Sundbybergs CK',
+    skills: { draw: 94, takeout: 88, strategy: 92, pressure: 94, sweeping: 86 },
+    personality: { aggression: 48, riskTolerance: 52, patience: 72, clutchFactor: 96, consistency: 90 },
+    bio: "World and Olympic champion. Known for clutch performances in must-win situations.",
+    catchphrase: "One shot at a time.",
+    tierRange: { min: 5, max: 8 }
+  },
+  {
+    id: 'rival_brad',
+    firstName: 'Brad',
+    lastName: 'Guthrie',
+    nickname: 'Old Bear',
+    countryId: 'canada',
+    dayJob: null,
+    teamName: 'Team Guthrie',
+    homeClub: 'St. John\'s CC',
+    skills: { draw: 92, takeout: 90, strategy: 95, pressure: 88, sweeping: 84 },
+    personality: { aggression: 52, riskTolerance: 48, patience: 68, clutchFactor: 88, consistency: 86 },
+    bio: "Four-time Brier champion and multiple world medalist. The old bear still has plenty of fight.",
+    catchphrase: "Trust your instincts.",
+    tierRange: { min: 5, max: 8 }
+  },
+  {
+    id: 'rival_elena',
+    firstName: 'Elena',
+    lastName: 'Stern',
+    nickname: null,
+    countryId: 'switzerland',
+    dayJob: null,
+    teamName: 'Team Stern',
+    homeClub: 'CC Bern',
+    skills: { draw: 90, takeout: 86, strategy: 88, pressure: 85, sweeping: 82 },
+    personality: { aggression: 38, riskTolerance: 42, patience: 78, clutchFactor: 82, consistency: 88 },
+    bio: "Swiss precision with German efficiency. Her technical fundamentals are textbook perfect.",
+    catchphrase: "Precision wins.",
+    tierRange: { min: 5, max: 7 }
+  },
+  {
+    id: 'rival_bruce',
+    firstName: 'Bruce',
+    lastName: 'Mouat',
+    nickname: null,
+    countryId: 'scotland',
+    dayJob: null,
+    teamName: 'Team Mouat',
+    homeClub: 'Royal Caledonian CC',
+    skills: { draw: 91, takeout: 92, strategy: 90, pressure: 90, sweeping: 88 },
+    personality: { aggression: 55, riskTolerance: 58, patience: 58, clutchFactor: 88, consistency: 85 },
+    bio: "Scotland's finest. Complete player with no weaknesses and championship pedigree.",
+    catchphrase: "Keep it clean.",
+    tierRange: { min: 5, max: 8 }
+  },
+
+  // OLYMPIC TRIALS/OLYMPICS TIER (4 rivals)
+  {
+    id: 'rival_legend_nils',
+    firstName: 'Nils',
+    lastName: 'Johansson',
+    nickname: 'The Legend',
+    countryId: 'sweden',
+    dayJob: null,
+    teamName: 'Team Johansson',
+    homeClub: 'Karlstad CK',
+    skills: { draw: 96, takeout: 94, strategy: 98, pressure: 96, sweeping: 90 },
+    personality: { aggression: 42, riskTolerance: 45, patience: 88, clutchFactor: 98, consistency: 94 },
+    bio: "Two-time Olympic gold medalist. The greatest skip of his generation, still competing at the highest level.",
+    catchphrase: "Championships are won in the final end.",
+    tierRange: { min: 6, max: 8 }
+  },
+  {
+    id: 'rival_legend_rachel',
+    firstName: 'Rachel',
+    lastName: 'Homan',
+    nickname: null,
+    countryId: 'canada',
+    dayJob: null,
+    teamName: 'Team Homan',
+    homeClub: 'Ottawa CC',
+    skills: { draw: 94, takeout: 96, strategy: 94, pressure: 90, sweeping: 88 },
+    personality: { aggression: 62, riskTolerance: 60, patience: 52, clutchFactor: 88, consistency: 86 },
+    bio: "Most decorated female skip in Canadian history. Aggressive, confident, and battle-tested.",
+    catchphrase: "Go for it.",
+    tierRange: { min: 6, max: 8 }
+  },
+  {
+    id: 'rival_legend_david',
+    firstName: 'David',
+    lastName: 'Murdoch',
+    nickname: null,
+    countryId: 'scotland',
+    dayJob: null,
+    teamName: 'Team Murdoch',
+    homeClub: 'Lockerbie Ice Rink',
+    skills: { draw: 92, takeout: 93, strategy: 96, pressure: 94, sweeping: 86 },
+    personality: { aggression: 48, riskTolerance: 52, patience: 70, clutchFactor: 94, consistency: 90 },
+    bio: "World champion and Olympic silver medalist. Master tactician who always has a plan.",
+    catchphrase: "Stay patient.",
+    tierRange: { min: 6, max: 8 }
+  },
+  {
+    id: 'rival_legend_niklas',
+    firstName: 'Niklas',
+    lastName: 'Edin',
+    nickname: null,
+    countryId: 'sweden',
+    dayJob: null,
+    teamName: 'Team Edin',
+    homeClub: 'Karlstad CK',
+    skills: { draw: 97, takeout: 95, strategy: 99, pressure: 97, sweeping: 92 },
+    personality: { aggression: 40, riskTolerance: 42, patience: 92, clutchFactor: 99, consistency: 96 },
+    bio: "The GOAT. Five-time world champion, Olympic gold medalist. The standard by which all skips are measured.",
+    catchphrase: "Stay calm.",
+    tierRange: { min: 7, max: 8 }
+  }
 ];
 
 // Learn mode level definitions
@@ -905,6 +2030,1188 @@ function saveCareer() {
   } catch (e) {
     console.warn('Could not save career data:', e);
   }
+}
+
+// ============================================
+// SEASON/TOURNAMENT STATE PERSISTENCE
+// ============================================
+
+function saveSeasonState() {
+  try {
+    // Save main season state (without activeTournament)
+    const toSave = {
+      currentSeason: seasonState.currentSeason,
+      seasonYear: seasonState.seasonYear,
+      careerTier: seasonState.careerTier,
+      qualifications: seasonState.qualifications,
+      seasonCalendar: seasonState.seasonCalendar,
+      stats: seasonState.stats,
+      rivalryHistory: seasonState.rivalryHistory,
+      playerTeam: seasonState.playerTeam
+    };
+    localStorage.setItem('curlingpro_season', JSON.stringify(toSave));
+
+    // Save active tournament separately (for crash recovery)
+    if (seasonState.activeTournament) {
+      localStorage.setItem('curlingpro_tournament', JSON.stringify(seasonState.activeTournament));
+    } else {
+      localStorage.removeItem('curlingpro_tournament');
+    }
+  } catch (e) {
+    console.warn('Could not save season state:', e);
+  }
+}
+
+function loadSeasonState() {
+  try {
+    const saved = localStorage.getItem('curlingpro_season');
+    if (saved) {
+      const data = JSON.parse(saved);
+      seasonState.currentSeason = data.currentSeason || 1;
+      seasonState.seasonYear = data.seasonYear || 2026;
+      seasonState.careerTier = data.careerTier || 'club';
+      seasonState.qualifications = data.qualifications || {
+        regionalQualified: false,
+        provincialQualified: false,
+        nationalQualified: false,
+        worldsQualified: false,
+        olympicTrialsQualified: false,
+        olympicsQualified: false
+      };
+      seasonState.seasonCalendar = data.seasonCalendar || { completed: [], available: [] };
+      seasonState.stats = data.stats || { totalWins: 0, totalLosses: 0, tournamentsWon: 0, tournamentsEntered: 0, seasonsPlayed: 0 };
+      seasonState.rivalryHistory = data.rivalryHistory || {};
+      seasonState.playerTeam = data.playerTeam || { name: 'Team Player', country: null, ranking: 1000 };
+
+      // Track if we need to save after migrations
+      let needsSave = false;
+
+      // Migration: Add club identity for saves before club-first update
+      if (!seasonState.playerTeam.club) {
+        seasonState.playerTeam.club = {
+          id: 'granite',  // Default club for legacy saves
+          name: 'Granite Curling Club',
+          colors: { primary: '#64748b', secondary: '#1e293b' },
+          crest: '🏔️'
+        };
+        needsSave = true;
+      }
+
+      // Migration: Add country lock fields for saves before deferred country update
+      if (seasonState.playerTeam.countryLocked === undefined) {
+        // If they had a country selected before, it should remain locked
+        const hadCountry = seasonState.playerTeam.country !== null && seasonState.playerTeam.country !== undefined;
+        seasonState.playerTeam.countryLocked = hadCountry;
+        seasonState.playerTeam.countryUnlockShown = hadCountry;
+        needsSave = true;
+      }
+
+      // Migration: Add careerStage based on tier
+      if (!seasonState.careerStage) {
+        const tierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+        if (tierIndex >= 3) {  // national or higher
+          seasonState.careerStage = 'national';
+        } else if (tierIndex >= 1) {
+          seasonState.careerStage = 'regional';
+        } else {
+          seasonState.careerStage = 'club';
+        }
+        needsSave = true;
+      }
+
+      // Persist migrations if any occurred
+      if (needsSave) {
+        saveSeasonState();
+      }
+    }
+
+    // Check for in-progress tournament
+    const tournamentSaved = localStorage.getItem('curlingpro_tournament');
+    if (tournamentSaved) {
+      seasonState.activeTournament = JSON.parse(tournamentSaved);
+    }
+  } catch (e) {
+    console.warn('Could not load season state:', e);
+    initializeNewSeason();
+  }
+}
+
+// ============================================
+// PRACTICE MODE - Save/Load
+// ============================================
+
+function savePracticeStats() {
+  try {
+    localStorage.setItem('curlingpro_practice', JSON.stringify(practiceStats));
+  } catch (e) {
+    console.warn('Could not save practice stats:', e);
+  }
+}
+
+function loadPracticeStats() {
+  try {
+    const saved = localStorage.getItem('curlingpro_practice');
+    if (saved) {
+      const data = JSON.parse(saved);
+      // Merge saved data with defaults (in case new drills added)
+      for (const drillType of Object.keys(PRACTICE_DRILLS)) {
+        if (data[drillType]) {
+          practiceStats[drillType] = {
+            attempts: data[drillType].attempts || 0,
+            successes: data[drillType].successes || 0,
+            unlocked: data[drillType].unlocked || 1,
+            scenarios: data[drillType].scenarios || {}
+          };
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load practice stats:', e);
+  }
+}
+
+function resetPracticeStats() {
+  practiceStats = {
+    takeout: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    bump: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    draw: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    guard: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    freeze: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
+  };
+  localStorage.removeItem('curlingpro_practice');
+}
+
+// Evaluate practice shot outcome
+function processPracticeOutcome() {
+  const drillId = gameState.practiceMode.currentDrill;
+  const scenarioId = gameState.practiceMode.currentScenario;
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+  const scenario = scenarios.find(s => s.id === scenarioId);
+
+  if (!scenario) return;
+
+  // Increment attempt count
+  gameState.practiceMode.attempts++;
+
+  // Evaluate success based on scenario type
+  const success = evaluatePracticeSuccess(scenario);
+
+  // Update stats
+  practiceStats[drillId].attempts++;
+  if (!practiceStats[drillId].scenarios[scenarioId]) {
+    practiceStats[drillId].scenarios[scenarioId] = { attempts: 0, successes: 0 };
+  }
+  practiceStats[drillId].scenarios[scenarioId].attempts++;
+
+  if (success) {
+    gameState.practiceMode.successes++;
+    gameState.practiceMode.currentStreak++;
+    practiceStats[drillId].successes++;
+    practiceStats[drillId].scenarios[scenarioId].successes++;
+
+    // Check for unlock progression
+    checkPracticeUnlocks(drillId);
+
+    // Crowd cheers for success (louder for streaks)
+    const streakBonus = Math.min(0.3, gameState.practiceMode.currentStreak * 0.05);
+    soundManager.playCrowdCheer(0.6 + streakBonus);
+  } else {
+    gameState.practiceMode.currentStreak = 0;
+
+    // Sympathetic crowd reaction for miss
+    soundManager.playCrowdOoh();
+  }
+
+  // Save stats
+  savePracticeStats();
+
+  // Update UI
+  document.getElementById('practice-attempts').textContent = gameState.practiceMode.attempts;
+  document.getElementById('practice-successes').textContent = gameState.practiceMode.successes;
+
+  // Show result popup after a short delay
+  setTimeout(() => {
+    showPracticeResult(success);
+  }, 500);
+}
+
+// Evaluate if the practice shot was successful
+function evaluatePracticeSuccess(scenario) {
+  const target = scenario.target;
+
+  // Find the thrown stone (last stone of player's team)
+  const thrownStone = gameState.stones.find(s =>
+    s.team === 'red' && !s.outOfPlay
+  );
+
+  switch (target.type) {
+    case 'takeout': {
+      // Count how many opponent stones were removed
+      const preThrowOpponentCount = scenario.stones.filter(s => s.team === 'yellow').length;
+      const currentOpponentCount = gameState.stones.filter(s =>
+        s.team === 'yellow' && !s.outOfPlay
+      ).length;
+      const removedCount = preThrowOpponentCount - currentOpponentCount;
+      return removedCount >= (target.minRemoved || 1);
+    }
+
+    case 'draw': {
+      // Check if stone is in the target ring
+      if (!thrownStone || thrownStone.outOfPlay) return false;
+
+      const x = thrownStone.mesh.position.x;
+      const z = thrownStone.mesh.position.z;
+      const distFromButton = Math.sqrt(x * x + Math.pow(z - 41.07, 2));
+
+      const ringDistances = {
+        button: 0.15,
+        fourFoot: 0.61,
+        eightFoot: 1.22,
+        twelveFoot: 1.83
+      };
+
+      const targetDist = ringDistances[target.ring] || 1.83;
+      return distFromButton <= targetDist;
+    }
+
+    case 'guard': {
+      // Check if stone is in guard zone (past hog line, before house)
+      if (!thrownStone || thrownStone.outOfPlay) return false;
+
+      const z = thrownStone.mesh.position.z;
+      const x = thrownStone.mesh.position.x;
+      const distFromButton = Math.sqrt(x * x + Math.pow(z - 41.07, 2));
+
+      // Guard should be past far hog line (34.67) but not in house (dist > 1.83)
+      const isInGuardZone = z >= 34.67 && z < 39.24 && distFromButton > 1.83;
+
+      // Additional check for specific guard types
+      if (target.zone === 'center') {
+        return isInGuardZone && Math.abs(x) < 0.5;
+      } else if (target.zone === 'corner') {
+        return isInGuardZone && Math.abs(x) >= 0.3;
+      } else if (target.zone === 'tight') {
+        return isInGuardZone && z >= 38.0;
+      } else if (target.zone === 'long') {
+        return isInGuardZone && z < 37.0;
+      }
+
+      return isInGuardZone;
+    }
+
+    case 'freeze': {
+      // Check if thrown stone is touching target stone
+      if (!thrownStone || thrownStone.outOfPlay) return false;
+
+      const targetStoneIndex = target.stoneIndex || 0;
+      if (targetStoneIndex >= scenario.stones.length) return false;
+
+      // Find the corresponding stone in current game state
+      const targetStoneData = scenario.stones[targetStoneIndex];
+      const targetStone = gameState.stones.find(s =>
+        s.team === targetStoneData.team &&
+        s !== thrownStone &&
+        !s.outOfPlay
+      );
+
+      if (!targetStone) return false;
+
+      // Check if touching (distance <= 2 * stone radius)
+      const dx = thrownStone.mesh.position.x - targetStone.mesh.position.x;
+      const dz = thrownStone.mesh.position.z - targetStone.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      return dist <= 0.32;  // 2 * STONE_RADIUS (0.145 * 2 ≈ 0.29, with small buffer)
+    }
+
+    case 'bump': {
+      // Check if target stone moved to target zone
+      const targetStoneIndex = target.stoneIndex || 0;
+      const targetStoneData = scenario.stones[targetStoneIndex];
+
+      const targetStone = gameState.stones.find(s =>
+        s.team === targetStoneData.team && !s.outOfPlay
+      );
+
+      if (!targetStone) return false;
+
+      const x = targetStone.mesh.position.x;
+      const z = targetStone.mesh.position.z;
+      const distFromButton = Math.sqrt(x * x + Math.pow(z - 41.07, 2));
+
+      if (target.zone === 'button') {
+        return distFromButton <= 0.3;
+      } else if (target.zone === 'house') {
+        return distFromButton <= 1.83;
+      } else if (target.zone === 'backHouse') {
+        return z >= 41.5 && distFromButton <= 1.83;
+      }
+
+      return distFromButton <= 1.83;
+    }
+
+    case 'hitroll': {
+      // Must hit (remove) stone AND have thrown stone in target zone
+      const preThrowOpponentCount = scenario.stones.filter(s => s.team === 'yellow').length;
+      const currentOpponentCount = gameState.stones.filter(s =>
+        s.team === 'yellow' && !s.outOfPlay
+      ).length;
+      const removedCount = preThrowOpponentCount - currentOpponentCount;
+
+      if (removedCount < 1) return false;
+
+      if (!thrownStone || thrownStone.outOfPlay) return false;
+
+      const x = thrownStone.mesh.position.x;
+      const z = thrownStone.mesh.position.z;
+      const distFromButton = Math.sqrt(x * x + Math.pow(z - 41.07, 2));
+
+      if (target.rollZone === 'house') {
+        return distFromButton <= 1.83;
+      } else if (target.rollZone === 'fourFoot') {
+        return distFromButton <= 0.61;
+      }
+
+      return distFromButton <= 1.83;
+    }
+
+    default:
+      return false;
+  }
+}
+
+// Check if player unlocked new difficulty level
+function checkPracticeUnlocks(drillId) {
+  const stats = practiceStats[drillId];
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+
+  // Find scenarios at current unlocked level
+  const currentLevelScenarios = scenarios.filter(s => s.difficulty === stats.unlocked);
+
+  // Check if player has completed all current level scenarios 3+ times
+  let allCompleted = true;
+  for (const scenario of currentLevelScenarios) {
+    const scenarioStats = stats.scenarios[scenario.id] || { attempts: 0, successes: 0 };
+    if (scenarioStats.successes < 3) {
+      allCompleted = false;
+      break;
+    }
+  }
+
+  // Unlock next level if all completed
+  if (allCompleted && stats.unlocked < 5) {
+    stats.unlocked++;
+  }
+}
+
+// Show practice result popup
+function showPracticeResult(success) {
+  const resultEl = document.getElementById('practice-result');
+  const iconEl = document.getElementById('practice-result-icon');
+  const textEl = document.getElementById('practice-result-text');
+
+  if (success) {
+    iconEl.textContent = '✅';
+    iconEl.style.color = '#4ade80';
+    textEl.textContent = 'Success!';
+    textEl.style.color = '#4ade80';
+  } else {
+    iconEl.textContent = '❌';
+    iconEl.style.color = '#f87171';
+    textEl.textContent = 'Try Again';
+    textEl.style.color = '#f87171';
+  }
+
+  resultEl.style.display = 'block';
+}
+
+function initializeNewSeason() {
+  seasonState.currentSeason = (seasonState.currentSeason || 0) + 1;
+  seasonState.seasonYear = 2025 + seasonState.currentSeason;
+
+  // Reset qualifications for new season (tier is preserved)
+  const tierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+  seasonState.qualifications = {
+    regionalQualified: tierIndex >= 1,
+    provincialQualified: tierIndex >= 2,
+    nationalQualified: tierIndex >= 3,
+    worldsQualified: false,  // Must re-earn each season
+    olympicTrialsQualified: false,
+    olympicsQualified: false
+  };
+
+  // Generate available tournaments for this season based on tier
+  seasonState.seasonCalendar = {
+    completed: [],
+    available: getAvailableTournaments()
+  };
+
+  seasonState.activeTournament = null;
+  saveSeasonState();
+}
+
+function getAvailableTournaments() {
+  // Return tournaments available based on current tier and qualifications
+  return TOURNAMENT_DEFINITIONS.filter(t => {
+    const tierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+    const tournamentTierIndex = CAREER_TIERS.indexOf(t.tier);
+
+    // Check tier requirement
+    if (tournamentTierIndex > tierIndex) return false;
+
+    // Check qualification requirement
+    if (t.requirements.qualification) {
+      if (!seasonState.qualifications[t.requirements.qualification]) return false;
+    }
+
+    // Check if already completed this season
+    const alreadyCompleted = seasonState.seasonCalendar.completed.some(c => c.tournamentId === t.id);
+    if (alreadyCompleted) return false;
+
+    return true;
+  }).map(t => t.id);
+}
+
+// Generate a random opponent for tournaments
+function generateRandomOpponent(tierLevel, excludeCountryId = null) {
+  // Pick country (avoid player's country for variety)
+  const availableCountries = CURLING_COUNTRIES.filter(c => c.id !== excludeCountryId);
+  const country = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+
+  // Get name data for country
+  const firstNames = OPPONENT_NAME_DATA.firstNames[country.id] || OPPONENT_NAME_DATA.firstNames.default;
+  const lastNames = OPPONENT_NAME_DATA.lastNames[country.id] || OPPONENT_NAME_DATA.lastNames.default;
+  const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+
+  // Day job (pros more common at higher tiers)
+  const proProbability = tierLevel / 10;
+  const dayJob = Math.random() < proProbability ? null : DAY_JOBS[Math.floor(Math.random() * DAY_JOBS.length)];
+
+  // Home club
+  const clubs = HOME_CLUBS[country.id] || HOME_CLUBS.default;
+  const homeClub = clubs[Math.floor(Math.random() * clubs.length)];
+
+  // Personality - random with some clustering
+  const personalityArchetype = Math.random();
+  let aggression, consistency, riskTolerance, patience, clutchFactor;
+
+  if (personalityArchetype < 0.25) {
+    // Aggressive type
+    aggression = 60 + Math.random() * 40;
+    patience = 20 + Math.random() * 40;
+    riskTolerance = 55 + Math.random() * 35;
+  } else if (personalityArchetype < 0.5) {
+    // Conservative type
+    aggression = 10 + Math.random() * 40;
+    patience = 60 + Math.random() * 35;
+    riskTolerance = 20 + Math.random() * 40;
+  } else {
+    // Balanced type
+    aggression = 35 + Math.random() * 30;
+    patience = 40 + Math.random() * 30;
+    riskTolerance = 35 + Math.random() * 30;
+  }
+  consistency = 40 + Math.random() * 50;
+  clutchFactor = 40 + Math.random() * 50;
+
+  // Skills based on tier (higher tier = better skills)
+  const baseSkill = 40 + (tierLevel * 6);
+  const skillVariance = 15;
+  const skills = {
+    draw: Math.min(100, Math.max(30, baseSkill + (Math.random() - 0.5) * skillVariance * 2)),
+    takeout: Math.min(100, Math.max(30, baseSkill + (Math.random() - 0.5) * skillVariance * 2)),
+    strategy: Math.min(100, Math.max(30, baseSkill + (Math.random() - 0.5) * skillVariance * 2)),
+    pressure: Math.min(100, Math.max(30, baseSkill + (Math.random() - 0.5) * skillVariance * 2)),
+    sweeping: Math.min(100, Math.max(30, baseSkill + (Math.random() - 0.5) * skillVariance * 2))
+  };
+
+  // Generate bio
+  const bioTemplates = [
+    `${firstName} from ${country.name} curls out of ${homeClub}.`,
+    dayJob ? `A ${dayJob.toLowerCase()} by day, ${firstName} is a fierce competitor.` : `${firstName} is a rising talent from ${country.name}.`,
+    `Known at ${homeClub} for ${['clutch shots', 'steady play', 'aggressive takeouts', 'beautiful draws'][Math.floor(Math.random() * 4)]}.`
+  ];
+  const bio = bioTemplates[Math.floor(Math.random() * bioTemplates.length)];
+
+  return {
+    id: `gen_${country.id}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+    firstName,
+    lastName,
+    nickname: null,
+    countryId: country.id,
+    dayJob,
+    teamName: tierLevel >= 3 ? `Team ${lastName}` : null,
+    homeClub,
+    skills,
+    personality: { aggression, riskTolerance, patience, clutchFactor, consistency },
+    bio,
+    catchphrase: null,
+    tierRange: { min: Math.max(1, tierLevel - 1), max: Math.min(8, tierLevel + 1) },
+    isRival: false,
+    isGenerated: true
+  };
+}
+
+// Get eligible rivals for a tournament tier
+function getEligibleRivals(tierLevel) {
+  return PERSISTENT_RIVALS.filter(rival => {
+    return tierLevel >= rival.tierRange.min && tierLevel <= rival.tierRange.max;
+  });
+}
+
+// Select opponent for a match (40% rival, 60% generated)
+function selectOpponentForMatch(tierLevel) {
+  const encounterRival = Math.random() < 0.4;
+
+  if (encounterRival) {
+    const eligibleRivals = getEligibleRivals(tierLevel);
+    if (eligibleRivals.length > 0) {
+      // Prefer rivals player hasn't faced recently
+      const sortedByRecency = eligibleRivals.sort((a, b) => {
+        const aHistory = seasonState.rivalryHistory[a.id];
+        const bHistory = seasonState.rivalryHistory[b.id];
+        const aLast = aHistory ? aHistory.lastMet : 0;
+        const bLast = bHistory ? bHistory.lastMet : 0;
+        return aLast - bLast;
+      });
+
+      // Pick from the least-recently-faced rivals
+      const pickIndex = Math.floor(Math.random() * Math.min(3, sortedByRecency.length));
+      return { ...sortedByRecency[pickIndex], isRival: true };
+    }
+  }
+
+  // Generate random opponent
+  return generateRandomOpponent(tierLevel, seasonState.playerTeam.country?.id);
+}
+
+// Get country object from ID
+function getCountryById(countryId) {
+  return CURLING_COUNTRIES.find(c => c.id === countryId) || CURLING_COUNTRIES[0];
+}
+
+// ============================================
+// TOURNAMENT ENGINE
+// ============================================
+
+// Create and start a new tournament
+function createTournament(tournamentId) {
+  const definition = TOURNAMENT_DEFINITIONS.find(t => t.id === tournamentId);
+  if (!definition) {
+    console.error('Tournament not found:', tournamentId);
+    return null;
+  }
+
+  // Get tier level for opponent generation
+  const tierIndex = CAREER_TIERS.indexOf(definition.tier) + 1;
+
+  // Generate tournament field
+  const teams = generateTournamentField(definition, tierIndex);
+
+  // Generate bracket based on format
+  let bracket;
+  if (definition.format.type === 'single_elimination') {
+    bracket = generateSingleEliminationBracket(teams, definition.format.bestOf);
+  } else if (definition.format.type === 'page_playoff') {
+    bracket = generatePagePlayoffBracket(teams, definition.format.bestOf);
+  } else {
+    // Default to single elimination
+    bracket = generateSingleEliminationBracket(teams, definition.format.bestOf);
+  }
+
+  // Create tournament state
+  const tournament = {
+    definition: definition,
+    phase: 'playoff',  // For now, skip round robin and go straight to playoffs
+    teams: teams,
+    bracket: bracket,
+    currentMatchup: null,
+    startTime: Date.now(),
+    result: null
+  };
+
+  // Set the first match
+  tournament.currentMatchup = getNextPlayerMatch(tournament);
+
+  // Save to season state
+  seasonState.activeTournament = tournament;
+  seasonState.stats.tournamentsEntered++;
+  saveSeasonState();
+
+  return tournament;
+}
+
+// Generate the field of teams for a tournament
+function generateTournamentField(definition, tierLevel) {
+  const teams = [];
+  const numTeams = definition.format.teams;
+
+  // Add player team first (seed 1)
+  const playerCountry = seasonState.playerTeam.country || null;
+  const playerClub = seasonState.playerTeam.club || { id: null, name: 'My Club', colors: { primary: '#4ade80', secondary: '#1a1a2e' }, crest: '🥌' };
+  const showCountryInBracket = seasonState.playerTeam.countryLocked && playerCountry;
+
+  teams.push({
+    id: 'player',
+    name: seasonState.playerTeam.name || 'Team Player',
+    country: showCountryInBracket ? playerCountry : null,
+    club: playerClub,
+    seed: 1,
+    isPlayer: true,
+    isRival: false,
+    rivalId: null,
+    opponent: null  // Player doesn't have opponent data
+  });
+
+  // Determine how many rivals to include (1-3 based on tournament size)
+  const maxRivals = Math.min(Math.floor(numTeams / 3), 3);
+  const eligibleRivals = getEligibleRivals(tierLevel);
+
+  // Shuffle and pick rivals
+  const shuffledRivals = [...eligibleRivals].sort(() => Math.random() - 0.5);
+  const selectedRivals = shuffledRivals.slice(0, maxRivals);
+
+  // Add rival teams
+  selectedRivals.forEach((rival, index) => {
+    const country = getCountryById(rival.countryId);
+    teams.push({
+      id: `rival_${rival.id}`,
+      name: rival.teamName || `Team ${rival.lastName}`,
+      country: country,
+      seed: teams.length + 1,
+      isPlayer: false,
+      isRival: true,
+      rivalId: rival.id,
+      opponent: rival
+    });
+  });
+
+  // Fill remaining spots with generated opponents
+  while (teams.length < numTeams) {
+    const opponent = generateRandomOpponent(tierLevel, playerCountry.id);
+    const country = getCountryById(opponent.countryId);
+    teams.push({
+      id: opponent.id,
+      name: opponent.teamName || `Team ${opponent.lastName}`,
+      country: country,
+      seed: teams.length + 1,
+      isPlayer: false,
+      isRival: false,
+      rivalId: null,
+      opponent: opponent
+    });
+  }
+
+  // Shuffle seeds 2+ (keep player at seed 1 for easier bracket positioning)
+  const otherTeams = teams.slice(1).sort(() => Math.random() - 0.5);
+  otherTeams.forEach((team, index) => {
+    team.seed = index + 2;
+  });
+
+  return [teams[0], ...otherTeams];
+}
+
+// Generate single elimination bracket
+function generateSingleEliminationBracket(teams, bestOf = 1) {
+  const numTeams = teams.length;
+  const numRounds = Math.ceil(Math.log2(numTeams));
+  const rounds = [];
+
+  // Round names
+  const roundNames = {
+    1: 'Final',
+    2: 'Semifinals',
+    3: 'Quarterfinals',
+    4: 'Round of 16',
+    5: 'Round of 32'
+  };
+
+  // Create bracket structure from finals backwards
+  let matchesInRound = 1;
+  for (let round = 0; round < numRounds; round++) {
+    const roundNum = numRounds - round;
+    const roundName = roundNames[roundNum] || `Round ${roundNum}`;
+    const matchups = [];
+
+    for (let i = 0; i < matchesInRound; i++) {
+      matchups.push({
+        id: `r${roundNum}_m${i + 1}`,
+        roundNum: roundNum,
+        position: i,
+        team1: null,
+        team2: null,
+        winner: null,
+        scores: { team1: null, team2: null },
+        status: 'pending',  // pending, ready, in_progress, complete
+        bestOf: bestOf,
+        games: [],  // For best-of series
+        nextMatchId: round > 0 ? `r${roundNum + 1}_m${Math.floor(i / 2) + 1}` : null,
+        nextMatchSlot: round > 0 ? (i % 2 === 0 ? 'team1' : 'team2') : null
+      });
+    }
+
+    rounds.unshift({
+      name: roundName,
+      roundNum: roundNum,
+      matchups: matchups
+    });
+
+    matchesInRound *= 2;
+  }
+
+  // Seed teams into first round using standard bracket seeding
+  const firstRound = rounds[0];
+  const bracketOrder = getBracketSeedOrder(numTeams);
+
+  for (let i = 0; i < firstRound.matchups.length; i++) {
+    const match = firstRound.matchups[i];
+    const seed1Index = bracketOrder[i * 2];
+    const seed2Index = bracketOrder[i * 2 + 1];
+
+    match.team1 = seed1Index < teams.length ? teams[seed1Index] : null;
+    match.team2 = seed2Index < teams.length ? teams[seed2Index] : null;
+
+    // If one team has a bye, advance them automatically
+    if (match.team1 && !match.team2) {
+      match.winner = 'team1';
+      match.status = 'complete';
+      advanceWinner(rounds, match);
+    } else if (match.team2 && !match.team1) {
+      match.winner = 'team2';
+      match.status = 'complete';
+      advanceWinner(rounds, match);
+    } else if (match.team1 && match.team2) {
+      match.status = 'ready';
+    }
+  }
+
+  return { type: 'single_elimination', rounds: rounds };
+}
+
+// Generate Page Playoff bracket (common in curling)
+// 1v2 game (winner to final), 3v4 game (loser out), then loser of 1v2 vs winner of 3v4 (winner to final)
+function generatePagePlayoffBracket(teams, bestOf = 1) {
+  // Page playoff requires exactly 4 teams in playoffs
+  // Take top 4 seeds
+  const playoffTeams = teams.slice(0, 4);
+
+  const rounds = [
+    {
+      name: 'Page Playoff',
+      roundNum: 1,
+      matchups: [
+        {
+          id: 'page_1v2',
+          roundNum: 1,
+          position: 0,
+          team1: playoffTeams[0],  // #1 seed
+          team2: playoffTeams[1],  // #2 seed
+          winner: null,
+          scores: { team1: null, team2: null },
+          status: 'ready',
+          bestOf: bestOf,
+          games: [],
+          nextMatchId: 'final',
+          nextMatchSlot: 'team1',
+          loserNextMatchId: 'page_semi',
+          loserNextMatchSlot: 'team1',
+          description: '1 vs 2 - Winner to Final'
+        },
+        {
+          id: 'page_3v4',
+          roundNum: 1,
+          position: 1,
+          team1: playoffTeams[2],  // #3 seed
+          team2: playoffTeams[3],  // #4 seed
+          winner: null,
+          scores: { team1: null, team2: null },
+          status: 'ready',
+          bestOf: bestOf,
+          games: [],
+          nextMatchId: 'page_semi',
+          nextMatchSlot: 'team2',
+          loserNextMatchId: null,  // Loser is eliminated
+          description: '3 vs 4 - Loser Eliminated'
+        }
+      ]
+    },
+    {
+      name: 'Page Semifinal',
+      roundNum: 2,
+      matchups: [
+        {
+          id: 'page_semi',
+          roundNum: 2,
+          position: 0,
+          team1: null,  // Loser of 1v2
+          team2: null,  // Winner of 3v4
+          winner: null,
+          scores: { team1: null, team2: null },
+          status: 'pending',
+          bestOf: bestOf,
+          games: [],
+          nextMatchId: 'final',
+          nextMatchSlot: 'team2',
+          loserNextMatchId: null,  // Loser gets bronze
+          description: 'Semifinal - Winner to Final'
+        }
+      ]
+    },
+    {
+      name: 'Final',
+      roundNum: 3,
+      matchups: [
+        {
+          id: 'final',
+          roundNum: 3,
+          position: 0,
+          team1: null,  // Winner of 1v2
+          team2: null,  // Winner of semifinal
+          winner: null,
+          scores: { team1: null, team2: null },
+          status: 'pending',
+          bestOf: bestOf,
+          games: [],
+          nextMatchId: null,
+          description: 'Championship Final'
+        }
+      ]
+    }
+  ];
+
+  return { type: 'page_playoff', rounds: rounds };
+}
+
+// Get standard bracket seeding order (1v8, 4v5, 2v7, 3v6 for 8 teams)
+function getBracketSeedOrder(numTeams) {
+  if (numTeams <= 2) return [0, 1];
+  if (numTeams <= 4) return [0, 3, 1, 2];
+  if (numTeams <= 8) return [0, 7, 3, 4, 1, 6, 2, 5];
+  // For larger brackets, use recursive algorithm
+  const order = [];
+  const halfSize = numTeams / 2;
+  const smallerOrder = getBracketSeedOrder(halfSize);
+  for (let i = 0; i < smallerOrder.length; i++) {
+    order.push(smallerOrder[i]);
+    order.push(numTeams - 1 - smallerOrder[i]);
+  }
+  return order;
+}
+
+// Advance winner to next match in bracket
+function advanceWinner(rounds, match) {
+  if (!match.nextMatchId) return;
+
+  const winnerTeam = match.winner === 'team1' ? match.team1 : match.team2;
+
+  // Find the next match
+  for (const round of rounds) {
+    for (const nextMatch of round.matchups) {
+      if (nextMatch.id === match.nextMatchId) {
+        nextMatch[match.nextMatchSlot] = winnerTeam;
+
+        // Check if both teams are now set
+        if (nextMatch.team1 && nextMatch.team2) {
+          nextMatch.status = 'ready';
+        }
+        return;
+      }
+    }
+  }
+}
+
+// Advance loser (for page playoff)
+function advanceLoser(rounds, match) {
+  if (!match.loserNextMatchId) return;
+
+  const loserTeam = match.winner === 'team1' ? match.team2 : match.team1;
+
+  // Find the next match for loser
+  for (const round of rounds) {
+    for (const nextMatch of round.matchups) {
+      if (nextMatch.id === match.loserNextMatchId) {
+        nextMatch[match.loserNextMatchSlot] = loserTeam;
+
+        // Check if both teams are now set
+        if (nextMatch.team1 && nextMatch.team2) {
+          nextMatch.status = 'ready';
+        }
+        return;
+      }
+    }
+  }
+}
+
+// Get the next match the player needs to play
+function getNextPlayerMatch(tournament) {
+  if (!tournament || !tournament.bracket) return null;
+
+  for (const round of tournament.bracket.rounds) {
+    for (const match of round.matchups) {
+      if (match.status === 'ready') {
+        // Check if player is in this match
+        const playerInMatch = (match.team1 && match.team1.isPlayer) ||
+                             (match.team2 && match.team2.isPlayer);
+        if (playerInMatch) {
+          return match;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+// Get opponent for current match
+function getCurrentMatchOpponent(tournament) {
+  const match = tournament.currentMatchup;
+  if (!match) return null;
+
+  if (match.team1 && match.team1.isPlayer) {
+    return match.team2;
+  } else if (match.team2 && match.team2.isPlayer) {
+    return match.team1;
+  }
+  return null;
+}
+
+// Update bracket after a match is played
+function updateBracketWithResult(playerWon, playerScore, opponentScore) {
+  const tournament = seasonState.activeTournament;
+  if (!tournament || !tournament.currentMatchup) return null;
+
+  const match = tournament.currentMatchup;
+
+  // Determine which team the player is
+  const playerIsTeam1 = match.team1 && match.team1.isPlayer;
+
+  // Set scores
+  match.scores = {
+    team1: playerIsTeam1 ? playerScore : opponentScore,
+    team2: playerIsTeam1 ? opponentScore : playerScore
+  };
+
+  // Set winner
+  if (playerWon) {
+    match.winner = playerIsTeam1 ? 'team1' : 'team2';
+  } else {
+    match.winner = playerIsTeam1 ? 'team2' : 'team1';
+  }
+
+  match.status = 'complete';
+
+  // Record game in series (for best-of)
+  match.games.push({
+    team1Score: match.scores.team1,
+    team2Score: match.scores.team2,
+    winner: match.winner
+  });
+
+  // Update stats
+  if (playerWon) {
+    seasonState.stats.totalWins++;
+  } else {
+    seasonState.stats.totalLosses++;
+  }
+
+  // Update rivalry history if opponent is a rival
+  const opponent = getCurrentMatchOpponent(tournament);
+  if (opponent && opponent.isRival && opponent.rivalId) {
+    if (!seasonState.rivalryHistory[opponent.rivalId]) {
+      seasonState.rivalryHistory[opponent.rivalId] = { wins: 0, losses: 0, lastMet: null };
+    }
+    if (playerWon) {
+      seasonState.rivalryHistory[opponent.rivalId].wins++;
+    } else {
+      seasonState.rivalryHistory[opponent.rivalId].losses++;
+    }
+    seasonState.rivalryHistory[opponent.rivalId].lastMet = Date.now();
+  }
+
+  // Advance winner in bracket
+  advanceWinner(tournament.bracket.rounds, match);
+
+  // For page playoff, also advance loser if applicable
+  if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
+    advanceLoser(tournament.bracket.rounds, match);
+  }
+
+  // Check if player is eliminated or tournament is complete
+  const result = checkTournamentStatus(tournament, playerWon);
+
+  if (result.tournamentComplete || result.playerEliminated) {
+    completeTournament(tournament, result);
+  } else {
+    // Find next match for player
+    tournament.currentMatchup = getNextPlayerMatch(tournament);
+  }
+
+  saveSeasonState();
+
+  return result;
+}
+
+// Check tournament status after a match
+function checkTournamentStatus(tournament, playerWon) {
+  const result = {
+    tournamentComplete: false,
+    playerEliminated: false,
+    playerWon: playerWon,
+    placement: null,
+    isFinal: false,
+    isChampion: false
+  };
+
+  // Check if this was the final
+  const finalMatch = tournament.bracket.rounds[tournament.bracket.rounds.length - 1].matchups[0];
+  if (tournament.currentMatchup.id === finalMatch.id) {
+    result.tournamentComplete = true;
+    result.isFinal = true;
+    if (playerWon) {
+      result.isChampion = true;
+      result.placement = 1;
+    } else {
+      result.placement = 2;
+    }
+    return result;
+  }
+
+  // Check if player is eliminated
+  if (!playerWon) {
+    // In single elimination, loss = elimination
+    if (tournament.bracket.type === 'single_elimination') {
+      result.playerEliminated = true;
+      result.tournamentComplete = true;
+      // Calculate placement based on round
+      result.placement = calculatePlacement(tournament);
+    }
+    // In page playoff, check if there's a loser bracket path
+    else if (tournament.bracket.type === 'page_playoff') {
+      const match = tournament.currentMatchup;
+      if (!match.loserNextMatchId) {
+        result.playerEliminated = true;
+        result.tournamentComplete = true;
+        result.placement = calculatePlacement(tournament);
+      }
+    }
+  }
+
+  return result;
+}
+
+// Calculate player's placement in tournament
+function calculatePlacement(tournament) {
+  // Count remaining teams
+  let teamsRemaining = 0;
+  for (const round of tournament.bracket.rounds) {
+    for (const match of round.matchups) {
+      if (match.status !== 'complete') {
+        if (match.team1) teamsRemaining++;
+        if (match.team2) teamsRemaining++;
+      }
+    }
+  }
+
+  // Placement is based on when you were eliminated
+  // Lost in final = 2nd, Lost in semis = 3rd-4th, etc.
+  const totalTeams = tournament.teams.length;
+  return Math.max(2, Math.min(totalTeams, teamsRemaining + 1));
+}
+
+// Complete tournament and update season
+function completeTournament(tournament, result) {
+  const definition = tournament.definition;
+
+  // Create tournament result record
+  const tournamentResult = {
+    tournamentId: definition.id,
+    tournamentName: definition.name,
+    season: seasonState.currentSeason,
+    placement: result.placement,
+    isChampion: result.isChampion,
+    completedAt: Date.now()
+  };
+
+  // Add to completed tournaments
+  seasonState.seasonCalendar.completed.push(tournamentResult);
+
+  // Remove from available
+  const availableIndex = seasonState.seasonCalendar.available.indexOf(definition.id);
+  if (availableIndex > -1) {
+    seasonState.seasonCalendar.available.splice(availableIndex, 1);
+  }
+
+  // Handle rewards for winning
+  if (result.isChampion) {
+    seasonState.stats.tournamentsWon++;
+
+    // Grant qualification
+    if (definition.rewards.qualifiesFor) {
+      seasonState.qualifications[definition.rewards.qualifiesFor] = true;
+    }
+
+    // Tier advancement
+    if (definition.rewards.tierAdvance) {
+      const currentTierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+      if (currentTierIndex < CAREER_TIERS.length - 1) {
+        seasonState.careerTier = CAREER_TIERS[currentTierIndex + 1];
+      }
+    }
+
+    // Refresh available tournaments (new ones may be unlocked)
+    seasonState.seasonCalendar.available = getAvailableTournaments();
+  }
+
+  // Store result in tournament
+  tournament.result = result;
+  tournament.phase = 'complete';
+
+  saveSeasonState();
+
+  return tournamentResult;
+}
+
+// Exit/abandon current tournament
+function abandonTournament() {
+  if (!seasonState.activeTournament) return;
+
+  // Clear active tournament without recording result
+  seasonState.activeTournament = null;
+  saveSeasonState();
+}
+
+// Get tournament definition by ID
+function getTournamentDefinition(tournamentId) {
+  return TOURNAMENT_DEFINITIONS.find(t => t.id === tournamentId);
+}
+
+// Check if player can enter a tournament
+function canEnterTournament(tournamentId) {
+  const definition = getTournamentDefinition(tournamentId);
+  if (!definition) return false;
+
+  // Check if already in a tournament
+  if (seasonState.activeTournament) return false;
+
+  // Check tier requirement
+  const playerTierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+  const tournamentTierIndex = CAREER_TIERS.indexOf(definition.requirements.minTier);
+  if (playerTierIndex < tournamentTierIndex) return false;
+
+  // Check qualification requirement
+  if (definition.requirements.qualification) {
+    if (!seasonState.qualifications[definition.requirements.qualification]) return false;
+  }
+
+  // Check if already completed this season
+  const alreadyCompleted = seasonState.seasonCalendar.completed.some(
+    c => c.tournamentId === definition.id
+  );
+  if (alreadyCompleted) return false;
+
+  return true;
 }
 
 function handleCareerResult(won) {
@@ -3613,6 +5920,9 @@ function releaseStone() {
     };
   }
 
+  // Capture pre-throw state for shot feedback system
+  capturePreThrowState();
+
   gameState.phase = 'throwing';
   document.getElementById('hold-warning').style.display = 'none';
   document.getElementById('power-display').style.display = 'none';
@@ -4474,6 +6784,235 @@ window.dismissShotFeedback = function() {
   setTimeout(() => nextTurn(), 500);
 };
 
+// ============================================
+// SHOT FEEDBACK TOAST SYSTEM
+// ============================================
+
+// Capture pre-throw state for shot evaluation
+function capturePreThrowState() {
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+
+  lastShotInfo.preThrowState = {
+    stones: gameState.stones.map(s => ({
+      team: s.team,
+      x: s.mesh.position.x,
+      z: s.mesh.position.z,
+      outOfPlay: s.outOfPlay,
+      distFromButton: Math.sqrt(
+        Math.pow(s.mesh.position.x - buttonPos.x, 2) +
+        Math.pow(s.mesh.position.z - buttonPos.z, 2)
+      )
+    }))
+  };
+
+  // Store current team
+  lastShotInfo.team = gameState.currentTeam;
+}
+
+// Store player's shot intent (called when player sets target)
+function capturePlayerShotIntent(targetX, targetZ, shotType, effort) {
+  lastShotInfo.targetX = targetX;
+  lastShotInfo.targetZ = targetZ;
+  lastShotInfo.shotType = shotType || 'draw';  // Default to draw if not specified
+  lastShotInfo.effort = effort;
+}
+
+// Evaluate shot outcome and return feedback type
+function evaluateShotOutcome() {
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+  const config = SHOT_FEEDBACK_CONFIG;
+
+  // Find the stone that was just thrown (most recent for the team that just threw)
+  const throwingTeam = lastShotInfo.team;
+  const teamStones = gameState.stones.filter(s => s.team === throwingTeam);
+  const thrownStone = teamStones[teamStones.length - 1];
+
+  if (!thrownStone) return null;
+
+  // Check if stone went out of play
+  if (thrownStone.outOfPlay) {
+    // Analyze what happened before giving up
+    const preState = lastShotInfo.preThrowState;
+    if (preState) {
+      const opponentTeam = throwingTeam === 'red' ? 'yellow' : 'red';
+      const preOpponentStones = preState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+      const currentOpponentStones = gameState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+
+      // Check if we removed opponent stones (successful takeout even if we rolled out)
+      const removedCount = preOpponentStones.length - currentOpponentStones.length;
+      if (removedCount > 0) {
+        if (removedCount > 1) {
+          return { type: 'success', category: 'doubleTakeout' };
+        }
+        return { type: 'success', category: 'takeout' };
+      }
+    }
+
+    // Stone went out without accomplishing anything - check for near miss
+    const reason = thrownStone.outOfPlayReason;
+    if (reason === 'went past back line') {
+      return { type: 'nearMiss', category: 'justHeavy' };
+    } else if (reason === 'hit side wall') {
+      return { type: 'nearMiss', category: 'justWide' };
+    }
+    // Clear miss - no feedback
+    return null;
+  }
+
+  const stoneX = thrownStone.mesh.position.x;
+  const stoneZ = thrownStone.mesh.position.z;
+  const distFromButton = Math.sqrt(
+    Math.pow(stoneX - buttonPos.x, 2) +
+    Math.pow(stoneZ - buttonPos.z, 2)
+  );
+
+  // Check for takeouts
+  const preState = lastShotInfo.preThrowState;
+  if (preState) {
+    const opponentTeam = throwingTeam === 'red' ? 'yellow' : 'red';
+    const preOpponentStones = preState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+    const currentOpponentStones = gameState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+    const removedCount = preOpponentStones.length - currentOpponentStones.length;
+
+    if (removedCount > 1) {
+      return { type: 'success', category: 'doubleTakeout' };
+    } else if (removedCount === 1) {
+      // Hit and stick if we're in the house
+      if (distFromButton <= RING_12FT + STONE_RADIUS) {
+        return { type: 'success', category: 'hitAndStick' };
+      }
+      return { type: 'success', category: 'takeout' };
+    }
+
+    // Check for near-miss on takeout attempt (clipped but didn't remove)
+    // Look for opponent stones that moved significantly but weren't removed
+    for (const preStone of preOpponentStones) {
+      const currentStone = currentOpponentStones.find(s => {
+        const dx = Math.abs(s.mesh.position.x - preStone.x);
+        const dz = Math.abs(s.mesh.position.z - preStone.z);
+        return dx > 0.3 || dz > 0.3; // Stone moved
+      });
+      if (currentStone && !currentStone.outOfPlay) {
+        // We hit something but didn't remove it
+        return { type: 'nearMiss', category: 'almostTakeout' };
+      }
+    }
+  }
+
+  // Check for freeze (touching another stone)
+  const ownStones = gameState.stones.filter(s => s.team === throwingTeam && s !== thrownStone && !s.outOfPlay);
+  for (const otherStone of ownStones) {
+    const dx = stoneX - otherStone.mesh.position.x;
+    const dz = stoneZ - otherStone.mesh.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < STONE_RADIUS * 2.5) {  // Touching or very close
+      return { type: 'success', category: 'freeze' };
+    }
+  }
+
+  // Evaluate draws by position
+  if (distFromButton <= BUTTON_RADIUS + STONE_RADIUS) {
+    return { type: 'success', category: 'button' };
+  } else if (distFromButton <= RING_4FT + STONE_RADIUS) {
+    return { type: 'success', category: 'fourFoot' };
+  } else if (distFromButton <= RING_8FT + STONE_RADIUS) {
+    return { type: 'success', category: 'eightFoot' };
+  } else if (distFromButton <= RING_12FT + STONE_RADIUS) {
+    return { type: 'success', category: 'twelveFoot' };
+  }
+
+  // Check for guard position (in play, in front of house)
+  if (stoneZ >= HOG_LINE_FAR && stoneZ < TEE_LINE_FAR - RING_12FT) {
+    return { type: 'success', category: 'guard' };
+  }
+
+  // Check for near misses
+  // Just short of house
+  if (distFromButton <= RING_12FT + STONE_RADIUS + config.thresholds.nearMissBuffer &&
+      distFromButton > RING_12FT + STONE_RADIUS) {
+    return { type: 'nearMiss', category: 'almostHouse' };
+  }
+
+  // Just through (past back line but close)
+  if (stoneZ > BACK_LINE_FAR - 0.5 && stoneZ < BACK_LINE_FAR + 1) {
+    return { type: 'nearMiss', category: 'justHeavy' };
+  }
+
+  // Miss - no feedback to avoid noise
+  return null;
+}
+
+// Get random message from category
+function getRandomMessage(type, category) {
+  const config = SHOT_FEEDBACK_CONFIG;
+  const messages = type === 'success'
+    ? config.successMessages[category]
+    : config.nearMissMessages[category];
+
+  if (!messages || messages.length === 0) return null;
+  return messages[Math.floor(Math.random() * messages.length)];
+}
+
+// Show shot feedback toast
+function showShotFeedbackToast(message, type) {
+  const toast = document.getElementById('shot-feedback-toast');
+  if (!toast) return;
+
+  // Set message and style based on type
+  toast.textContent = message;
+  toast.className = 'shot-feedback-toast';
+  toast.classList.add(type === 'success' ? 'success' : 'near-miss');
+
+  // Show toast
+  toast.style.display = 'block';
+  toast.style.opacity = '1';
+  toast.style.transform = 'translate(-50%, -50%) scale(1)';
+
+  // Auto-dismiss after duration
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    setTimeout(() => {
+      toast.style.display = 'none';
+    }, SHOT_FEEDBACK_CONFIG.fadeOutDuration);
+  }, SHOT_FEEDBACK_CONFIG.displayDuration);
+}
+
+// Main function to evaluate and show feedback
+function processShotFeedback() {
+  // Skip if in learn mode (it has its own detailed feedback)
+  if (gameState.learnMode && gameState.learnMode.enabled) return;
+
+  const outcome = evaluateShotOutcome();
+  if (!outcome) return;  // No feedback for clear misses
+
+  const message = getRandomMessage(outcome.type, outcome.category);
+  if (message) {
+    showShotFeedbackToast(message, outcome.type);
+  }
+
+  // Crowd reactions based on shot outcome
+  if (outcome.type === 'success') {
+    // Map shot categories to crowd cheer intensity
+    const cheerIntensity = {
+      button: 1.0,          // Perfect shot - big cheer
+      fourFoot: 0.8,        // Great shot
+      eightFoot: 0.5,       // Good shot
+      twelveFoot: 0.3,      // Decent shot
+      doubleTakeout: 0.95,  // Spectacular play
+      hitAndStick: 0.7,     // Smart shot
+      takeout: 0.6,         // Solid shot
+      freeze: 0.75,         // Precision shot
+      guard: 0.4            // Strategic shot
+    };
+    const intensity = cheerIntensity[outcome.category] || 0.5;
+    soundManager.playCrowdCheer(intensity);
+  } else if (outcome.type === 'nearMiss') {
+    // Sympathetic reaction from crowd
+    soundManager.playCrowdOoh();
+  }
+}
+
 // Return to throw view button
 window.returnToThrowView = function() {
   // Prevent during computer's turn
@@ -4718,7 +7257,16 @@ function updateComputerSweeping() {
 
   // Get current level for AI skill
   const level = getCurrentLevel();
-  const skillFactor = 1 - level.difficulty; // Higher skill = lower difficulty value
+  let skillFactor = 1 - level.difficulty; // Higher skill = lower difficulty value
+
+  // Apply opponent sweeping skill if in tournament with personality
+  const opponent = getCurrentOpponent();
+  if (opponent && opponent.skills && opponent.skills.sweeping) {
+    // Blend level difficulty with opponent's sweeping skill (0-100)
+    // sweeping 100 = 0.95 skillFactor, sweeping 50 = 0.75, sweeping 0 = 0.55
+    const sweepingSkill = opponent.skills.sweeping / 100;
+    skillFactor = 0.55 + sweepingSkill * 0.4;
+  }
 
   // Defensive sweeping: Player's stone, after T-line
   if (isPlayerStone && stoneZ >= TEE_LINE_FAR) {
@@ -4897,7 +7445,113 @@ function isComputerTurn() {
          gameState.phase === 'aiming';
 }
 
+// Get current opponent's profile (from tournament or default)
+function getCurrentOpponent() {
+  // Check if in tournament with a current matchup
+  if (seasonState.activeTournament && seasonState.activeTournament.currentMatchup) {
+    const opponentTeam = getCurrentMatchOpponent(seasonState.activeTournament);
+    if (opponentTeam && opponentTeam.opponent) {
+      return opponentTeam.opponent;
+    }
+  }
+
+  // Default opponent (no personality modifiers)
+  return null;
+}
+
+// Calculate personality modifiers for shot selection
+function getPersonalityModifiers(opponent) {
+  // Default modifiers (neutral)
+  const mods = {
+    guardProbability: 50,       // Base 50% chance to play guard when appropriate
+    takeoutAggression: 0,       // Effort modifier for takeouts
+    drawPrecision: 0,           // Target tightness for draws
+    riskShots: false,           // Attempt difficult shots
+    earlyGuardMultiplier: 1,    // Multiplier for early-end guard tendency
+    clutchVarianceMultiplier: 1 // Variance modifier in pressure situations
+  };
+
+  if (!opponent || !opponent.personality) {
+    return mods;
+  }
+
+  const p = opponent.personality;
+
+  // Aggression (0-100): affects guard vs takeout balance
+  // High aggression = fewer guards, more takeouts, harder hits
+  mods.guardProbability = Math.max(20, 70 - (p.aggression * 0.5));  // 70% at 0 aggression, 20% at 100
+  mods.takeoutAggression = (p.aggression - 50) * 0.1;  // -5 to +5 effort modifier
+
+  // Risk Tolerance (0-100): affects target tightness and difficult shot attempts
+  mods.drawPrecision = (p.riskTolerance - 50) * 0.01;  // Tighter targets for high risk tolerance
+  mods.riskShots = p.riskTolerance > 65;  // Attempt come-arounds and tricky shots
+
+  // Patience (0-100): affects early-end strategy
+  mods.earlyGuardMultiplier = 0.5 + (p.patience / 100);  // 0.5x to 1.5x guard tendency
+
+  // Clutch Factor (0-100): affects variance in pressure situations
+  // High clutch = lower variance under pressure, low clutch = higher variance
+  mods.clutchVarianceMultiplier = 1 + ((50 - p.clutchFactor) / 100);  // 0.5x to 1.5x
+
+  return mods;
+}
+
+// Calculate skill-based variance modifier
+function getSkillVarianceModifier(opponent, shotType) {
+  if (!opponent || !opponent.skills) {
+    return 1.0;  // No modifier
+  }
+
+  const skills = opponent.skills;
+
+  // Determine relevant skill based on shot type
+  let skillValue;
+  if (shotType === 'draw' || shotType === 'freeze' || shotType === 'guard' || shotType === 'come-around') {
+    skillValue = skills.draw;
+  } else if (shotType === 'takeout' || shotType === 'peel') {
+    skillValue = skills.takeout;
+  } else {
+    skillValue = (skills.draw + skills.takeout) / 2;
+  }
+
+  // Convert skill (0-100) to variance multiplier
+  // Skill 50 = 1.0x, Skill 100 = 0.5x (half variance), Skill 0 = 1.5x (more variance)
+  return 1.5 - (skillValue / 100);
+}
+
+// Check if current game situation is a pressure situation
+function isPressureSituation() {
+  const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
+  const scoreDiff = gameState.scores[gameState.computerTeam] - gameState.scores[playerTeam];
+  const computerStonesLeft = 8 - gameState.stonesThrown[gameState.computerTeam];
+  const isLateGame = gameState.end >= gameState.settings.gameLength - 1;
+  const isCloseGame = Math.abs(scoreDiff) <= 2;
+
+  return (computerStonesLeft <= 2 && isCloseGame) ||  // Last stones in close game
+         (isLateGame && isCloseGame) ||                // Late in close game
+         (computerStonesLeft === 1);                   // Last stone
+}
+
+// Apply consistency modifier to base variance
+function applyConsistencyModifier(baseVariance, opponent) {
+  if (!opponent || !opponent.personality) {
+    return baseVariance;
+  }
+
+  const consistency = opponent.personality.consistency;
+  // Consistency 100 = 0.6x variance (very consistent)
+  // Consistency 50 = 1.0x variance (average)
+  // Consistency 0 = 1.4x variance (inconsistent)
+  const multiplier = 1.4 - (consistency / 100) * 0.8;
+
+  return baseVariance * multiplier;
+}
+
 function getComputerShot() {
+  // Get current opponent for personality modifiers
+  const opponent = getCurrentOpponent();
+  const personalityMods = getPersonalityModifiers(opponent);
+
   // Analyze the game situation
   const buttonPos = { x: 0, z: TEE_LINE_FAR };
   const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
@@ -4969,7 +7623,12 @@ function getComputerShot() {
 
   // On easy mode, computer plays simpler shots (fewer guards, more draws)
   const isEasyMode = gameState.settings.difficulty === 'easy';
-  const shouldPlayGuard = !isEasyMode || Math.random() > 0.7;  // Only 30% guards on easy
+  // Use personality-based guard probability if available, otherwise use difficulty-based
+  const guardProbability = personalityMods.guardProbability || (isEasyMode ? 0.3 : 0.6);
+  const shouldPlayGuard = Math.random() < guardProbability;
+
+  // Takeout aggression modifier: scales base effort (1.0 = normal, 1.1 = harder hits)
+  const takeoutAggressionMod = personalityMods.takeoutAggression || 1.0;
 
   // Strategic decision making
   if (isLastStone && hasHammer) {
@@ -4979,7 +7638,7 @@ function getComputerShot() {
       shotType = 'takeout';
       targetX = houseStonesPlayer[0].x;
       targetZ = houseStonesPlayer[0].z;
-      effort = 72 + Math.random() * 8;
+      effort = (72 + Math.random() * 8) * takeoutAggressionMod;
     } else {
       // Draw for more points or to button
       shotType = 'draw';
@@ -4992,7 +7651,7 @@ function getComputerShot() {
     shotType = 'takeout';
     targetX = houseStonesPlayer[0].x;
     targetZ = houseStonesPlayer[0].z;
-    effort = 78 + Math.random() * 8;
+    effort = (78 + Math.random() * 8) * takeoutAggressionMod;
   } else if (playerHasShot) {
     // Player has shot - decide between takeout and other options
     const shotStoneDistance = houseStonesPlayer[0].distance;
@@ -5002,7 +7661,7 @@ function getComputerShot() {
       shotType = 'takeout';
       targetX = houseStonesPlayer[0].x;
       targetZ = houseStonesPlayer[0].z;
-      effort = 75 + Math.random() * 8;
+      effort = (75 + Math.random() * 8) * takeoutAggressionMod;
     } else if (earlyEnd && guardsComputer.length < 2 && shouldPlayGuard) {
       // Early in end, try to set up guards first (but not on easy mode often)
       shotType = 'guard';
@@ -5014,7 +7673,7 @@ function getComputerShot() {
       shotType = 'takeout';
       targetX = houseStonesPlayer[0].x;
       targetZ = houseStonesPlayer[0].z;
-      effort = 73 + Math.random() * 8;
+      effort = (73 + Math.random() * 8) * takeoutAggressionMod;
     }
   } else if (computerHasShot && computerPoints >= 2) {
     // We're scoring multiple - protect with guard or add more
@@ -5087,7 +7746,7 @@ function getComputerShot() {
       shotType = 'peel';
       targetX = targetGuard.x;
       targetZ = targetGuard.z;
-      effort = 85 + Math.random() * 10;
+      effort = (85 + Math.random() * 10) * takeoutAggressionMod;
     } else {
       // Try to come around
       shotType = 'come-around';
@@ -5161,6 +7820,25 @@ function getComputerShot() {
     variance = variance * (0.5 + 0.5 * (1 - skillFactor));
   }
 
+  // Apply opponent-specific skill variance (if in tournament with personality)
+  if (opponent && opponent.skills) {
+    const skillMod = getSkillVarianceModifier(opponent, shotType);
+    variance = variance * skillMod;
+  }
+
+  // Apply consistency modifier (if opponent has personality)
+  variance = applyConsistencyModifier(variance, opponent);
+
+  // Apply clutch factor in pressure situations
+  if (opponent && opponent.personality && isPressureSituation()) {
+    const clutchFactor = opponent.personality.clutchFactor;
+    // Clutch 100 = 0.7x variance (performs better under pressure)
+    // Clutch 50 = 1.0x variance (average)
+    // Clutch 0 = 1.3x variance (chokes under pressure)
+    const clutchMod = 1.3 - (clutchFactor / 100) * 0.6;
+    variance = variance * clutchMod;
+  }
+
   // Apply variance
   const accuracyVariance = (Math.random() - 0.5) * variance;
   const effortVariance = (Math.random() - 0.5) * variance * 15;
@@ -5168,11 +7846,13 @@ function getComputerShot() {
   const finalEffort = Math.min(100, Math.max(30, effort + effortVariance));  // Min 30% effort
   const finalAimAngle = aimAngle + accuracyVariance;
 
-  console.log('[COMPUTER SHOT]', shotType,
+  const opponentName = opponent ? `${opponent.firstName} ${opponent.lastName}` : 'Generic AI';
+  console.log('[COMPUTER SHOT]', opponentName, '-', shotType,
     '- target:', targetX.toFixed(2), targetZ.toFixed(2),
     '- effort:', finalEffort.toFixed(0) + '%',
     '- curl:', curl > 0 ? 'CCW' : 'CW',
-    '- aimAngle:', (finalAimAngle * 180 / Math.PI).toFixed(1) + '°');
+    '- aimAngle:', (finalAimAngle * 180 / Math.PI).toFixed(1) + '°',
+    opponent ? `(variance mod: skill=${getSkillVarianceModifier(opponent, shotType).toFixed(2)})` : '');
 
   return {
     shotType,
@@ -5236,6 +7916,9 @@ function executeComputerShot() {
 
   // Save pre-shot state for potential rollback on interruption
   savePreShotState();
+
+  // Capture pre-throw state for shot feedback system
+  capturePreThrowState();
 
   const shot = getComputerShot();
 
@@ -5561,6 +8244,15 @@ function updatePhysics() {
       // Clear target marker for next turn
       clearTargetMarker();
 
+      // Process shot feedback toast (non-intrusive, works for all shots)
+      processShotFeedback();
+
+      // Practice mode: evaluate outcome and show result
+      if (gameState.practiceMode.active) {
+        processPracticeOutcome();
+        return;  // Don't proceed to next turn in practice mode
+      }
+
       // Show post-shot feedback in learn mode (player's shots only)
       const wasPlayerShot = gameState.gameMode === '1player' &&
         gameState.currentTeam !== gameState.computerTeam;
@@ -5709,9 +8401,12 @@ function showScoreOverlay(team, points, endNumber) {
 
   if (!overlay) return;
 
-  // Play score sound
+  // Play score sound and crowd reaction
   if (points > 0) {
     soundManager.playScore(points);
+    // Crowd applause - bigger for more points
+    const applauseDuration = 1 + points * 0.5; // 1.5s to 3s
+    soundManager.playCrowdApplause(applauseDuration);
   }
 
   // Update content
@@ -5883,16 +8578,22 @@ function showGameOverOverlay() {
       // 2-player: confetti for winner
       launchConfetti(winnerClass);
       soundManager.playVictory();
+      soundManager.playCrowdCheer(1.0);  // Big celebration
     } else if (winnerClass === userTeam) {
       // User wins: confetti!
       launchConfetti(winnerClass);
       soundManager.playVictory();
+      soundManager.playCrowdCheer(1.0);  // Big celebration
     } else {
       // User loses: rain
       launchRaindrops();
       soundManager.playDefeat();
+      soundManager.playCrowdGroan();     // Disappointed crowd
     }
   }
+
+  // Stop ambient crowd (game is over)
+  soundManager.stopAmbientCrowd();
 
   winnerDisplay.textContent = winner;
   winnerDisplay.className = winnerClass;
@@ -5903,18 +8604,32 @@ function showGameOverOverlay() {
   const careerMessageEl = document.getElementById('gameover-career-message');
   if (gameState.gameMode === '1player' && winnerClass !== 'tie') {
     const userWon = winnerClass === userTeam;
-    const careerResult = handleCareerResult(userWon);
 
-    if (careerMessageEl && careerResult) {
-      careerMessageEl.textContent = careerResult.message;
-      if (careerResult.advanced) {
-        careerMessageEl.style.color = '#4ade80';
-      } else if (careerResult.demoted) {
-        careerMessageEl.style.color = '#f87171';
-      } else {
-        careerMessageEl.style.color = '#94a3b8';
+    // Check if this is a tournament match
+    if (gameState.inTournamentMatch && seasonState.activeTournament) {
+      // Handle tournament match result
+      handleTournamentMatchResult(userWon);
+
+      if (careerMessageEl) {
+        careerMessageEl.textContent = userWon ? 'Tournament match won!' : 'Eliminated from tournament';
+        careerMessageEl.style.color = userWon ? '#4ade80' : '#f87171';
+        careerMessageEl.style.display = 'block';
       }
-      careerMessageEl.style.display = 'block';
+    } else {
+      // Regular career progression
+      const careerResult = handleCareerResult(userWon);
+
+      if (careerMessageEl && careerResult) {
+        careerMessageEl.textContent = careerResult.message;
+        if (careerResult.advanced) {
+          careerMessageEl.style.color = '#4ade80';
+        } else if (careerResult.demoted) {
+          careerMessageEl.style.color = '#f87171';
+        } else {
+          careerMessageEl.style.color = '#94a3b8';
+        }
+        careerMessageEl.style.display = 'block';
+      }
     }
   } else if (careerMessageEl) {
     careerMessageEl.style.display = 'none';
@@ -5948,6 +8663,9 @@ window.testGameOverLose = function() {
 };
 
 window.restartGame = function() {
+  // Check if we just finished a tournament match
+  const wasTournamentMatch = window._lastMatchResult !== undefined;
+
   // Clear confetti/rain if any
   const confettiContainer = document.getElementById('confetti-container');
   if (confettiContainer) confettiContainer.innerHTML = '';
@@ -5976,6 +8694,7 @@ window.restartGame = function() {
       gameState.opponentCountry = null;
       gameState.selectedMode = null;  // Reset mode selection
       gameState.careerLevel = null;  // Reset career level
+      gameState.inTournamentMatch = false;  // Clear tournament match flag
 
       // Clear any remaining stones
       for (const stone of gameState.stones) {
@@ -5999,8 +8718,13 @@ window.restartGame = function() {
       if (redLabel) redLabel.innerHTML = 'RED';
       if (yellowLabel) yellowLabel.innerHTML = 'YELLOW';
 
-      // Show mode selection to start new game setup
-      showModeSelection();
+      // If this was a tournament match, show post-match screen instead of mode selection
+      if (wasTournamentMatch) {
+        showPostMatch();
+      } else {
+        // Show mode selection to start new game setup
+        showModeSelection();
+      }
     }, 500);
   }
 };
@@ -6061,10 +8785,399 @@ function showModeSelection() {
 window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
   gameState.gameMode = '1player';
-  gameState.selectedMode = mode;  // Store for later (career vs quickplay)
+  gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice)
 
-  // Always show difficulty selection first
-  showDifficultySelection();
+  if (mode === 'career') {
+    // Career mode: check for existing career
+    loadSeasonState();
+
+    // If no club selected yet, show club selection (new career)
+    if (!seasonState.playerTeam.club.id) {
+      showClubSelection();
+    } else {
+      // Existing career - show Season Overview hub
+      showSeasonOverview();
+    }
+  } else if (mode === 'practice') {
+    // Practice mode: show drill selection
+    loadPracticeStats();
+    showPracticeDrills();
+  } else {
+    // Quick Play: show difficulty selection first
+    showDifficultySelection();
+  }
+};
+
+// ============================================
+// PRACTICE MODE - UI Functions
+// ============================================
+
+// Show practice drill selection screen
+window.showPracticeDrills = function() {
+  const screen = document.getElementById('practice-drill-screen');
+  const grid = document.getElementById('practice-drill-grid');
+
+  if (!screen || !grid) return;
+
+  // Hide other screens
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('practice-scenario-screen').style.display = 'none';
+
+  // Build drill cards
+  grid.innerHTML = Object.entries(PRACTICE_DRILLS).map(([drillId, drill]) => {
+    const stats = practiceStats[drillId];
+    const rate = stats.attempts > 0
+      ? Math.round((stats.successes / stats.attempts) * 100)
+      : null;
+
+    return `
+      <div class="practice-drill-card" onclick="window.showPracticeScenarios('${drillId}')">
+        <div class="practice-drill-icon">${drill.icon}</div>
+        <div class="practice-drill-name">${drill.name}</div>
+        <div class="practice-drill-rate ${rate === null ? 'no-data' : ''}">
+          ${rate !== null ? rate + '%' : 'No attempts'}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  screen.style.display = 'block';
+};
+
+// Show scenarios for a specific drill
+window.showPracticeScenarios = function(drillId) {
+  const screen = document.getElementById('practice-scenario-screen');
+  const list = document.getElementById('practice-scenario-list');
+  const drill = PRACTICE_DRILLS[drillId];
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+  const stats = practiceStats[drillId];
+
+  if (!screen || !list || !drill || !scenarios) return;
+
+  // Store current drill for later
+  gameState.practiceMode.currentDrill = drillId;
+
+  // Update header
+  document.getElementById('scenario-drill-title').textContent = `${drill.icon} ${drill.name}`;
+  document.getElementById('scenario-drill-desc').textContent = drill.description;
+
+  // Update stats
+  const rate = stats.attempts > 0 ? Math.round((stats.successes / stats.attempts) * 100) : 0;
+  document.getElementById('drill-success-rate').textContent = rate + '%';
+  document.getElementById('drill-attempts').textContent = stats.attempts;
+
+  // Count max difficulty levels
+  const maxDifficulty = Math.max(...scenarios.map(s => s.difficulty));
+  document.getElementById('drill-unlocked').textContent = `${stats.unlocked}/${maxDifficulty}`;
+
+  // Build scenario cards
+  list.innerHTML = scenarios.map(scenario => {
+    const isLocked = scenario.difficulty > stats.unlocked;
+    const scenarioStats = stats.scenarios[scenario.id] || { attempts: 0, successes: 0 };
+    const scenarioRate = scenarioStats.attempts > 0
+      ? Math.round((scenarioStats.successes / scenarioStats.attempts) * 100)
+      : null;
+
+    // Difficulty dots
+    const dots = Array(5).fill(0).map((_, i) =>
+      `<div class="dot ${i < scenario.difficulty ? 'filled' : ''}"></div>`
+    ).join('');
+
+    if (isLocked) {
+      return `
+        <div class="practice-scenario-card locked">
+          <div class="scenario-header">
+            <div class="scenario-name">${scenario.name}</div>
+            <div class="scenario-difficulty">${dots}</div>
+          </div>
+          <div class="scenario-description">${scenario.description}</div>
+          <div class="scenario-stats">
+            <div class="scenario-lock">🔒 Complete easier scenarios to unlock</div>
+          </div>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="practice-scenario-card" onclick="window.startPracticeScenario('${drillId}', '${scenario.id}')">
+        <div class="scenario-header">
+          <div class="scenario-name">${scenario.name}</div>
+          <div class="scenario-difficulty">${dots}</div>
+        </div>
+        <div class="scenario-description">${scenario.description}</div>
+        <div class="scenario-stats">
+          <div class="scenario-best">
+            ${scenarioRate !== null ? `Best: ${scenarioRate}%` : 'Not attempted'}
+          </div>
+          <button class="scenario-start-btn">START</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Hide drill screen, show scenario screen
+  document.getElementById('practice-drill-screen').style.display = 'none';
+  screen.style.display = 'block';
+};
+
+// Start a practice scenario
+window.startPracticeScenario = function(drillId, scenarioId) {
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+  const scenario = scenarios.find(s => s.id === scenarioId);
+
+  if (!scenario) return;
+
+  // Set up practice mode state
+  gameState.practiceMode.active = true;
+  gameState.practiceMode.currentDrill = drillId;
+  gameState.practiceMode.currentScenario = scenarioId;
+  gameState.practiceMode.difficulty = scenario.difficulty;
+  gameState.practiceMode.attempts = 0;
+  gameState.practiceMode.successes = 0;
+  gameState.practiceMode.currentStreak = 0;
+  gameState.practiceMode.lastOutcome = null;
+
+  // Hide selection screens
+  document.getElementById('practice-scenario-screen').style.display = 'none';
+  document.getElementById('practice-drill-screen').style.display = 'none';
+
+  // Set up game state for practice
+  gameState.setupComplete = true;
+  gameState.computerTeam = 'yellow';  // Player is red
+  gameState.currentTeam = 'red';
+  gameState.end = 1;
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+
+  // Load the scenario
+  loadPracticeScenario(scenario);
+
+  // Show practice UI overlay
+  showPracticeOverlay(scenario);
+
+  // Start ambient crowd for practice arena
+  soundManager.startAmbientCrowd();
+
+  // Start the game
+  gameState.phase = 'aiming';
+  updatePreviewStone();
+};
+
+// Load a practice scenario (position stones)
+function loadPracticeScenario(scenario) {
+  // Clear existing stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(engine.world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Place scenario stones
+  for (const stoneData of scenario.stones) {
+    const stone = createStone(stoneData.team);
+    stone.mesh.position.set(stoneData.x, 0.05, stoneData.z);
+
+    // Set physics body position
+    Matter.Body.setPosition(stone.body, {
+      x: stoneData.x * PHYSICS_SCALE,
+      y: stoneData.z * PHYSICS_SCALE
+    });
+    Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+    Matter.Body.setAngularVelocity(stone.body, 0);
+
+    gameState.stones.push(stone);
+  }
+
+  // Reset throwing state
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.curlDirection = null;
+  gameState.handleAmount = 0;
+
+  // Reset camera to target view
+  gameState.previewHeight = 1;
+  gameState.previewLocked = false;
+}
+
+// Show practice overlay UI
+function showPracticeOverlay(scenario) {
+  let overlay = document.getElementById('practice-overlay');
+
+  if (!overlay) {
+    // Create overlay if it doesn't exist
+    overlay = document.createElement('div');
+    overlay.id = 'practice-overlay';
+    overlay.innerHTML = `
+      <div id="practice-header" style="
+        position: fixed;
+        top: max(20px, env(safe-area-inset-top));
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0 20px;
+        z-index: 150;
+        pointer-events: none;
+      ">
+        <button id="practice-reset-btn" onclick="window.practiceQuickReset()" style="
+          background: rgba(139, 92, 246, 0.9);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 14px;
+          font-weight: 600;
+          padding: 10px 16px;
+          cursor: pointer;
+          pointer-events: auto;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        ">↺ RESET</button>
+
+        <div style="
+          background: rgba(0, 0, 0, 0.7);
+          border-radius: 12px;
+          padding: 12px 16px;
+          text-align: right;
+          pointer-events: auto;
+        ">
+          <div id="practice-scenario-name" style="color: white; font-size: 16px; font-weight: bold;"></div>
+          <div style="display: flex; gap: 16px; margin-top: 6px;">
+            <div style="color: #94a3b8; font-size: 13px;">
+              Attempts: <span id="practice-attempts" style="color: white;">0</span>
+            </div>
+            <div style="color: #94a3b8; font-size: 13px;">
+              Success: <span id="practice-successes" style="color: #4ade80;">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="practice-hint" style="
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(139, 92, 246, 0.5);
+        border-radius: 10px;
+        padding: 12px 20px;
+        color: #c4b5fd;
+        font-size: 14px;
+        z-index: 150;
+        max-width: 300px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      ">
+        <span>💡</span>
+        <span id="practice-hint-text"></span>
+      </div>
+
+      <div id="practice-result" style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        border-radius: 16px;
+        padding: 24px 32px;
+        text-align: center;
+        z-index: 200;
+      ">
+        <div id="practice-result-icon" style="font-size: 48px; margin-bottom: 12px;"></div>
+        <div id="practice-result-text" style="color: white; font-size: 20px; font-weight: bold; margin-bottom: 16px;"></div>
+        <div style="display: flex; gap: 12px; justify-content: center;">
+          <button onclick="window.practiceQuickReset()" style="
+            background: rgba(139, 92, 246, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+          ">Try Again</button>
+          <button onclick="window.exitPractice()" style="
+            background: rgba(100, 116, 139, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            padding: 10px 20px;
+            cursor: pointer;
+          ">Exit</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  // Update content
+  document.getElementById('practice-scenario-name').textContent = scenario.name;
+  document.getElementById('practice-hint-text').textContent = scenario.hint;
+  document.getElementById('practice-attempts').textContent = '0';
+  document.getElementById('practice-successes').textContent = '0';
+  document.getElementById('practice-result').style.display = 'none';
+
+  overlay.style.display = 'block';
+}
+
+// Quick reset practice scenario
+window.practiceQuickReset = function() {
+  if (!gameState.practiceMode.active) return;
+
+  const drillId = gameState.practiceMode.currentDrill;
+  const scenarioId = gameState.practiceMode.currentScenario;
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+  const scenario = scenarios.find(s => s.id === scenarioId);
+
+  if (!scenario) return;
+
+  // Hide result popup
+  document.getElementById('practice-result').style.display = 'none';
+
+  // Reload scenario
+  loadPracticeScenario(scenario);
+
+  // Reset game phase
+  gameState.phase = 'aiming';
+  updatePreviewStone();
+};
+
+// Exit practice mode
+window.exitPractice = function() {
+  gameState.practiceMode.active = false;
+
+  // Hide overlay
+  const overlay = document.getElementById('practice-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Clear stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(engine.world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Show mode select
+  showModeSelect();
+};
+
+// Show mode select screen
+window.showModeSelect = function() {
+  // Stop ambient crowd when returning to menu
+  soundManager.stopAmbientCrowd();
+
+  // Hide all other screens
+  document.getElementById('practice-drill-screen').style.display = 'none';
+  document.getElementById('practice-scenario-screen').style.display = 'none';
+  document.getElementById('difficulty-select-screen').style.display = 'none';
+
+  // Show mode select
+  document.getElementById('mode-select-screen').style.display = 'block';
 };
 
 // Show difficulty selection screen
@@ -6115,8 +9228,977 @@ window.goBackToDifficulty = function() {
 // Go back to mode selection
 window.goBackToModeSelect = function() {
   document.getElementById('difficulty-select-screen').style.display = 'none';
+  document.getElementById('season-overview-screen').style.display = 'none';
+  document.getElementById('club-select-screen').style.display = 'none';
   showModeSelection();
 };
+
+// ============================================
+// CLUB SELECTION (Career Mode Start)
+// ============================================
+
+// Track selected club during setup
+let selectedClubId = null;
+let selectedCareerDifficulty = 'easy';
+
+// Show club selection screen
+function showClubSelection() {
+  const screen = document.getElementById('club-select-screen');
+  const grid = document.getElementById('club-grid');
+
+  if (!screen || !grid) return;
+
+  // Reset selections
+  selectedClubId = 'granite';  // Default to first club
+  selectedCareerDifficulty = 'easy';
+
+  // Populate club grid
+  grid.innerHTML = CLUB_OPTIONS.map(club => `
+    <div onclick="window.selectClub('${club.id}')" id="club-card-${club.id}" style="
+      padding: 16px;
+      background: ${club.id === selectedClubId ? `linear-gradient(135deg, ${club.colors.primary}33, ${club.colors.secondary})` : 'rgba(255, 255, 255, 0.05)'};
+      border: 2px solid ${club.id === selectedClubId ? club.colors.primary : 'rgba(255, 255, 255, 0.1)'};
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    ">
+      <div style="font-size: 32px; margin-bottom: 8px;">${club.crest}</div>
+      <div style="color: white; font-size: 14px; font-weight: bold;">${club.name}</div>
+    </div>
+  `).join('');
+
+  // Update difficulty buttons
+  updateCareerDifficultyButtons();
+
+  screen.style.display = 'block';
+}
+
+// Handle club selection
+window.selectClub = function(clubId) {
+  selectedClubId = clubId;
+  const club = CLUB_OPTIONS.find(c => c.id === clubId);
+
+  // Update all club cards
+  CLUB_OPTIONS.forEach(c => {
+    const card = document.getElementById(`club-card-${c.id}`);
+    if (card) {
+      const isSelected = c.id === clubId;
+      card.style.background = isSelected
+        ? `linear-gradient(135deg, ${c.colors.primary}33, ${c.colors.secondary})`
+        : 'rgba(255, 255, 255, 0.05)';
+      card.style.borderColor = isSelected ? c.colors.primary : 'rgba(255, 255, 255, 0.1)';
+    }
+  });
+
+  // Show/hide custom club name input
+  const customSection = document.getElementById('custom-club-section');
+  if (customSection) {
+    customSection.style.display = clubId === 'custom' ? 'block' : 'none';
+  }
+};
+
+// Handle difficulty selection in career setup
+window.selectCareerDifficulty = function(difficulty) {
+  selectedCareerDifficulty = difficulty;
+  updateCareerDifficultyButtons();
+};
+
+// Update career difficulty button styles
+function updateCareerDifficultyButtons() {
+  const difficulties = ['easy', 'medium', 'hard'];
+  const colors = {
+    easy: { bg: 'rgba(74, 222, 128, 0.2)', border: '#4ade80', text: '#4ade80' },
+    medium: { bg: 'rgba(251, 191, 36, 0.2)', border: '#fbbf24', text: '#fbbf24' },
+    hard: { bg: 'rgba(239, 68, 68, 0.2)', border: '#ef4444', text: '#ef4444' }
+  };
+
+  difficulties.forEach(diff => {
+    const btn = document.getElementById(`diff-${diff}`);
+    if (btn) {
+      const isSelected = diff === selectedCareerDifficulty;
+      const c = colors[diff];
+      btn.style.background = isSelected ? c.bg : 'rgba(255, 255, 255, 0.05)';
+      btn.style.borderColor = isSelected ? c.border : 'rgba(255, 255, 255, 0.2)';
+      btn.style.color = isSelected ? c.text : '#94a3b8';
+    }
+  });
+}
+
+// Start new career with selected club
+window.startNewCareer = function() {
+  const club = CLUB_OPTIONS.find(c => c.id === selectedClubId);
+  if (!club) return;
+
+  // Get team name
+  const teamNameInput = document.getElementById('team-name-input');
+  const teamName = teamNameInput?.value?.trim() || 'Team Player';
+
+  // Get custom club name if applicable
+  let clubName = club.name;
+  if (selectedClubId === 'custom') {
+    const customNameInput = document.getElementById('custom-club-name');
+    clubName = customNameInput?.value?.trim() || 'My Curling Club';
+  }
+
+  // Initialize new season with club identity
+  initializeNewSeason();
+
+  // Set club identity
+  seasonState.playerTeam.name = teamName;
+  seasonState.playerTeam.club = {
+    id: selectedClubId,
+    name: clubName,
+    colors: { ...club.colors },
+    crest: club.crest
+  };
+
+  // Set difficulty
+  gameState.settings.difficulty = selectedCareerDifficulty;
+
+  // Country remains null - will be unlocked later
+  seasonState.playerTeam.country = null;
+  seasonState.playerTeam.countryLocked = false;
+  seasonState.playerTeam.countryUnlockShown = false;
+  seasonState.careerStage = 'club';
+
+  // Save and show season overview
+  saveSeasonState();
+
+  document.getElementById('club-select-screen').style.display = 'none';
+  showSeasonOverview();
+};
+
+// ============================================
+// COUNTRY UNLOCK (Deferred Selection)
+// ============================================
+
+// Track selected country during unlock
+let selectedUnlockCountry = null;
+
+// Check if country unlock should be shown
+function shouldShowCountryUnlock() {
+  // Already has country locked
+  if (seasonState.playerTeam.countryLocked) return false;
+
+  // Already shown and dismissed
+  if (seasonState.playerTeam.countryUnlockShown) return false;
+
+  // Check if entering national or higher tier tournament
+  const nationalTiers = ['national', 'international', 'olympic'];
+  return nationalTiers.includes(seasonState.careerTier);
+}
+
+// Show country unlock screen
+function showCountryUnlockScreen() {
+  const screen = document.getElementById('country-unlock-screen');
+  const grid = document.getElementById('country-unlock-grid');
+  const clubNameEl = document.getElementById('unlock-club-name');
+
+  if (!screen || !grid) return;
+
+  // Reset selection
+  selectedUnlockCountry = null;
+
+  // Update club name in message
+  if (clubNameEl) {
+    clubNameEl.textContent = seasonState.playerTeam.club.name;
+  }
+
+  // Populate country grid
+  grid.innerHTML = CURLING_COUNTRIES.map(country => `
+    <div onclick="window.selectUnlockCountry('${country.id}')" id="unlock-country-${country.id}" style="
+      padding: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+    ">
+      <div style="font-size: 32px; margin-bottom: 8px;">${country.flag}</div>
+      <div style="color: white; font-size: 14px;">${country.name}</div>
+    </div>
+  `).join('');
+
+  // Disable confirm button initially
+  const confirmBtn = document.getElementById('confirm-country-btn');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.5';
+    confirmBtn.style.pointerEvents = 'none';
+    confirmBtn.textContent = 'Select a Country';
+  }
+
+  screen.style.display = 'block';
+}
+
+// Handle country selection during unlock
+window.selectUnlockCountry = function(countryId) {
+  selectedUnlockCountry = CURLING_COUNTRIES.find(c => c.id === countryId);
+
+  // Update all country cards
+  CURLING_COUNTRIES.forEach(c => {
+    const card = document.getElementById(`unlock-country-${c.id}`);
+    if (card) {
+      const isSelected = c.id === countryId;
+      card.style.background = isSelected ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255, 255, 255, 0.05)';
+      card.style.borderColor = isSelected ? '#4ade80' : 'rgba(255, 255, 255, 0.1)';
+    }
+  });
+
+  // Enable confirm button
+  const confirmBtn = document.getElementById('confirm-country-btn');
+  if (confirmBtn && selectedUnlockCountry) {
+    confirmBtn.disabled = false;
+    confirmBtn.style.opacity = '1';
+    confirmBtn.style.pointerEvents = 'auto';
+    confirmBtn.textContent = `Represent ${selectedUnlockCountry.name}`;
+  }
+};
+
+// Confirm country selection (permanent)
+window.confirmCountrySelection = function() {
+  if (!selectedUnlockCountry) return;
+
+  // Lock in country choice
+  seasonState.playerTeam.country = selectedUnlockCountry;
+  seasonState.playerTeam.countryLocked = true;
+  seasonState.playerTeam.countryUnlockShown = true;
+  seasonState.careerStage = 'national';
+
+  // Save state
+  saveSeasonState();
+
+  // Hide unlock screen
+  document.getElementById('country-unlock-screen').style.display = 'none';
+
+  // Continue to wherever we were going
+  showSeasonOverview();
+};
+
+// ============================================
+// SEASON / TOURNAMENT UI FUNCTIONS
+// ============================================
+
+// Tier colors for badges
+const TIER_COLORS = {
+  club: { bg: 'linear-gradient(135deg, #6b7280, #4b5563)', border: '#9ca3af' },
+  regional: { bg: 'linear-gradient(135deg, #059669, #047857)', border: '#34d399' },
+  provincial: { bg: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: '#60a5fa' },
+  national: { bg: 'linear-gradient(135deg, #7c3aed, #6d28d9)', border: '#a78bfa' },
+  international: { bg: 'linear-gradient(135deg, #dc2626, #b91c1c)', border: '#f87171' },
+  olympic: { bg: 'linear-gradient(135deg, #d97706, #b45309)', border: '#fbbf24' }
+};
+
+// Show Season Overview screen
+window.showSeasonOverview = function() {
+  // Check if country unlock should be shown first
+  if (shouldShowCountryUnlock()) {
+    showCountryUnlockScreen();
+    return;
+  }
+
+  // Hide all other screens
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('tournament-entry-screen').style.display = 'none';
+  document.getElementById('bracket-screen').style.display = 'none';
+  document.getElementById('pre-match-screen').style.display = 'none';
+  document.getElementById('post-match-screen').style.display = 'none';
+  document.getElementById('club-select-screen').style.display = 'none';
+  document.getElementById('country-unlock-screen').style.display = 'none';
+
+  const screen = document.getElementById('season-overview-screen');
+  if (!screen) return;
+
+  // Update season info
+  document.getElementById('season-year').textContent =
+    `Season ${seasonState.currentSeason} • ${seasonState.seasonYear}`;
+
+  // Update tier badge
+  const tierBadge = document.getElementById('tier-badge');
+  const tierColors = TIER_COLORS[seasonState.careerTier] || TIER_COLORS.club;
+  tierBadge.style.background = tierColors.bg;
+  tierBadge.textContent = seasonState.careerTier.charAt(0).toUpperCase() + seasonState.careerTier.slice(1);
+
+  // Update player identity (club-first, country later)
+  updatePlayerIdentityDisplay();
+
+  // Update stats
+  document.getElementById('season-wins').textContent = seasonState.stats.totalWins;
+  document.getElementById('season-losses').textContent = seasonState.stats.totalLosses;
+  document.getElementById('season-tournaments').textContent = seasonState.stats.tournamentsWon;
+  document.getElementById('player-ranking').textContent = `Ranking: ${seasonState.playerTeam.ranking}`;
+
+  // Update qualifications section
+  updateQualificationsDisplay();
+
+  // Update available tournaments
+  updateAvailableTournaments();
+
+  // Show active tournament banner if applicable
+  updateActiveTournamentBanner();
+
+  screen.style.display = 'block';
+};
+
+// Update player identity display based on career stage
+function updatePlayerIdentityDisplay() {
+  const club = seasonState.playerTeam.club;
+  const country = seasonState.playerTeam.country;
+  const hasCountry = seasonState.playerTeam.countryLocked && country;
+
+  // Update club crest
+  const crestEl = document.getElementById('player-club-crest');
+  if (crestEl && club) {
+    crestEl.textContent = club.crest || '🥌';
+  }
+
+  // Update team name
+  const teamNameEl = document.getElementById('player-team-name');
+  if (teamNameEl) {
+    teamNameEl.textContent = seasonState.playerTeam.name || 'Team Player';
+  }
+
+  // Update club name
+  const clubNameEl = document.getElementById('player-club-name');
+  if (clubNameEl && club) {
+    clubNameEl.textContent = club.name || 'My Club';
+  }
+
+  // Update country badge (only shown after unlock)
+  const countryBadge = document.getElementById('player-country-badge');
+  if (countryBadge) {
+    if (hasCountry) {
+      countryBadge.textContent = country.flag;
+      countryBadge.style.display = 'block';
+    } else {
+      countryBadge.style.display = 'none';
+    }
+  }
+
+  // Update identity label
+  const labelEl = document.getElementById('player-identity-label');
+  if (labelEl) {
+    if (hasCountry) {
+      labelEl.textContent = `${country.name} National Team`;
+    } else {
+      labelEl.textContent = 'Club Level';
+    }
+  }
+
+  // Update player stats card border to match club colors
+  const statsCard = document.getElementById('player-stats-card');
+  if (statsCard && club && club.colors) {
+    statsCard.style.borderColor = club.colors.primary + '40';  // 25% opacity
+  }
+}
+
+// Update qualifications display
+function updateQualificationsDisplay() {
+  const section = document.getElementById('qualifications-section');
+  const list = document.getElementById('qualifications-list');
+
+  const qualifications = [];
+  if (seasonState.qualifications.regionalQualified) qualifications.push('Regional');
+  if (seasonState.qualifications.provincialQualified) qualifications.push('Provincial');
+  if (seasonState.qualifications.nationalQualified) qualifications.push('National');
+  if (seasonState.qualifications.worldsQualified) qualifications.push('Worlds');
+  if (seasonState.qualifications.olympicTrialsQualified) qualifications.push('Olympic Trials');
+  if (seasonState.qualifications.olympicsQualified) qualifications.push('Olympics');
+
+  if (qualifications.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  list.innerHTML = qualifications.map(q => `
+    <span style="
+      padding: 6px 12px;
+      background: rgba(74, 222, 128, 0.2);
+      border-radius: 16px;
+      color: #4ade80;
+      font-size: 12px;
+    ">${q}</span>
+  `).join('');
+
+  section.style.display = 'block';
+}
+
+// Update available tournaments list
+function updateAvailableTournaments() {
+  const container = document.getElementById('available-tournaments');
+  if (!container) return;
+
+  // Get tournaments available for current tier
+  const availableTournaments = TOURNAMENT_DEFINITIONS.filter(t => {
+    const tierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+    const tournamentTierIndex = CAREER_TIERS.indexOf(t.tier);
+    // Show tournaments at current tier or one above if qualified
+    return tournamentTierIndex <= tierIndex + 1;
+  });
+
+  container.innerHTML = availableTournaments.map(tournament => {
+    const canEnter = canEnterTournament(tournament.id);
+    const tierColors = TIER_COLORS[tournament.tier] || TIER_COLORS.club;
+    const isLocked = !canEnter;
+
+    return `
+      <div onclick="${isLocked ? '' : `window.showTournamentEntry('${tournament.id}')`}" style="
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid ${isLocked ? 'rgba(100, 116, 139, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+        border-radius: 12px;
+        padding: 16px;
+        cursor: ${isLocked ? 'not-allowed' : 'pointer'};
+        opacity: ${isLocked ? '0.6' : '1'};
+        transition: transform 0.2s, border-color 0.2s;
+      ">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+          <div>
+            <div style="color: white; font-size: 16px; font-weight: bold;">${tournament.name}</div>
+            <div style="color: #64748b; font-size: 12px; margin-top: 4px;">
+              ${tournament.format.type.replace('_', ' ')} • ${tournament.format.teams} Teams
+            </div>
+          </div>
+          <span style="
+            padding: 4px 10px;
+            background: ${tierColors.bg};
+            border-radius: 12px;
+            color: white;
+            font-size: 11px;
+            text-transform: uppercase;
+          ">${tournament.tier}</span>
+        </div>
+        <div style="display: flex; gap: 16px; margin-top: 12px;">
+          <div style="color: #fbbf24; font-size: 13px;">+${tournament.rewards.points} pts</div>
+          ${tournament.rewards.qualifiesFor ? `<div style="color: #4ade80; font-size: 13px;">→ ${tournament.rewards.qualifiesFor.replace('Qualified', '')}</div>` : ''}
+          ${isLocked ? '<div style="color: #f87171; font-size: 13px;">🔒 Qualification needed</div>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Update active tournament banner
+function updateActiveTournamentBanner() {
+  const banner = document.getElementById('active-tournament-banner');
+  const nameEl = document.getElementById('active-tournament-name');
+
+  if (seasonState.activeTournament) {
+    nameEl.textContent = seasonState.activeTournament.definition.name;
+    banner.style.display = 'block';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+// Show tournament entry screen
+window.showTournamentEntry = function(tournamentId) {
+  const tournament = TOURNAMENT_DEFINITIONS.find(t => t.id === tournamentId);
+  if (!tournament) return;
+
+  // Store selected tournament
+  window._selectedTournamentId = tournamentId;
+
+  const screen = document.getElementById('tournament-entry-screen');
+  const tierColors = TIER_COLORS[tournament.tier] || TIER_COLORS.club;
+
+  // Update header
+  document.getElementById('tournament-header').style.background = tierColors.bg;
+  document.getElementById('tournament-tier-label').textContent = tournament.tier.toUpperCase() + ' TOURNAMENT';
+  document.getElementById('tournament-name-display').textContent = tournament.name;
+  document.getElementById('tournament-format').textContent =
+    `${tournament.format.type.replace('_', ' ')} • ${tournament.format.teams} Teams`;
+
+  // Update rewards
+  document.getElementById('tournament-reward').textContent = `+${tournament.rewards.points} Points`;
+  document.getElementById('tournament-qualification').textContent =
+    tournament.rewards.qualifiesFor ? tournament.rewards.qualifiesFor.replace('Qualified', '') : '—';
+
+  // Check requirements
+  const canEnter = canEnterTournament(tournamentId);
+  const reqSection = document.getElementById('tournament-requirements');
+  const enterBtn = document.getElementById('enter-tournament-btn');
+  const lockedBtn = document.getElementById('tournament-locked-btn');
+
+  if (canEnter) {
+    reqSection.style.display = 'none';
+    enterBtn.style.display = 'block';
+    lockedBtn.style.display = 'none';
+  } else {
+    document.getElementById('tournament-req-text').textContent =
+      `Requires: ${tournament.requirements.requiresQualification || 'higher tier qualification'}`;
+    reqSection.style.display = 'block';
+    enterBtn.style.display = 'none';
+    lockedBtn.style.display = 'block';
+  }
+
+  // Update field preview
+  updateFieldPreview(tournament);
+
+  // Hide other screens and show entry screen
+  document.getElementById('season-overview-screen').style.display = 'none';
+  screen.style.display = 'block';
+};
+
+// Update tournament field preview
+function updateFieldPreview(tournament) {
+  const container = document.getElementById('tournament-field-preview');
+  if (!container) return;
+
+  // Generate preview field
+  const tierLevel = CAREER_TIERS.indexOf(tournament.tier);
+  const previewTeams = [];
+
+  // Add player
+  previewTeams.push({ name: 'Team Player', isPlayer: true });
+
+  // Add some rivals and generated names
+  const eligibleRivals = getEligibleRivals(tierLevel).slice(0, 2);
+  eligibleRivals.forEach(r => {
+    previewTeams.push({ name: r.teamName, isRival: true });
+  });
+
+  // Fill remaining slots
+  while (previewTeams.length < Math.min(tournament.format.teams, 6)) {
+    const opponent = generateRandomOpponent(tierLevel, null);
+    previewTeams.push({ name: opponent.teamName });
+  }
+
+  container.innerHTML = previewTeams.map(team => `
+    <div style="
+      padding: 10px 12px;
+      background: ${team.isPlayer ? 'rgba(74, 222, 128, 0.15)' : 'rgba(255, 255, 255, 0.03)'};
+      border: 1px solid ${team.isPlayer ? 'rgba(74, 222, 128, 0.3)' : 'rgba(255, 255, 255, 0.1)'};
+      border-radius: 8px;
+      color: ${team.isPlayer ? '#4ade80' : '#94a3b8'};
+      font-size: 13px;
+    ">
+      ${team.isPlayer ? '👤 ' : ''}${team.isRival ? '🔥 ' : ''}${team.name}
+    </div>
+  `).join('');
+}
+
+// Enter the selected tournament
+window.enterSelectedTournament = function() {
+  const tournamentId = window._selectedTournamentId;
+  if (!tournamentId) return;
+
+  // Create the tournament
+  createTournament(tournamentId);
+
+  // Show the bracket
+  showBracket();
+};
+
+// Show bracket display screen
+window.showBracket = function() {
+  if (!seasonState.activeTournament) {
+    showSeasonOverview();
+    return;
+  }
+
+  const screen = document.getElementById('bracket-screen');
+  const tournament = seasonState.activeTournament;
+
+  // Update header
+  document.getElementById('bracket-tournament-name').textContent = tournament.definition.name;
+  document.getElementById('bracket-phase').textContent =
+    tournament.phase.charAt(0).toUpperCase() + tournament.phase.slice(1).replace('_', ' ');
+
+  // Render bracket
+  renderBracket();
+
+  // Update play button state
+  const nextMatch = getNextPlayerMatch();
+  const playBtn = document.getElementById('play-next-match-btn');
+  if (nextMatch && nextMatch.matchup.status === 'pending') {
+    playBtn.style.display = 'block';
+    playBtn.textContent = `Play ${nextMatch.round.name}`;
+  } else if (tournament.phase === 'complete') {
+    playBtn.style.display = 'none';
+  } else {
+    playBtn.textContent = 'Play Next Match';
+  }
+
+  // Hide other screens and show bracket
+  document.getElementById('season-overview-screen').style.display = 'none';
+  document.getElementById('tournament-entry-screen').style.display = 'none';
+  document.getElementById('pre-match-screen').style.display = 'none';
+  screen.style.display = 'block';
+};
+
+// Render bracket visualization
+function renderBracket() {
+  const container = document.getElementById('bracket-grid');
+  if (!container || !seasonState.activeTournament) return;
+
+  const bracket = seasonState.activeTournament.bracket;
+  if (!bracket || !bracket.rounds) return;
+
+  container.innerHTML = bracket.rounds.map((round, roundIndex) => `
+    <div style="display: flex; flex-direction: column; gap: 16px; min-width: 180px;">
+      <div style="
+        color: #64748b;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 8px;
+        text-align: center;
+      ">${round.name}</div>
+      ${round.matchups.map(matchup => renderMatchupCard(matchup, roundIndex)).join('')}
+    </div>
+  `).join('');
+}
+
+// Render a single matchup card
+function renderMatchupCard(matchup, roundIndex) {
+  const isPlayerMatch = matchup.team1?.isPlayer || matchup.team2?.isPlayer;
+  const isCurrent = matchup.status === 'pending' && isPlayerMatch;
+  const isComplete = matchup.status === 'complete';
+
+  const borderColor = isCurrent ? '#4ade80' :
+                      isPlayerMatch ? '#fbbf24' :
+                      'rgba(255, 255, 255, 0.1)';
+
+  const bgColor = isCurrent ? 'rgba(74, 222, 128, 0.1)' :
+                  isComplete ? 'rgba(255, 255, 255, 0.02)' :
+                  'rgba(255, 255, 255, 0.05)';
+
+  return `
+    <div style="
+      background: ${bgColor};
+      border: 2px solid ${borderColor};
+      border-radius: 8px;
+      padding: 12px;
+      ${isCurrent ? 'animation: pulse 2s infinite;' : ''}
+    ">
+      ${renderTeamRow(matchup.team1, matchup.winner, matchup.games)}
+      <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 8px 0;"></div>
+      ${renderTeamRow(matchup.team2, matchup.winner, matchup.games)}
+    </div>
+  `;
+}
+
+// Render team row in matchup card
+function renderTeamRow(team, winner, games) {
+  if (!team) {
+    return `<div style="color: #4b5563; font-size: 12px; padding: 4px 0;">TBD</div>`;
+  }
+
+  const isWinner = winner && winner.id === team.id;
+  const isLoser = winner && winner.id !== team.id;
+  const teamScore = games ? games.filter(g => g.winner === team.id).length : 0;
+
+  // Determine team icon: player uses club crest, opponents use country flag
+  let teamIcon = '';
+  if (team.isPlayer) {
+    // Player: show club crest if available, otherwise default curling stone
+    teamIcon = team.club?.crest || '🥌';
+  } else if (team.country?.flag) {
+    // Opponent: show country flag
+    teamIcon = team.country.flag;
+  }
+
+  return `
+    <div style="
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      opacity: ${isLoser ? '0.5' : '1'};
+    ">
+      <div style="
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: ${team.isPlayer ? '#4ade80' : 'white'};
+        font-size: 13px;
+        font-weight: ${isWinner ? 'bold' : 'normal'};
+      ">
+        ${teamIcon ? `<span style="font-size: 14px;">${teamIcon}</span>` : ''}
+        <span>${team.name}</span>
+      </div>
+      ${games && games.length > 0 ? `
+        <div style="
+          color: ${isWinner ? '#4ade80' : '#64748b'};
+          font-size: 12px;
+          font-weight: bold;
+        ">${teamScore}</div>
+      ` : ''}
+    </div>
+  `;
+}
+
+// Play next match from bracket
+window.playNextMatch = function() {
+  const nextMatch = getNextPlayerMatch();
+  if (!nextMatch) return;
+
+  showPreMatch();
+};
+
+// Show pre-match screen
+window.showPreMatch = function() {
+  const screen = document.getElementById('pre-match-screen');
+  const opponent = getCurrentMatchOpponent();
+
+  if (!opponent) {
+    console.error('No opponent found for pre-match screen');
+    return;
+  }
+
+  // Update match context
+  const tournament = seasonState.activeTournament;
+  const nextMatch = getNextPlayerMatch();
+  document.getElementById('match-context').textContent =
+    `${nextMatch.round.name} • ${tournament.definition.name}`;
+
+  // Update opponent card
+  document.getElementById('opponent-name').textContent =
+    `${opponent.firstName} ${opponent.lastName}`;
+  document.getElementById('opponent-team').textContent = opponent.teamName;
+
+  // Update opponent info
+  const personality = getPersonalityType(opponent);
+  document.getElementById('opponent-personality-badge').textContent = personality;
+  document.getElementById('opponent-bio').textContent = opponent.bio || 'A competitive curler.';
+
+  // Update rivalry history if applicable
+  const rivalrySection = document.getElementById('rivalry-history');
+  if (opponent.isRival && seasonState.rivalryHistory[opponent.id]) {
+    const history = seasonState.rivalryHistory[opponent.id];
+    document.getElementById('rivalry-record').textContent =
+      `You: ${history.playerWins} | Them: ${history.playerLosses}`;
+    rivalrySection.style.display = 'block';
+  } else {
+    rivalrySection.style.display = 'none';
+  }
+
+  // Hide bracket, show pre-match
+  document.getElementById('bracket-screen').style.display = 'none';
+  screen.style.display = 'block';
+};
+
+// Get personality type label from opponent
+function getPersonalityType(opponent) {
+  if (!opponent || !opponent.personality) return 'Balanced';
+
+  const { aggression, patience, riskTolerance } = opponent.personality;
+
+  if (aggression > 70) return 'Aggressive';
+  if (patience > 70) return 'Patient';
+  if (riskTolerance > 70) return 'Risk-Taker';
+  if (aggression < 30 && patience > 50) return 'Conservative';
+
+  return 'Balanced';
+}
+
+// Start tournament match (transition to actual game)
+window.startTournamentMatch = function() {
+  // Hide pre-match screen
+  document.getElementById('pre-match-screen').style.display = 'none';
+
+  // Set up game state for career tournament match
+  gameState.selectedMode = 'career';
+  gameState.gameMode = '1player';
+  gameState.inTournamentMatch = true;
+
+  // Set difficulty based on tournament tier
+  const tierIndex = CAREER_TIERS.indexOf(seasonState.activeTournament.definition.tier);
+  const difficulties = ['easy', 'easy', 'medium', 'medium', 'hard', 'hard'];
+  gameState.settings.difficulty = difficulties[tierIndex] || 'medium';
+
+  // Set career level for AI
+  gameState.careerLevel = seasonState.activeTournament.definition.tier;
+
+  // Show country selection and proceed
+  showCountrySelection();
+};
+
+// Continue tournament after match ends
+window.continueTournament = function() {
+  // Hide post-match screen
+  document.getElementById('post-match-screen').style.display = 'none';
+
+  // Check if tournament is complete
+  if (!seasonState.activeTournament || seasonState.activeTournament.phase === 'complete') {
+    showSeasonOverview();
+    return;
+  }
+
+  // Check for next match
+  const nextMatch = getNextPlayerMatch();
+  if (nextMatch) {
+    showBracket();
+  } else {
+    showSeasonOverview();
+  }
+};
+
+// Start a new season
+window.startNewSeason = function() {
+  initializeNewSeason();
+  showSeasonOverview();
+};
+
+// Handle tournament match result
+function handleTournamentMatchResult(playerWon) {
+  if (!seasonState.activeTournament) return;
+
+  // Get player and opponent scores from gameState
+  const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
+  const playerScore = gameState.scores[playerTeam];
+  const opponentScore = gameState.scores[playerTeam === 'red' ? 'yellow' : 'red'];
+
+  // Update tournament bracket
+  updateBracketWithResult(playerWon, playerScore, opponentScore);
+
+  // Update season stats
+  if (playerWon) {
+    seasonState.stats.totalWins++;
+  } else {
+    seasonState.stats.totalLosses++;
+  }
+
+  // Update rivalry history if opponent was a rival
+  const opponent = getCurrentMatchOpponent();
+  if (opponent && opponent.isRival && opponent.id) {
+    if (!seasonState.rivalryHistory[opponent.id]) {
+      seasonState.rivalryHistory[opponent.id] = { playerWins: 0, playerLosses: 0, lastMet: null };
+    }
+    if (playerWon) {
+      seasonState.rivalryHistory[opponent.id].playerWins++;
+    } else {
+      seasonState.rivalryHistory[opponent.id].playerLosses++;
+    }
+    seasonState.rivalryHistory[opponent.id].lastMet = new Date().toISOString();
+  }
+
+  // Check tournament status
+  const status = checkTournamentStatus();
+
+  // Clear tournament match flag
+  gameState.inTournamentMatch = false;
+
+  // Save state
+  saveSeasonState();
+
+  // Store result for post-match screen
+  window._lastMatchResult = {
+    playerWon,
+    playerScore,
+    opponentScore,
+    opponent,
+    tournamentStatus: status
+  };
+}
+
+// Show post-match screen
+window.showPostMatch = function() {
+  const screen = document.getElementById('post-match-screen');
+  const result = window._lastMatchResult;
+
+  // Clear the result so it doesn't persist
+  window._lastMatchResult = undefined;
+
+  if (!result) {
+    showSeasonOverview();
+    return;
+  }
+
+  // Update result banner
+  const banner = document.getElementById('match-result-banner');
+  const resultText = document.getElementById('match-result-text');
+  const scoreText = document.getElementById('match-final-score');
+
+  if (result.playerWon) {
+    banner.style.background = 'linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%)';
+    resultText.textContent = 'VICTORY!';
+  } else {
+    banner.style.background = 'linear-gradient(135deg, #4d1a1a 0%, #6b2d2d 100%)';
+    resultText.textContent = 'DEFEAT';
+  }
+
+  scoreText.textContent = `${result.playerScore} - ${result.opponentScore}`;
+
+  // Update match summary
+  const opponentName = result.opponent ?
+    `${result.opponent.firstName} ${result.opponent.lastName}` : 'Opponent';
+  document.getElementById('match-opponent-defeated').textContent =
+    result.playerWon ? `Defeated ${opponentName}` : `Lost to ${opponentName}`;
+
+  document.getElementById('post-match-wins').textContent = seasonState.stats.totalWins;
+  document.getElementById('post-match-points').textContent =
+    result.playerWon ? `+${seasonState.activeTournament?.definition?.rewards?.points || 0}` : '+0';
+
+  // Update tournament progress
+  updateMiniiBracketPreview();
+
+  // Update next action info
+  const nextInfo = document.getElementById('post-match-next-info');
+  const continueBtn = document.getElementById('continue-tournament-btn');
+  const returnBtn = document.getElementById('return-to-season-btn');
+
+  if (result.tournamentStatus === 'eliminated' || result.tournamentStatus === 'champion') {
+    if (result.tournamentStatus === 'champion') {
+      nextInfo.textContent = '🏆 Tournament Champion!';
+    } else {
+      nextInfo.textContent = 'Tournament ended';
+    }
+    continueBtn.style.display = 'none';
+    returnBtn.style.display = 'block';
+  } else {
+    const nextMatch = getNextPlayerMatch();
+    if (nextMatch) {
+      const nextOpp = getCurrentMatchOpponent();
+      const nextOppName = nextOpp ?
+        `${nextOpp.firstName} ${nextOpp.lastName}` : 'TBD';
+      nextInfo.textContent = `Next: ${nextMatch.round.name} vs. ${nextOppName}`;
+    } else {
+      nextInfo.textContent = 'Waiting for next round...';
+    }
+    continueBtn.style.display = 'block';
+    returnBtn.style.display = 'none';
+  }
+
+  screen.style.display = 'block';
+};
+
+// Update mini bracket preview in post-match
+function updateMiniiBracketPreview() {
+  const container = document.getElementById('mini-bracket-preview');
+  if (!container || !seasonState.activeTournament) {
+    container.innerHTML = '<div style="color: #64748b;">Tournament complete</div>';
+    return;
+  }
+
+  const bracket = seasonState.activeTournament.bracket;
+  if (!bracket || !bracket.rounds) return;
+
+  // Show simplified bracket view
+  container.innerHTML = bracket.rounds.map(round => `
+    <div style="margin-bottom: 8px;">
+      <div style="color: #64748b; font-size: 11px; margin-bottom: 4px;">${round.name}</div>
+      ${round.matchups.filter(m => m.team1?.isPlayer || m.team2?.isPlayer).map(matchup => `
+        <div style="
+          display: flex;
+          justify-content: space-between;
+          padding: 6px 8px;
+          background: ${matchup.status === 'complete' ? 'rgba(255,255,255,0.03)' : 'rgba(74,222,128,0.1)'};
+          border-radius: 4px;
+          font-size: 12px;
+        ">
+          <span style="color: ${matchup.winner?.isPlayer ? '#4ade80' : '#ef4444'};">
+            ${matchup.status === 'complete' ? (matchup.winner?.isPlayer ? '✓' : '✗') : '○'} You
+          </span>
+          <span style="color: #94a3b8;">
+            ${matchup.winner ? (matchup.winner.isPlayer ? 'W' : 'L') : 'vs'} ${matchup.team1?.isPlayer ? matchup.team2?.name : matchup.team1?.name || 'TBD'}
+          </span>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
 
 // Show country selection screen
 function showCountrySelection() {
@@ -6268,6 +10350,9 @@ window.chooseColor = function(color) {
 // Start the actual game after setup
 function startGame() {
   gameState.setupComplete = true;
+
+  // Start ambient crowd sound
+  soundManager.startAmbientCrowd();
 
   // Update scoreboard with flags
   updateScoreboardFlags();
@@ -6650,6 +10735,94 @@ window.closeTermsOfService = function() {
   }
 };
 
+// ============================================
+// FAQ FUNCTIONS
+// ============================================
+
+window.showFAQ = function() {
+  const screen = document.getElementById('faq-screen');
+  if (!screen) return;
+
+  // Close settings modal
+  window.closeSettings();
+
+  // Show FAQ screen
+  screen.style.display = 'block';
+
+  // Populate categories
+  showFAQCategories();
+};
+
+window.closeFAQ = function() {
+  const screen = document.getElementById('faq-screen');
+  if (screen) {
+    screen.style.display = 'none';
+  }
+};
+
+window.showFAQCategories = function() {
+  const categoriesContainer = document.getElementById('faq-categories');
+  const questionsContainer = document.getElementById('faq-questions');
+
+  if (!categoriesContainer || !questionsContainer) return;
+
+  // Show categories, hide questions
+  categoriesContainer.style.display = 'block';
+  questionsContainer.style.display = 'none';
+
+  // Populate category cards
+  categoriesContainer.innerHTML = FAQ_DATA.map((cat, index) => `
+    <div class="faq-category-card" onclick="window.showFAQCategory(${index})">
+      <div class="faq-category-icon">${cat.icon}</div>
+      <div class="faq-category-info">
+        <div class="faq-category-name">${cat.category}</div>
+        <div class="faq-category-count">${cat.questions.length} question${cat.questions.length !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="faq-category-arrow">→</div>
+    </div>
+  `).join('');
+};
+
+window.showFAQCategory = function(categoryIndex) {
+  const categoriesContainer = document.getElementById('faq-categories');
+  const questionsContainer = document.getElementById('faq-questions');
+  const titleEl = document.getElementById('faq-category-title');
+  const listEl = document.getElementById('faq-question-list');
+
+  if (!categoriesContainer || !questionsContainer || !titleEl || !listEl) return;
+
+  const category = FAQ_DATA[categoryIndex];
+  if (!category) return;
+
+  // Hide categories, show questions
+  categoriesContainer.style.display = 'none';
+  questionsContainer.style.display = 'block';
+
+  // Set title
+  titleEl.textContent = `${category.icon} ${category.category}`;
+
+  // Populate questions
+  listEl.innerHTML = category.questions.map((qa, index) => `
+    <div class="faq-question-item" id="faq-q-${categoryIndex}-${index}">
+      <div class="faq-question-header" onclick="window.toggleFAQQuestion(${categoryIndex}, ${index})">
+        <div class="faq-question-text">${qa.q}</div>
+        <div class="faq-question-toggle">▼</div>
+      </div>
+      <div class="faq-answer">
+        <div class="faq-answer-content">${qa.a}</div>
+      </div>
+    </div>
+  `).join('');
+};
+
+window.toggleFAQQuestion = function(categoryIndex, questionIndex) {
+  const item = document.getElementById(`faq-q-${categoryIndex}-${questionIndex}`);
+  if (!item) return;
+
+  // Toggle open state
+  item.classList.toggle('open');
+};
+
 window.sendFeedback = async function(event) {
   event.preventDefault();
 
@@ -6900,6 +11073,13 @@ renderer.domElement.addEventListener('mouseleave', () => {
 
 // Curl direction and sweeping
 document.addEventListener('keydown', (e) => {
+  // Practice mode: R key for quick reset
+  if (e.code === 'KeyR' && gameState.practiceMode.active) {
+    e.preventDefault();
+    window.practiceQuickReset();
+    return;
+  }
+
   // Curl direction - A/Left for out-turn, D/Right for in-turn
   if (gameState.phase === 'aiming' || gameState.phase === 'charging') {
     if (e.code === 'KeyA' || e.code === 'ArrowLeft') {

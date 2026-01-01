@@ -8,43 +8,17 @@
 
 ## Game Modes
 
-### 1. Career Mode
+### 1. Career Mode - DONE
 - Player starts at **club level** and works their way up through competitive tiers
-- Progress is saved between sessions
-- **Requires backend integration** to persist user data:
-  - Current level/tier
-  - Win/loss record
-  - Unlocked achievements or content
-  - Player statistics
+- Progress is saved between sessions (localStorage)
+- Tournament system with brackets
+- Club identity with custom crests
+- Country representation unlocks at National tier and above
 
-#### Country Representation
-- At higher career levels (International and above), player represents their country
-- Replace generic red/yellow team colors with country flags
-- Player selects their country at career start or when reaching International level
-- Opponent countries vary based on level:
-  - **International**: Various countries
-  - **World Championship**: Top curling nations
-  - **Olympic Trials**: Domestic teams competing for Olympic spot
-  - **Olympics**: Elite nations (Canada, Sweden, Switzerland, Norway, etc.)
-- Visual elements:
-  - Flags displayed on scoreboard
-  - Country colors on stones or uniforms
-  - National team jerseys on skip/players
-
-### 2. Quick Play Mode (name TBD)
-Possible names:
-- Quick Play
-- Exhibition
-- Friendly Match
-- Practice
-- Open Play
-- Freeplay
-
-Features:
-- Player can select any level/difficulty directly
-- No progression tracking required
-- No backend needed - purely client-side
-- Good for casual play or practicing specific scenarios
+### 2. Quick Play Mode - DONE
+- Player can select any difficulty directly
+- No progression tracking
+- Good for casual play
 
 ---
 
@@ -120,7 +94,39 @@ Players compete against each other on separate devices over the internet.
 - Chat API integration for tutor functionality
 - Context-aware responses based on current game state
 
-### Sound Enhancements
-- Add crowd noise / ambient arena sounds
-- Crowd reactions to good shots, near misses, and scoring
-- Background arena atmosphere during gameplay
+### Sound Enhancements - DONE
+- Procedural ambient crowd murmur during gameplay
+- Crowd cheers for good shots (intensity varies by shot quality)
+- Sympathetic "ooh" for near misses
+- Applause for scoring (duration scales with points)
+- Victory cheers and defeat groans
+
+---
+
+## Settings Improvements
+
+### FAQ Section - DONE
+- 7 categories covering gameplay, rules, career mode, etc.
+- Accordion-style navigation
+- Accessible from settings menu
+
+---
+
+## Practice Mode - DONE
+
+A dedicated training mode for skill development.
+
+### Shot Drills
+- 6 drill types: Takeouts, Bumps, Draws, Guards, Freezes, Hit & Roll
+- 24 scenarios across difficulty levels (1-5)
+- Success detection for each shot type
+
+### Progressive Difficulty
+- Scenarios unlock as player improves
+- Track success rate per drill and scenario
+- Streak bonuses for consecutive successes
+
+### Instant Reset
+- R key for quick reset
+- Reset button in practice overlay
+- No full game progression - just focused practice
