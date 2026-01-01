@@ -6636,6 +6636,20 @@ window.closePrivacyPolicy = function() {
   }
 };
 
+window.showTermsOfService = function() {
+  const overlay = document.getElementById('tos-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+};
+
+window.closeTermsOfService = function() {
+  const overlay = document.getElementById('tos-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
 window.sendFeedback = async function(event) {
   event.preventDefault();
 

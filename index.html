@@ -547,21 +547,34 @@
       z-index: 9000;
       overflow-y: auto;
     ">
-      <!-- Privacy Policy link -->
-      <button onclick="window.showPrivacyPolicy()" style="
+      <!-- Legal links -->
+      <div style="
         position: absolute;
         bottom: max(30px, env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
-        padding: 8px 12px;
-        background: transparent;
-        border: none;
-        color: #64748b;
-        font-size: 12px;
-        cursor: pointer;
+        display: flex;
+        gap: 20px;
         z-index: 100;
         font-family: 'Segoe UI', system-ui, sans-serif;
-      ">Privacy Policy</button>
+      ">
+        <button onclick="window.showPrivacyPolicy()" style="
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 12px;
+          cursor: pointer;
+        ">Privacy Policy</button>
+        <button onclick="window.showTermsOfService()" style="
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 12px;
+          cursor: pointer;
+        ">Terms of Service</button>
+      </div>
 
       <div style="
         max-width: 400px;
@@ -1890,10 +1903,10 @@
           </p>
         </div>
 
-        <!-- Privacy Policy -->
-        <div style="margin-bottom: 20px;">
+        <!-- Legal Links -->
+        <div style="margin-bottom: 20px; display: flex; gap: 10px;">
           <button onclick="window.showPrivacyPolicy()" style="
-            width: 100%;
+            flex: 1;
             padding: 10px;
             border: 1px solid #4a5568;
             background: rgba(74, 85, 104, 0.2);
@@ -1903,6 +1916,17 @@
             font-size: 13px;
             transition: all 0.2s;
           ">Privacy Policy</button>
+          <button onclick="window.showTermsOfService()" style="
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #4a5568;
+            background: rgba(74, 85, 104, 0.2);
+            color: #94a3b8;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+          ">Terms of Service</button>
         </div>
 
         <!-- Close Button -->
@@ -2067,7 +2091,7 @@
 
           <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data We Collect</h3>
           <p style="margin: 0 0 15px 0;">
-            This game stores data <strong>only on your device</strong> using your browser's local storage. This includes:
+            This game stores data <strong>only on your device</strong> using local storage. This includes:
           </p>
           <ul style="margin: 0 0 15px 0; padding-left: 20px;">
             <li>Career progress (level, wins, losses)</li>
@@ -2089,16 +2113,124 @@
           </p>
           <ul style="margin: 0 0 15px 0; padding-left: 20px;">
             <li>Using "Reset Career" in Settings</li>
-            <li>Clearing your browser's local storage</li>
+            <li>Uninstalling the app or clearing app data</li>
           </ul>
 
           <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Third Parties</h3>
+          <p style="margin: 0 0 15px 0;">
+            This game does not share any data with third parties. All game logic runs entirely on your device.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Contact</h3>
           <p style="margin: 0;">
-            This game does not share any data with third parties. All game logic runs entirely in your browser.
+            If you have questions about this privacy policy, contact us at <a href="mailto:jonathan@pksols.com" style="color: #60a5fa;">jonathan@pksols.com</a>
           </p>
         </div>
 
         <button onclick="window.closePrivacyPolicy()" style="
+          width: 100%;
+          margin-top: 25px;
+          padding: 12px;
+          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+        ">Close</button>
+      </div>
+    </div>
+
+    <!-- Terms of Service Overlay -->
+    <div id="tos-overlay" onclick="window.closeTermsOfService()" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 9500;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      box-sizing: border-box;
+    ">
+      <div id="tos-modal" onclick="event.stopPropagation()" style="
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 3px solid #4a5568;
+        border-radius: 16px;
+        padding: 30px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        cursor: default;
+      ">
+        <h2 style="color: white; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Terms of Service</h2>
+
+        <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+          <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2026</p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">1. Acceptance of Terms</h3>
+          <p style="margin: 0 0 15px 0;">
+            By downloading, installing, or using Curling Coach ("the App"), you agree to these Terms of Service. If you do not agree, please do not use the App.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">2. Description of Service</h3>
+          <p style="margin: 0 0 15px 0;">
+            Curling Coach is a free mobile game that simulates the sport of curling. The App includes single-player gameplay against computer opponents of varying difficulty levels.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">3. License Grant</h3>
+          <p style="margin: 0 0 15px 0;">
+            We grant you a limited, non-exclusive, non-transferable, revocable license to use the App for personal, non-commercial purposes.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">4. User Conduct</h3>
+          <p style="margin: 0 0 10px 0;">You agree not to:</p>
+          <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+            <li>Modify, reverse engineer, or decompile the App</li>
+            <li>Use the App for any unlawful purpose</li>
+            <li>Attempt to gain unauthorized access to any part of the App</li>
+            <li>Remove or alter any proprietary notices or labels</li>
+          </ul>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">5. Intellectual Property</h3>
+          <p style="margin: 0 0 15px 0;">
+            All content, features, and functionality of the App are owned by the developer and are protected by copyright, trademark, and other intellectual property laws.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">6. Disclaimer of Warranties</h3>
+          <p style="margin: 0 0 15px 0;">
+            The App is provided "as is" without warranties of any kind, either express or implied. We do not warrant that the App will be error-free or uninterrupted.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">7. Limitation of Liability</h3>
+          <p style="margin: 0 0 15px 0;">
+            To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of the App.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">8. Changes to Terms</h3>
+          <p style="margin: 0 0 15px 0;">
+            We reserve the right to modify these terms at any time. Continued use of the App after changes constitutes acceptance of the new terms.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">9. Termination</h3>
+          <p style="margin: 0 0 15px 0;">
+            We may terminate or suspend your access to the App at any time, without prior notice, for conduct that we believe violates these Terms or is harmful to other users or the App.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">10. Contact</h3>
+          <p style="margin: 0;">
+            If you have questions about these terms, contact us at <a href="mailto:jonathan@pksols.com" style="color: #60a5fa;">jonathan@pksols.com</a>
+          </p>
+        </div>
+
+        <button onclick="window.closeTermsOfService()" style="
           width: 100%;
           margin-top: 25px;
           padding: 12px;
