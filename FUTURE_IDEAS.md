@@ -22,32 +22,31 @@
 
 ---
 
-## Learn Mode
+## Learn Mode - MOSTLY DONE
 
 An educational mode designed to teach curling strategy and technique.
 
-### Strategy Assistance
+### Strategy Assistance - DONE (Coach Panel)
 - Computer suggests where to aim for each shot
-- Explains the reasoning behind the suggestion:
-  - What the objective is (guard, draw, takeout, etc.)
-  - Recommended weight/effort level
-  - Recommended curl direction
-  - Why this shot is strategically sound given the current stone positions
+- Shows target marker on ice
+- Explains reasoning: shot type, weight, curl direction
+- 4 coaching levels: Beginner, Intermediate, Advanced, Expert
 
-### Feedback System
-- After each throw, provide feedback on execution
-- Compare intended vs actual result
-- Tips for improvement
+### Tutorials - DONE
+- Multi-step tutorials for rules, controls, shot types
+- Covers: scoring, hammer, free guard zone, shot types, aiming, curl, effort, sweeping
+- Can be disabled by user
+- First-run tutorials for new players (even outside Learn Mode)
 
-### AI Tutor Chatbot
+### Feedback System - DONE
+- Shot feedback toast messages after each throw
+- Categorizes outcomes (success, near miss)
+- Crowd reactions reinforce feedback
+
+### AI Tutor Chatbot - NOT DONE
 - Interactive chat interface
-- User can ask questions about:
-  - Curling rules and terminology
-  - Strategy in specific situations
-  - Technique tips
-  - General curling knowledge
-- Responses should feel like they're coming from a professional curling coach/tutor
-- Could integrate with an AI API for natural conversation
+- User can ask questions about curling rules, strategy, technique
+- Would integrate with AI API for natural conversation
 
 ---
 
