@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="CurlingPro" />
@@ -25,8 +25,8 @@
       }
       #ui {
         position: fixed;
-        top: 20px;
-        left: 20px;
+        top: max(20px, env(safe-area-inset-top));
+        left: max(20px, env(safe-area-inset-left));
         color: white;
         font-family: 'Segoe UI', sans-serif;
         font-size: 16px;
@@ -204,8 +204,8 @@
       }
       #instructions {
         position: fixed;
-        bottom: 20px;
-        left: 20px;
+        bottom: max(20px, env(safe-area-inset-bottom));
+        left: max(20px, env(safe-area-inset-left));
         color: white;
         font-family: 'Segoe UI', sans-serif;
         font-size: 14px;
@@ -1251,7 +1251,7 @@
     <style>
       #return-to-throw {
         position: fixed;
-        bottom: 30px;
+        bottom: max(30px, env(safe-area-inset-bottom));
         left: 50%;
         transform: translateX(-50%);
         padding: 20px 50px;
@@ -1290,7 +1290,7 @@
     <div id="split-time" style="
       position: fixed;
       top: 50%;
-      right: 30px;
+      right: max(30px, env(safe-area-inset-right));
       transform: translateY(-50%);
       font-family: 'Segoe UI', sans-serif;
       font-size: 28px;
@@ -1874,6 +1874,21 @@
           </p>
         </div>
 
+        <!-- Privacy Policy -->
+        <div style="margin-bottom: 20px;">
+          <button onclick="window.showPrivacyPolicy()" style="
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #4a5568;
+            background: rgba(74, 85, 104, 0.2);
+            color: #94a3b8;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+          ">Privacy Policy</button>
+        </div>
+
         <!-- Close Button -->
         <button onclick="window.closeSettings()" style="
           width: 100%;
@@ -2003,6 +2018,125 @@
       </div>
     </div>
 
+    <!-- Privacy Policy Modal -->
+    <div id="privacy-overlay" onclick="if(event.target === this) window.closePrivacyPolicy()" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 3500;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+    ">
+      <div id="privacy-modal" onclick="event.stopPropagation()" style="
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border: 3px solid #4a5568;
+        border-radius: 16px;
+        padding: 30px;
+        width: 90%;
+        max-width: 500px;
+        max-height: 80vh;
+        overflow-y: auto;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        cursor: default;
+      ">
+        <h2 style="color: white; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Privacy Policy</h2>
+
+        <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
+          <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2025</p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data We Collect</h3>
+          <p style="margin: 0 0 15px 0;">
+            This game stores data <strong>only on your device</strong> using your browser's local storage. This includes:
+          </p>
+          <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+            <li>Career progress (level, wins, losses)</li>
+            <li>Game settings (sound, difficulty preferences)</li>
+            <li>Tutorial completion status</li>
+          </ul>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data We Don't Collect</h3>
+          <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+            <li>No personal information</li>
+            <li>No analytics or tracking</li>
+            <li>No cookies</li>
+            <li>No data sent to any server</li>
+          </ul>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Your Control</h3>
+          <p style="margin: 0 0 15px 0;">
+            You can clear all stored data at any time by:
+          </p>
+          <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+            <li>Using "Reset Career" in Settings</li>
+            <li>Clearing your browser's local storage</li>
+          </ul>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Third Parties</h3>
+          <p style="margin: 0;">
+            This game does not share any data with third parties. All game logic runs entirely in your browser.
+          </p>
+        </div>
+
+        <button onclick="window.closePrivacyPolicy()" style="
+          width: 100%;
+          margin-top: 25px;
+          padding: 12px;
+          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+          border: none;
+          border-radius: 8px;
+          color: white;
+          font-size: 16px;
+          font-weight: bold;
+          cursor: pointer;
+        ">Close</button>
+      </div>
+    </div>
+
+    <!-- Pause Overlay (iOS interruption handling) -->
+    <div id="pause-overlay" onclick="window.resumeFromPause()" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 5000;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      cursor: pointer;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    ">
+      <div style="text-align: center; pointer-events: none;">
+        <div style="font-size: 64px; margin-bottom: 20px;">&#9208;</div>
+        <h2 style="color: white; margin: 0 0 15px 0; font-size: 32px; font-weight: bold;">PAUSED</h2>
+        <p id="pause-message" style="color: #94a3b8; margin: 0 0 30px 0; font-size: 16px;"></p>
+        <div style="
+          display: inline-block;
+          padding: 15px 40px;
+          background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          animation: pulse-button 2s ease-in-out infinite;
+        ">Tap to Continue</div>
+      </div>
+    </div>
+    <style>
+      @keyframes pulse-button {
+        0%, 100% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.05); opacity: 0.9; }
+      }
+    </style>
+
     <!-- Confirm Modal -->
     <div id="confirm-overlay" style="
       display: none;
@@ -2105,7 +2239,7 @@
     <div id="feedback-shot-panel" style="
       display: none;
       position: fixed;
-      bottom: 100px;
+      bottom: calc(100px + env(safe-area-inset-bottom, 0px));
       left: 50%;
       transform: translateX(-50%);
       width: 320px;
@@ -2157,7 +2291,7 @@
     <div id="coach-panel" style="
       display: none;
       position: fixed;
-      right: 20px;
+      right: max(20px, env(safe-area-inset-right));
       top: 50%;
       transform: translateY(-50%);
       width: 280px;
@@ -2274,7 +2408,7 @@
       display: none;
       position: fixed;
       top: 120px;
-      right: 20px;
+      right: max(20px, env(safe-area-inset-right));
       padding: 8px 12px;
       background: rgba(74, 222, 128, 0.2);
       border: 1px solid rgba(74, 222, 128, 0.5);
@@ -2389,8 +2523,8 @@
     <!-- Settings button (upper right) -->
     <button id="settings-btn-top" onclick="window.openSettings()" style="
       position: fixed;
-      top: 20px;
-      right: 20px;
+      top: max(20px, env(safe-area-inset-top));
+      right: max(20px, env(safe-area-inset-right));
       padding: 10px 14px;
       background: rgba(0, 0, 0, 0.6);
       border: 2px solid #666;

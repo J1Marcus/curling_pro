@@ -240,7 +240,12 @@ const gameState = {
 
   // First-run tutorial state (for regular mode)
   firstRunTutorial: null,  // { id, pausesGame }
-  firstRunTutorialsShownThisSession: {}  // Track tutorials shown this session (resets on refresh)
+  firstRunTutorialsShownThisSession: {},  // Track tutorials shown this session (resets on refresh)
+
+  // App backgrounding state (iOS lifecycle)
+  isPaused: false,
+  pausedPhase: null,  // Phase when paused (for resume)
+  activeTimers: []    // Track setTimeout IDs for cleanup on pause
 };
 
 // Level definitions
@@ -3360,6 +3365,9 @@ function startPull(x, y) {
     }
   }
 
+  // Save pre-shot state for potential rollback on interruption
+  savePreShotState();
+
   gameState.phase = 'charging';
   gameState.pullStart = { x, y };
   gameState.pullCurrent = { x, y };
@@ -5130,20 +5138,32 @@ function getComputerShot() {
   const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
   // Add randomness based on difficulty setting
-  // All levels should be competent - difference is in precision, not wild misses
-  // Easy: Slightly off target (might miss button by 1-2 feet)
-  // Medium: Good accuracy (usually within 1 foot)
-  // Hard: Very precise (within inches)
+  // Career levels use level.difficulty (0.02-0.12), scale to variance range (0.005-0.025)
+  const level = getCurrentLevel();
   const difficultyVariance = {
-    easy: 0.025,   // ~1.4 degrees aim variance, slight effort variance
+    easy: 0.025,   // ~1.4 degrees aim variance
     medium: 0.015, // ~0.9 degrees aim variance
     hard: 0.006    // ~0.3 degrees aim variance (very precise)
   };
-  const variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
 
-  // Apply variance - much smaller to prevent out-of-play shots
+  // Career mode: scale level.difficulty to variance range
+  // Club (0.12) -> 0.025, Olympics (0.02) -> 0.005
+  // Quick play: use settings-based variance
+  let variance = gameState.gameMode === '1player'
+    ? 0.005 + (level.difficulty / 0.12) * 0.020  // Scale 0.02-0.12 to 0.005-0.025
+    : (difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium);
+
+  // Guards and draws (low effort) require more precision
+  // Skilled AI is more accurate on finesse shots; takeouts are forgiving due to speed
+  if (effort < 65) {
+    const skillFactor = 1 - level.difficulty; // 0.90 for Regional, 0.98 for Olympics
+    // Reduce variance by 30-50% for precision shots based on skill
+    variance = variance * (0.5 + 0.5 * (1 - skillFactor));
+  }
+
+  // Apply variance
   const accuracyVariance = (Math.random() - 0.5) * variance;
-  const effortVariance = (Math.random() - 0.5) * variance * 15;  // Reduced multiplier
+  const effortVariance = (Math.random() - 0.5) * variance * 15;
 
   const finalEffort = Math.min(100, Math.max(30, effort + effortVariance));  // Min 30% effort
   const finalAimAngle = aimAngle + accuracyVariance;
@@ -5213,6 +5233,9 @@ function executeComputerShot() {
     console.log('[COMPUTER] Not computer turn - returning');
     return;
   }
+
+  // Save pre-shot state for potential rollback on interruption
+  savePreShotState();
 
   const shot = getComputerShot();
 
@@ -5288,8 +5311,8 @@ function executeComputerShot() {
 // PHYSICS UPDATE
 // ============================================
 function updatePhysics() {
-  // Skip physics if tutorial is pausing the game
-  if (gameState.learnMode.tutorialPaused) {
+  // Skip physics if game is paused (backgrounded) or tutorial is pausing
+  if (gameState.isPaused || gameState.learnMode.tutorialPaused) {
     return;
   }
 
@@ -6599,6 +6622,20 @@ window.closeFeedback = function() {
   }
 };
 
+window.showPrivacyPolicy = function() {
+  const overlay = document.getElementById('privacy-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+};
+
+window.closePrivacyPolicy = function() {
+  const overlay = document.getElementById('privacy-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
 window.sendFeedback = async function(event) {
   event.preventDefault();
 
@@ -6657,6 +6694,9 @@ function startNewEnd() {
   resetOutOfPlayStones();  // Reset the out-of-play position counter
   updateStoneCountDisplay();
   gameState.end++;
+
+  // Team without hammer throws first (hammer throws last)
+  gameState.currentTeam = gameState.hammer === 'red' ? 'yellow' : 'red';
 
   if (gameState.end > gameState.settings.gameLength) {
     // Game over
@@ -6947,6 +6987,231 @@ window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ============================================
+// APP BACKGROUNDING (iOS Lifecycle)
+// ============================================
+// Tracked timer helper - use this instead of raw setTimeout for gameplay timers
+function setTrackedTimeout(callback, delay) {
+  const id = setTimeout(() => {
+    // Remove from tracked list when executed
+    gameState.activeTimers = gameState.activeTimers.filter(t => t !== id);
+    callback();
+  }, delay);
+  gameState.activeTimers.push(id);
+  return id;
+}
+
+// Save pre-shot state for rollback (called before each delivery)
+function savePreShotState() {
+  gameState.preShotState = {
+    stones: gameState.stones.map(s => ({
+      team: s.team,
+      position: { x: s.body.position.x, y: s.body.position.y },
+      velocity: { x: 0, y: 0 },
+      angle: s.body.angle,
+      angularVelocity: 0
+    })),
+    stonesThrown: { ...gameState.stonesThrown },
+    currentTeam: gameState.currentTeam,
+    phase: 'aiming'
+  };
+}
+
+// Save full physics state (positions + velocities) for freeze/resume
+function savePhysicsState() {
+  return gameState.stones.map(s => ({
+    team: s.team,
+    position: { x: s.body.position.x, y: s.body.position.y },
+    velocity: { x: s.body.velocity.x, y: s.body.velocity.y },
+    angle: s.body.angle,
+    angularVelocity: s.body.angularVelocity
+  }));
+}
+
+// Restore physics state from saved snapshot
+function restorePhysicsState(savedStones) {
+  for (let i = 0; i < gameState.stones.length && i < savedStones.length; i++) {
+    const stone = gameState.stones[i];
+    const saved = savedStones[i];
+    Matter.Body.setPosition(stone.body, saved.position);
+    Matter.Body.setVelocity(stone.body, saved.velocity);
+    Matter.Body.setAngle(stone.body, saved.angle);
+    Matter.Body.setAngularVelocity(stone.body, saved.angularVelocity);
+  }
+}
+
+function showPauseOverlay(message = '') {
+  const overlay = document.getElementById('pause-overlay');
+  const messageEl = document.getElementById('pause-message');
+  if (overlay) {
+    if (messageEl) messageEl.textContent = message;
+    overlay.style.display = 'flex';
+  }
+}
+
+function hidePauseOverlay() {
+  const overlay = document.getElementById('pause-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
+function pauseGame() {
+  if (gameState.isPaused) return;
+
+  // Don't pause if we're in menus/setup
+  const activePhases = ['aiming', 'charging', 'sliding', 'throwing', 'sweeping', 'waiting'];
+  if (!activePhases.includes(gameState.phase)) return;
+
+  console.log('[PAUSE] App interrupted - pausing game');
+  gameState.isPaused = true;
+  gameState.pausedPhase = gameState.phase;
+
+  // Stop all audio immediately
+  soundManager.stopAllSounds();
+
+  // Clear computer shot timer
+  if (gameState._computerShotTimeout) {
+    clearTimeout(gameState._computerShotTimeout);
+    gameState._computerShotTimeout = null;
+  }
+
+  // Clear all tracked gameplay timers
+  for (const timerId of gameState.activeTimers) {
+    clearTimeout(timerId);
+  }
+  gameState.activeTimers = [];
+
+  // Check if a stone is in motion
+  const hasMovingStone = gameState.stones.some(s => {
+    const speed = Math.sqrt(s.body.velocity.x ** 2 + s.body.velocity.y ** 2);
+    return speed > 0.5;  // Meaningful motion threshold
+  });
+
+  // Save full physics state for freeze/resume
+  gameState.savedPhysicsState = savePhysicsState();
+  gameState.pausedWithMovingStone = hasMovingStone;
+
+  // Save state to localStorage for crash recovery
+  try {
+    const saveState = {
+      phase: gameState.phase,
+      currentTeam: gameState.currentTeam,
+      end: gameState.end,
+      scores: gameState.scores,
+      endScores: gameState.endScores,
+      hammer: gameState.hammer,
+      stonesThrown: gameState.stonesThrown,
+      gameMode: gameState.gameMode,
+      computerTeam: gameState.computerTeam,
+      stones: gameState.savedPhysicsState,
+      hadMovingStone: hasMovingStone
+    };
+    localStorage.setItem('curlingpro_pausestate', JSON.stringify(saveState));
+  } catch (e) {
+    console.warn('Could not save pause state:', e);
+  }
+
+  // Show pause overlay
+  showPauseOverlay(hasMovingStone ? 'Shot in progress' : '');
+}
+
+// Called when user taps to resume (from pause overlay)
+window.resumeFromPause = function() {
+  if (!gameState.isPaused) {
+    hidePauseOverlay();
+    return;
+  }
+
+  console.log('[RESUME] User tapped to continue');
+
+  // Restore physics state exactly as it was
+  if (gameState.savedPhysicsState) {
+    restorePhysicsState(gameState.savedPhysicsState);
+    gameState.savedPhysicsState = null;
+  }
+
+  // Hide overlay first
+  hidePauseOverlay();
+
+  // Resume game state
+  gameState.isPaused = false;
+
+  // If there was a moving stone, physics will continue from frozen state
+  if (gameState.pausedWithMovingStone) {
+    gameState.pausedWithMovingStone = false;
+    // Restart sliding sound if stone is still moving
+    const stillMoving = gameState.stones.some(s => {
+      const speed = Math.sqrt(s.body.velocity.x ** 2 + s.body.velocity.y ** 2);
+      return speed > 0.5;
+    });
+    if (stillMoving && gameState.activeStone) {
+      soundManager.startSliding();
+    }
+  }
+
+  // Re-trigger computer turn if it was the computer's turn in aiming phase
+  if (gameState.phase === 'aiming' &&
+      gameState.gameMode === '1player' &&
+      gameState.currentTeam === gameState.computerTeam) {
+    scheduleComputerShot();
+  }
+
+  // Clear saved pause state
+  try {
+    localStorage.removeItem('curlingpro_pausestate');
+  } catch (e) {
+    // Ignore
+  }
+};
+
+// Internal resume (for focus events where overlay isn't shown)
+function resumeGameInternal() {
+  // If pause overlay is visible, wait for user tap
+  const overlay = document.getElementById('pause-overlay');
+  if (overlay && overlay.style.display === 'flex') {
+    return;  // User must tap to continue
+  }
+
+  if (gameState.isPaused) {
+    window.resumeFromPause();
+  }
+}
+
+// Visibility change handler (works on iOS Safari)
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    pauseGame();
+  }
+  // On visible: don't auto-resume, wait for user tap on overlay
+});
+
+// Page hide/show (additional iOS support)
+window.addEventListener('pagehide', () => {
+  pauseGame();
+});
+
+window.addEventListener('pageshow', (event) => {
+  // If page was restored from bfcache, overlay should still be visible
+  // User will tap to resume
+  if (event.persisted && !gameState.isPaused) {
+    // Edge case: page restored but game wasn't paused
+    // This shouldn't happen, but handle gracefully
+  }
+});
+
+// Blur/focus for when app loses focus but isn't hidden
+window.addEventListener('blur', () => {
+  // Only pause if we're in active gameplay
+  if (gameState.phase === 'sweeping' || gameState.phase === 'sliding' || gameState.phase === 'throwing') {
+    pauseGame();
+  }
+});
+
+window.addEventListener('focus', () => {
+  // Don't auto-resume - user taps the overlay
 });
 
 // ============================================
