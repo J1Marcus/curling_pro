@@ -547,6 +547,23 @@
       z-index: 9000;
       overflow-y: auto;
     ">
+      <!-- Privacy Policy link -->
+      <button onclick="window.showPrivacyPolicy()" style="
+        position: absolute;
+        top: max(20px, env(safe-area-inset-top));
+        right: max(20px, env(safe-area-inset-right));
+        padding: 8px 12px;
+        background: transparent;
+        border: 1px solid #4a5568;
+        border-radius: 6px;
+        color: #94a3b8;
+        font-size: 12px;
+        cursor: pointer;
+        z-index: 100;
+        transition: all 0.2s;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">Privacy Policy</button>
+
       <div style="
         max-width: 400px;
         margin: 0 auto;
