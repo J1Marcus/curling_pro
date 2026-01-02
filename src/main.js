@@ -2952,10 +2952,12 @@ function generateSingleEliminationBracket(teams, bestOf = 1) {
   };
 
   // Create bracket structure from finals backwards
+  // round 0 = Final (1 match), round 1 = Semifinals (2 matches), etc.
   let matchesInRound = 1;
   for (let round = 0; round < numRounds; round++) {
     const roundNum = numRounds - round;
-    const roundName = roundNames[roundNum] || `Round ${roundNum}`;
+    // Use round + 1 for name lookup: Final=1, Semis=2, Quarters=4, etc.
+    const roundName = roundNames[round + 1] || `Round of ${matchesInRound * 2}`;
     const matchups = [];
 
     for (let i = 0; i < matchesInRound; i++) {
@@ -3167,6 +3169,62 @@ function advanceLoser(rounds, match) {
   }
 }
 
+// Simulate all pending AI vs AI matches in the bracket
+// This ensures that when the player advances, their next opponent is ready
+function simulateAIMatches(tournament) {
+  if (!tournament || !tournament.bracket) return;
+
+  const rounds = tournament.bracket.rounds;
+  let matchSimulated = true;
+
+  // Keep simulating until no more AI matches can be completed
+  while (matchSimulated) {
+    matchSimulated = false;
+
+    for (const round of rounds) {
+      for (const match of round.matchups) {
+        // Check if this is a ready AI vs AI match (both teams present, neither is player)
+        if (match.status === 'ready' &&
+            match.team1 && match.team2 &&
+            !match.team1.isPlayer && !match.team2.isPlayer) {
+
+          // Simulate the match - higher seed (lower number) has slight advantage
+          const team1Advantage = (match.team2.seed - match.team1.seed) * 0.05;
+          const team1WinChance = 0.5 + team1Advantage;
+          const team1Wins = Math.random() < team1WinChance;
+
+          // Set winner and scores
+          match.winner = team1Wins ? 'team1' : 'team2';
+          const winnerScore = Math.floor(Math.random() * 4) + 5; // 5-8
+          const loserScore = Math.floor(Math.random() * Math.min(winnerScore, 5)); // 0 to min(winner-1, 4)
+          match.scores = {
+            team1: team1Wins ? winnerScore : loserScore,
+            team2: team1Wins ? loserScore : winnerScore
+          };
+          match.games = [{
+            team1Score: match.scores.team1,
+            team2Score: match.scores.team2,
+            winner: match.winner
+          }];
+          match.status = 'complete';
+
+          console.log(`[Tournament] Simulated AI match: ${match.team1.name} vs ${match.team2.name} -> ${team1Wins ? match.team1.name : match.team2.name} wins`);
+
+          // Advance winner to next match
+          advanceWinner(rounds, match);
+
+          // For page playoff, also advance loser if applicable
+          if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
+            advanceLoser(rounds, match);
+          }
+
+          matchSimulated = true;
+        }
+      }
+    }
+  }
+}
+
 // Get the next match the player needs to play
 function getNextPlayerMatch(tournament) {
   const t = tournament || seasonState.activeTournament;
@@ -3273,6 +3331,10 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
   if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
     advanceLoser(tournament.bracket.rounds, match);
   }
+
+  // Simulate any AI vs AI matches that are now ready
+  // This ensures the player's next opponent is determined
+  simulateAIMatches(tournament);
 
   // Check if player is eliminated or tournament is complete
   const result = checkTournamentStatus(tournament, playerWon);
@@ -11655,26 +11717,38 @@ window.showBracket = function() {
   // Render bracket
   renderBracket();
 
+  // Simulate any pending AI matches before showing bracket
+  // This ensures player's opponent is ready if they've advanced
+  simulateAIMatches(tournament);
+
   // Update play button state
   const nextMatch = getNextPlayerMatch(tournament);
   const playBtn = document.getElementById('play-next-match-btn');
+
+  // Helper to handle button click - use both onclick and touchend for mobile reliability
+  const handlePlayClick = function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('[Bracket] Play button clicked/touched');
+    window.playNextMatch();
+  };
+
+  // Remove old handlers by cloning the button
+  const newBtn = playBtn.cloneNode(true);
+  playBtn.parentNode.replaceChild(newBtn, playBtn);
+
   if (nextMatch && (nextMatch.matchup.status === 'pending' || nextMatch.matchup.status === 'ready')) {
-    playBtn.style.display = 'block';
-    playBtn.textContent = `Play ${nextMatch.round.name}`;
-    // Add click handler
-    playBtn.onclick = function() {
-      console.log('[Bracket] Play button clicked');
-      window.playNextMatch();
-    };
+    newBtn.style.display = 'block';
+    newBtn.textContent = `Play ${nextMatch.round.name}`;
+    newBtn.addEventListener('click', handlePlayClick);
+    newBtn.addEventListener('touchend', handlePlayClick);
   } else if (tournament.phase === 'complete') {
-    playBtn.style.display = 'none';
+    newBtn.style.display = 'none';
   } else {
-    playBtn.style.display = 'block';
-    playBtn.textContent = 'Play Next Match';
-    playBtn.onclick = function() {
-      console.log('[Bracket] Play button clicked');
-      window.playNextMatch();
-    };
+    newBtn.style.display = 'block';
+    newBtn.textContent = 'Play Next Match';
+    newBtn.addEventListener('click', handlePlayClick);
+    newBtn.addEventListener('touchend', handlePlayClick);
   }
 
   // Hide other screens and show bracket
