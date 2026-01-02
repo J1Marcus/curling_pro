@@ -4612,6 +4612,16 @@
             font-size: 14px;
             cursor: pointer;
           ">← Back</button>
+          <button onclick="window.showRestartCareerConfirm()" style="
+            flex: 1;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid #ef4444;
+            border-radius: 8px;
+            color: #f87171;
+            font-size: 14px;
+            cursor: pointer;
+          ">🔄 Restart Career</button>
           <button onclick="window.startNewSeason()" id="new-season-btn" style="
             flex: 1;
             padding: 14px;
@@ -4623,6 +4633,59 @@
             cursor: pointer;
             display: none;
           ">Start New Season</button>
+        </div>
+      </div>
+
+      <!-- Restart Career Confirmation Overlay -->
+      <div id="restart-career-confirm" style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 9500;
+        justify-content: center;
+        align-items: center;
+      ">
+        <div style="
+          background: #1a1a2e;
+          border: 1px solid #ef4444;
+          border-radius: 16px;
+          padding: 24px;
+          max-width: 320px;
+          margin: 20px;
+          text-align: center;
+        ">
+          <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+          <h3 style="color: white; margin: 0 0 12px 0; font-size: 20px;">Restart Career?</h3>
+          <p style="color: #94a3b8; margin: 0 0 24px 0; font-size: 14px; line-height: 1.5;">
+            This will erase all your career progress, including tournaments won, rankings, and qualifications. This cannot be undone.
+          </p>
+          <div style="display: flex; gap: 12px;">
+            <button onclick="window.hideRestartCareerConfirm()" style="
+              flex: 1;
+              padding: 14px;
+              background: transparent;
+              border: 1px solid #64748b;
+              border-radius: 8px;
+              color: #94a3b8;
+              font-size: 14px;
+              cursor: pointer;
+            ">Cancel</button>
+            <button onclick="window.confirmRestartCareer()" style="
+              flex: 1;
+              padding: 14px;
+              background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-size: 14px;
+              font-weight: bold;
+              cursor: pointer;
+            ">Restart</button>
+          </div>
         </div>
       </div>
     </div>

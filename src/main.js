@@ -11200,6 +11200,70 @@ window.goBackToModeSelect = function() {
   showModeSelection();
 };
 
+// Show restart career confirmation
+window.showRestartCareerConfirm = function() {
+  const overlay = document.getElementById('restart-career-confirm');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+};
+
+// Hide restart career confirmation
+window.hideRestartCareerConfirm = function() {
+  const overlay = document.getElementById('restart-career-confirm');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
+// Confirm and execute career restart
+window.confirmRestartCareer = function() {
+  // Clear all career-related localStorage
+  localStorage.removeItem('curlingpro_season');
+  localStorage.removeItem('curlingpro_tournament');
+  localStorage.removeItem('curlingpro_match_progress');
+
+  // Reset seasonState to defaults
+  seasonState.currentSeason = 1;
+  seasonState.seasonYear = 2026;
+  seasonState.careerTier = 'club';
+  seasonState.activeTournament = null;
+  seasonState.qualifications = {
+    regionalQualified: false,
+    provincialQualified: false,
+    nationalQualified: false,
+    worldsQualified: false,
+    olympicTrialsQualified: false,
+    olympicsQualified: false
+  };
+  seasonState.seasonCalendar = { completed: [], available: [] };
+  seasonState.stats = {
+    totalWins: 0,
+    totalLosses: 0,
+    tournamentsWon: 0,
+    tournamentsEntered: 0,
+    seasonsPlayed: 0
+  };
+  seasonState.rivalryHistory = {};
+  seasonState.playerTeam = {
+    name: 'Team Player',
+    ranking: 1000,
+    club: {
+      id: 'granite',
+      name: 'Granite Curling Club',
+      crest: '🪨',
+      colors: { primary: '#4a5568', secondary: '#2d3748' }
+    }
+  };
+
+  // Hide overlay and season overview
+  window.hideRestartCareerConfirm();
+  document.getElementById('season-overview-screen').style.display = 'none';
+
+  // Show club selection to start fresh
+  showClubSelection();
+};
+
 // ============================================
 // CLUB SELECTION (Career Mode Start)
 // ============================================
