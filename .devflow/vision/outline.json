@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "outline": {
+    "id": "dd35b28a-428f-4a6d-a5c4-f349bad83199",
+    "section": "vision",
+    "nodes": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440001",
+        "question": "Who are the primary users of this product?",
+        "recommendedAnswer": "Casual gamers and curling enthusiasts looking for an accessible, realistic curling experience. The game caters to three distinct user segments: (1) Complete beginners through Learn Mode with tutorials and coaching, (2) Casual players through Quick Play with adjustable difficulty (Club to Olympic level), and (3) Competitive players through Career Mode with tournament progression and Online Multiplayer with ELO-based ranked matchmaking. The mobile-first design (PWA-ready, touch controls) targets users who want to play on phones/tablets.",
+        "category": "Users",
+        "order": 0,
+        "confidence": 0.9,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440002",
+        "question": "What platform/medium is this product built for?",
+        "recommendedAnswer": "A cross-platform web application built with Vite, Three.js for 3D rendering, and Matter.js for physics. It's designed as a Progressive Web App (PWA) installable on mobile devices with full touch control support. The tech stack includes: Vite (build), Three.js (3D graphics), Matter.js (physics), Howler.js (audio), Supabase (real-time multiplayer, matchmaking, leaderboards), and Express.js (backend for email notifications). Deploys to Vercel.",
+        "category": "Platform",
+        "order": 1,
+        "confidence": 0.95,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440003",
+        "question": "What core problem does this product solve?",
+        "recommendedAnswer": "CurlingPro addresses the lack of accessible, high-quality digital curling games. Real curling requires specialized facilities (ice rinks, equipment, teams) that most people don't have access to. The game solves this by providing: (1) Authentic curling physics including curl mechanics, sweeping effects, and realistic ice friction, (2) Progressive learning through tutorials and AI coaching for newcomers, (3) Competitive depth through career progression from Club to Olympic level, and (4) Social play via online multiplayer with ranked matchmaking.",
+        "category": "Problem",
+        "order": 2,
+        "confidence": 0.85,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440004",
+        "question": "What makes this product different from alternatives?",
+        "recommendedAnswer": "CurlingPro differentiates through: (1) Physics realism - implements authentic curl mechanics where rotation rate affects trajectory, real friction coefficients, and proper collision physics with coefficient of restitution; (2) Comprehensive game modes - Learn Mode with interactive tutorials and AI coach suggestions, Career Mode with 8-tier tournament progression (Club to Olympics) featuring persistent rivals and personality-driven AI opponents, Practice Mode with 24+ drills, and Online Multiplayer with ELO rankings; (3) 3D immersion - dynamic camera transitions, detailed arena that scales with career level (sparse club crowds to packed Olympic stadiums), procedural crowd reactions; (4) Mobile-first PWA design with intuitive touch controls.",
+        "category": "Differentiation",
+        "order": 3,
+        "confidence": 0.88,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440005",
+        "question": "What are the key features that define the product experience?",
+        "recommendedAnswer": "Core features include: (1) Realistic throwing mechanics - pull-back power control, curl direction selection via slider, split timing display; (2) Interactive sweeping - directional sweeping affects stone path, angle-based effectiveness calculation; (3) Game modes - Career (tournament brackets, tier progression, rival system), Quick Play, Learn Mode (coaching panel, tutorials), Practice (drills with success tracking), Online Multiplayer (private games, quick match with ELO); (4) Shot types - Guard, Draw, Takeout, Peel, Freeze, Hit-and-Roll; (5) Rules implementation - Free Guard Zone rule, hammer system, proper end scoring; (6) Immersive audio - stone sliding/collision sounds, crowd reactions scaled to shot quality, ambient arena atmosphere; (7) Visual progression - arena scales from sparse club to packed Olympic stadium based on career level.",
+        "category": "Features",
+        "order": 4,
+        "confidence": 0.92,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440006",
+        "question": "How will success be measured for this product?",
+        "recommendedAnswer": "Success metrics would likely include: (1) Engagement - active players, session length, games completed, career progression rates; (2) Retention - daily/weekly active users, percentage completing Learn Mode tutorials, players reaching higher career tiers; (3) Multiplayer adoption - online games played, ranked match participation, player ratings distribution; (4) Quality - physics accuracy (split times matching real curling benchmarks: ~14s hog-to-hog for draw weight), positive feedback through the in-app bug report/feature request system; (5) Growth - PWA installations, organic sharing of room codes for multiplayer. The detailed physics timing instrumentation in the code suggests accuracy is a key quality benchmark.",
+        "category": "Success",
+        "order": 5,
+        "confidence": 0.75,
+        "derivedFromCode": true,
+        "status": "current",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440007",
+        "question": "What is the product's monetization or business model?",
+        "recommendedAnswer": "No monetization model is evident in the codebase. The game appears to be free-to-play with no in-app purchases, ads, or premium features currently implemented. The MIT license suggests it may be an open-source passion project. Future monetization opportunities could include: cosmetic unlocks (stone designs, club crests), premium tournament entries, or removing theoretical ads. The detailed career progression and unlockable country representation at National tier could support a freemium model.",
+        "category": "Business",
+        "order": 6,
+        "confidence": 0.7,
+        "derivedFromCode": true,
+        "status": "pending",
+        "userAnswer": null
+      },
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440008",
+        "question": "What future enhancements are planned for the product?",
+        "recommendedAnswer": "According to FUTURE_IDEAS.md, planned enhancements include: (1) Arena improvements - bleachers with spectators on back wall; (2) AI Tutor Chatbot - interactive chat for rules/strategy questions using AI API; (3) Leaderboard System - global rankings, regional filters, weekly/monthly views; (4) Match History & Statistics - detailed game records, shot accuracy by type, progression graphs; (5) Achievement System - badges for milestones with progress tracking; (6) Daily Challenges - rotating objectives with rewards; (7) Friend List System - add friends, quick invites, recent opponents; (8) Spectator Mode - watch live ranked matches; (9) Accessibility - colorblind mode, shot replay, undo in practice; (10) Full Tournament Mode - multi-day online tournaments with brackets; (11) Seasonal Rankings with placement matches and rewards.",
+        "category": "Roadmap",
+        "order": 7,
+        "confidence": 0.9,
+        "derivedFromCode": true,
+        "status": "approved",
+        "userAnswer": null
+      }
+    ],
+    "isReady": false,
+    "createdAt": "2026-01-02T22:32:31.725Z",
+    "updatedAt": "2026-01-02T22:32:31.725Z"
+  },
+  "savedAt": "2026-01-02T22:32:31.725Z"
+}

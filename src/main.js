@@ -3252,22 +3252,41 @@ function getCurrentMatchOpponent(tournament) {
   const t = tournament || seasonState.activeTournament;
   if (!t) return null;
 
-  // First check currentMatchup, then find from bracket
-  let match = t.currentMatchup;
-  if (!match) {
+  // Get the actual match object - currentMatchup may be {round, matchup} or just matchup
+  let match = null;
+
+  // First try currentMatchup
+  if (t.currentMatchup) {
+    // Handle both formats: {round, matchup} or direct matchup object
+    match = t.currentMatchup.matchup || t.currentMatchup;
+  }
+
+  // If no match or it's complete, get fresh from bracket
+  if (!match || match.status === 'complete') {
     const nextMatch = getNextPlayerMatch(t);
     if (nextMatch) {
       match = nextMatch.matchup;
     }
   }
-  if (!match) return null;
+
+  if (!match) {
+    console.log('[getCurrentMatchOpponent] No match found');
+    return null;
+  }
+
+  console.log('[getCurrentMatchOpponent] match:', match.id, 'team1:', match.team1?.name, 'team2:', match.team2?.name);
 
   // Get opponent from match
   if (match.team1 && match.team1.isPlayer) {
-    return match.team2?.opponent || match.team2;
+    const opp = match.team2?.opponent || match.team2;
+    console.log('[getCurrentMatchOpponent] Player is team1, returning team2:', opp);
+    return opp;
   } else if (match.team2 && match.team2.isPlayer) {
-    return match.team1?.opponent || match.team1;
+    const opp = match.team1?.opponent || match.team1;
+    console.log('[getCurrentMatchOpponent] Player is team2, returning team1:', opp);
+    return opp;
   }
+  console.log('[getCurrentMatchOpponent] Player not found in match');
   return null;
 }
 
@@ -11877,8 +11896,16 @@ window.showPreMatch = function() {
   const screen = document.getElementById('pre-match-screen');
   const opponent = getCurrentMatchOpponent();
 
+  console.log('[showPreMatch] opponent:', opponent);
+
   if (!opponent) {
     console.error('No opponent found for pre-match screen');
+    // Debug: log the current match state
+    const t = seasonState.activeTournament;
+    if (t) {
+      console.log('[showPreMatch] currentMatchup:', t.currentMatchup);
+      console.log('[showPreMatch] nextMatch:', getNextPlayerMatch());
+    }
     return;
   }
 
@@ -11888,10 +11915,15 @@ window.showPreMatch = function() {
   document.getElementById('match-context').textContent =
     `${nextMatch.round.name} • ${tournament.definition.name}`;
 
+  // Handle both opponent objects (with firstName/lastName) and team objects (with name)
+  const opponentName = opponent.firstName
+    ? `${opponent.firstName} ${opponent.lastName}`
+    : opponent.name || 'Unknown Opponent';
+  const opponentTeam = opponent.teamName || opponent.name || 'Unknown Team';
+
   // Update opponent card
-  document.getElementById('opponent-name').textContent =
-    `${opponent.firstName} ${opponent.lastName}`;
-  document.getElementById('opponent-team').textContent = opponent.teamName;
+  document.getElementById('opponent-name').textContent = opponentName;
+  document.getElementById('opponent-team').textContent = opponentTeam;
 
   // Update opponent info
   const personality = getPersonalityType(opponent);
