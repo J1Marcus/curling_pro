@@ -471,40 +471,100 @@
         box-shadow: 0 10px 30px rgba(74, 222, 128, 0.3);
       }
 
-      /* Shot Feedback Toast */
+      /* Shot Feedback Toast - Sports Broadcast Style */
       .shot-feedback-toast {
         position: fixed;
-        top: 35%;
+        top: 32%;
         left: 50%;
         transform: translate(-50%, -50%) scale(0.8);
-        padding: 16px 32px;
-        border-radius: 12px;
+        padding: 0;
+        background: transparent;
         font-family: 'Segoe UI', system-ui, sans-serif;
-        font-size: 24px;
-        font-weight: bold;
+        font-size: 42px;
+        font-weight: 900;
+        font-style: italic;
         text-align: center;
         z-index: 800;
         pointer-events: none;
         opacity: 0;
         display: none;
-        transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        -webkit-text-stroke: 2px rgba(0, 0, 0, 0.5);
+        paint-order: stroke fill;
       }
       .shot-feedback-toast.success {
-        background: linear-gradient(135deg, #059669 0%, #047857 100%);
-        color: white;
-        border: 2px solid #34d399;
+        color: #4ade80;
+        text-shadow:
+          0 0 10px #4ade80,
+          0 0 20px #4ade80,
+          0 0 40px #22c55e,
+          0 0 60px #22c55e,
+          0 4px 8px rgba(0, 0, 0, 0.5);
+        animation: toast-glow-green 0.5s ease-out forwards;
       }
       .shot-feedback-toast.near-miss {
-        background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
-        color: white;
-        border: 2px solid #fbbf24;
+        color: #fbbf24;
+        text-shadow:
+          0 0 10px #fbbf24,
+          0 0 20px #fbbf24,
+          0 0 40px #f59e0b,
+          0 0 60px #d97706,
+          0 4px 8px rgba(0, 0, 0, 0.5);
+        animation: toast-glow-orange 0.5s ease-out forwards;
+      }
+      @keyframes toast-glow-green {
+        0% {
+          transform: translate(-50%, -50%) scale(0.3) rotate(-5deg);
+          opacity: 0;
+          filter: blur(10px);
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
+          filter: blur(0);
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1) rotate(0deg);
+          opacity: 1;
+          filter: blur(0);
+        }
+      }
+      @keyframes toast-glow-orange {
+        0% {
+          transform: translate(-50%, -50%) scale(0.3) rotate(-5deg);
+          opacity: 0;
+          filter: blur(10px);
+        }
+        50% {
+          transform: translate(-50%, -50%) scale(1.15) rotate(0deg);
+          filter: blur(0);
+        }
+        100% {
+          transform: translate(-50%, -50%) scale(1) rotate(0deg);
+          opacity: 1;
+          filter: blur(0);
+        }
       }
       @keyframes toast-pop {
         0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
         50% { transform: translate(-50%, -50%) scale(1.1); }
         100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      }
+
+      /* Marker reminder animations */
+      @keyframes marker-reminder-enter {
+        0% {
+          transform: translateX(-50%) translateY(-30px) scale(0.8);
+          opacity: 0;
+        }
+        100% {
+          transform: translateX(-50%) translateY(0) scale(1);
+          opacity: 1;
+        }
+      }
+      @keyframes marker-reminder-pulse {
+        0%, 100% { transform: translateX(-50%) scale(1); }
+        50% { transform: translateX(-50%) scale(1.05); }
       }
     </style>
   </head>
@@ -681,6 +741,21 @@
         ">
           <div style="color: white; font-size: 18px; font-weight: bold;">🎯 Practice Mode</div>
           <div style="color: #c4b5fd; font-size: 13px; margin-top: 4px;">Master shot types with focused drills</div>
+        </button>
+
+        <button id="online-mode-btn" onclick="window.selectMode('online')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #7c2d12 0%, #c2410c 100%);
+          border: 2px solid #fb923c;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">🌐 Online Multiplayer</div>
+          <div style="color: #fed7aa; font-size: 13px; margin-top: 4px;">Challenge a friend over the internet</div>
         </button>
       </div>
     </div>
@@ -912,6 +987,234 @@
         display: flex;
         align-items: center;
         gap: 6px;
+      }
+    </style>
+
+    <!-- Multiplayer Lobby Screen -->
+    <div id="multiplayer-lobby-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 60px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <div style="font-size: 48px; margin-bottom: 16px;">🌐</div>
+        <h1 style="color: white; font-size: 28px; margin-bottom: 8px;">Online Multiplayer</h1>
+        <p style="color: #94a3b8; font-size: 14px; margin-bottom: 40px;">Play against a friend</p>
+
+        <!-- Player Name Input -->
+        <div style="margin-bottom: 24px; text-align: left;">
+          <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">YOUR NAME</label>
+          <input type="text" id="mp-player-name" placeholder="Enter your name" maxlength="20" style="
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 16px;
+            box-sizing: border-box;
+          ">
+        </div>
+
+        <!-- Create Game Button -->
+        <button onclick="window.createOnlineGame()" style="
+          width: 100%;
+          padding: 18px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #7c2d12 0%, #c2410c 100%);
+          border: 2px solid #fb923c;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          color: white;
+          font-size: 16px;
+          font-weight: bold;
+        ">Create Game</button>
+
+        <div style="color: #64748b; font-size: 13px; margin: 16px 0;">— or —</div>
+
+        <!-- Join Game Section -->
+        <div style="text-align: left; margin-bottom: 12px;">
+          <label style="color: #94a3b8; font-size: 12px; display: block; margin-bottom: 6px;">ROOM CODE</label>
+          <input type="text" id="mp-room-code" placeholder="Enter 6-letter code" maxlength="6" style="
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            font-size: 18px;
+            font-family: monospace;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-align: center;
+            box-sizing: border-box;
+          ">
+        </div>
+
+        <button onclick="window.joinOnlineGame()" style="
+          width: 100%;
+          padding: 18px;
+          margin-bottom: 24px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 2px solid rgba(255, 255, 255, 0.2);
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          color: white;
+          font-size: 16px;
+          font-weight: bold;
+        ">Join Game</button>
+
+        <!-- Error message -->
+        <div id="mp-error" style="
+          display: none;
+          color: #f87171;
+          background: rgba(248, 113, 113, 0.1);
+          border: 1px solid rgba(248, 113, 113, 0.3);
+          border-radius: 8px;
+          padding: 12px;
+          margin-bottom: 16px;
+          font-size: 14px;
+        "></div>
+
+        <button onclick="window.showModeSelect()" style="
+          padding: 12px 24px;
+          background: transparent;
+          border: 1px solid #64748b;
+          border-radius: 8px;
+          color: #94a3b8;
+          font-size: 14px;
+          cursor: pointer;
+        ">Back to Menu</button>
+      </div>
+    </div>
+
+    <!-- Multiplayer Waiting Screen -->
+    <div id="multiplayer-waiting-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 400px;
+        margin: 0 auto;
+        padding: 60px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        text-align: center;
+      ">
+        <div id="mp-waiting-spinner" style="
+          width: 60px;
+          height: 60px;
+          border: 4px solid rgba(251, 146, 60, 0.2);
+          border-top-color: #fb923c;
+          border-radius: 50%;
+          margin: 0 auto 24px;
+          animation: spin 1s linear infinite;
+        "></div>
+
+        <h2 id="mp-waiting-title" style="color: white; font-size: 24px; margin-bottom: 12px;">
+          Waiting for opponent...
+        </h2>
+
+        <p id="mp-waiting-subtitle" style="color: #94a3b8; font-size: 14px; margin-bottom: 32px;">
+          Share the room code with your friend
+        </p>
+
+        <!-- Room Code Display -->
+        <div id="mp-room-code-display" style="
+          background: rgba(251, 146, 60, 0.1);
+          border: 2px solid #fb923c;
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 32px;
+        ">
+          <div style="color: #94a3b8; font-size: 12px; margin-bottom: 8px;">ROOM CODE</div>
+          <div id="mp-room-code-value" style="
+            color: white;
+            font-size: 36px;
+            font-family: monospace;
+            font-weight: bold;
+            letter-spacing: 6px;
+          ">------</div>
+          <button onclick="window.copyRoomCode()" style="
+            margin-top: 12px;
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: #94a3b8;
+            font-size: 13px;
+            cursor: pointer;
+          ">Copy Code</button>
+        </div>
+
+        <!-- Opponent Info (shown when connected) -->
+        <div id="mp-opponent-info" style="
+          display: none;
+          background: rgba(74, 222, 128, 0.1);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+        ">
+          <div style="color: #4ade80; font-size: 14px; margin-bottom: 4px;">Opponent Connected!</div>
+          <div id="mp-opponent-name" style="color: white; font-size: 18px; font-weight: bold;"></div>
+        </div>
+
+        <!-- Start Game Button (host only, shown when opponent connects) -->
+        <button id="mp-start-game-btn" onclick="window.startOnlineGame()" style="
+          display: none;
+          width: 100%;
+          padding: 18px;
+          margin-bottom: 16px;
+          background: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+          border: 2px solid #4ade80;
+          border-radius: 12px;
+          cursor: pointer;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+        ">Start Game</button>
+
+        <button onclick="window.cancelOnlineGame()" style="
+          padding: 12px 24px;
+          background: transparent;
+          border: 1px solid #64748b;
+          border-radius: 8px;
+          color: #94a3b8;
+          font-size: 14px;
+          cursor: pointer;
+        ">Cancel</button>
+      </div>
+    </div>
+
+    <style>
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      #mp-player-name:focus,
+      #mp-room-code:focus {
+        outline: none;
+        border-color: #fb923c;
       }
     </style>
 
@@ -1381,7 +1684,166 @@
       </div>
     </div>
 
+    <!-- Team Assignment Announcement Overlay -->
+    <div id="team-assignment-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.95);
+      z-index: 9700;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+      <div style="text-align: center; padding: 20px;">
+        <h2 id="assignment-title" style="color: #4ade80; font-size: 28px; margin-bottom: 20px;">Teams Assigned</h2>
+        <div id="assignment-your-team" style="font-size: 48px; margin-bottom: 10px;"></div>
+        <p id="assignment-your-label" style="color: #e2e8f0; font-size: 18px; margin-bottom: 30px;"></p>
+        <div style="color: #64748b; font-size: 14px;">
+          <span id="assignment-hammer-info"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Multiplayer Chat -->
+    <div id="mp-chat-container" style="
+      display: none;
+      position: fixed;
+      bottom: max(20px, env(safe-area-inset-bottom));
+      right: max(20px, env(safe-area-inset-right));
+      z-index: 500;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+      <!-- Chat Button -->
+      <button id="mp-chat-btn" onclick="window.toggleChat()" style="
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        border: none;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        position: relative;
+      ">
+        💬
+        <span id="mp-chat-badge" style="
+          display: none;
+          position: absolute;
+          top: -5px;
+          right: -5px;
+          background: #ef4444;
+          color: white;
+          font-size: 12px;
+          font-weight: bold;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          line-height: 20px;
+        ">0</span>
+      </button>
+
+      <!-- Chat Panel -->
+      <div id="mp-chat-panel" style="
+        display: none;
+        position: absolute;
+        bottom: 60px;
+        right: 0;
+        width: 280px;
+        max-height: 350px;
+        background: rgba(30, 30, 40, 0.95);
+        border-radius: 12px;
+        border: 1px solid #444;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+      ">
+        <!-- Chat Header -->
+        <div style="
+          padding: 12px 15px;
+          background: rgba(0, 0, 0, 0.3);
+          border-bottom: 1px solid #333;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        ">
+          <span style="color: #e2e8f0; font-weight: bold; font-size: 14px;">Chat</span>
+          <button onclick="window.toggleChat()" style="
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+          ">✕</button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="mp-chat-messages" style="
+          height: 200px;
+          overflow-y: auto;
+          padding: 10px;
+        "></div>
+
+        <!-- Chat Input -->
+        <div style="
+          padding: 10px;
+          border-top: 1px solid #333;
+          display: flex;
+          gap: 8px;
+        ">
+          <input type="text" id="mp-chat-input" placeholder="Type a message..."
+            onkeypress="if(event.key==='Enter')window.sendChatMessage()"
+            style="
+              flex: 1;
+              padding: 10px 12px;
+              border-radius: 20px;
+              border: 1px solid #444;
+              background: #1a1a2e;
+              color: white;
+              font-size: 14px;
+              outline: none;
+            "
+          />
+          <button onclick="window.sendChatMessage()" style="
+            padding: 10px 15px;
+            border-radius: 20px;
+            background: #3b82f6;
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+          ">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chat Toast Notifications -->
+    <div id="mp-chat-toasts" style="
+      position: fixed;
+      bottom: max(80px, calc(env(safe-area-inset-bottom) + 60px));
+      right: max(20px, env(safe-area-inset-right));
+      z-index: 499;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 8px;
+      pointer-events: none;
+    "></div>
+
     <style>
+      @keyframes fadeInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
       @keyframes coin-flip {
         0% {
           transform: translateY(0) rotateY(0deg) rotateX(0deg) scale(1);
@@ -1477,7 +1939,19 @@
       </div>
       <!-- Turn and Stone Count Row -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-        <div id="turn" style="margin: 0;">End 1 - Red's Turn</div>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div id="turn" style="margin: 0;">End 1 - Red's Turn</div>
+          <div id="turn-timer" style="
+            display: none;
+            background: #333;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: bold;
+            min-width: 45px;
+            text-align: center;
+          ">60</div>
+        </div>
         <div id="stone-count" style="
           display: flex;
           gap: 12px;
@@ -3566,7 +4040,7 @@
         </div>
 
         <!-- Enter Tournament Button -->
-        <button id="enter-tournament-btn" onclick="window.enterSelectedTournament()" style="
+        <button id="enter-tournament-btn" style="
           width: 100%;
           padding: 18px;
           background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
@@ -3578,6 +4052,9 @@
           cursor: pointer;
           box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
           transition: all 0.2s;
+          -webkit-tap-highlight-color: transparent;
+          touch-action: manipulation;
+          user-select: none;
         ">Enter Tournament</button>
 
         <!-- Locked State Button (shown when requirements not met) -->
@@ -3662,9 +4139,10 @@
         padding: 16px 20px max(20px, env(safe-area-inset-bottom));
         background: rgba(13, 17, 23, 0.98);
         border-top: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 10;
       ">
         <div style="max-width: 500px; margin: 0 auto;">
-          <button id="play-next-match-btn" onclick="window.playNextMatch()" style="
+          <button id="play-next-match-btn" style="
             width: 100%;
             padding: 16px;
             background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
@@ -3676,6 +4154,8 @@
             cursor: pointer;
             box-shadow: 0 4px 20px rgba(74, 222, 128, 0.4);
             font-family: 'Segoe UI', system-ui, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
           ">Play Next Match</button>
         </div>
       </div>

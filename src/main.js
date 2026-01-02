@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import Matter from 'matter-js';
 import { soundManager } from './sounds.js';
+import * as multiplayer from './multiplayer.js';
 
 // ============================================
 // SPLASH SCREEN / LOADING
@@ -75,6 +76,12 @@ const OVERHEAD_CAM = { x: 0, y: 12, z: 28, lookAt: { x: 0, y: 0, z: 40 } };
 const HOG_LINE_Y = HOG_LINE_NEAR * PHYSICS_SCALE;    // Near hog line
 const FAR_HOG_LINE_Y = HOG_LINE_FAR * PHYSICS_SCALE; // Far hog line
 const HOUSE_CENTER_Y = TEE_LINE_FAR * PHYSICS_SCALE; // Far house center (target)
+
+// Physics timing - frame-rate independent
+const PHYSICS_TIMESTEP = 1000 / 60;  // Fixed 60 FPS physics (16.67ms per step)
+const MAX_PHYSICS_STEPS = 5;         // Cap to prevent spiral of death
+let physicsAccumulator = 0;
+let lastPhysicsTime = 0;
 
 // Shot type thresholds (effort 0-100)
 const SHOT_TYPES = {
@@ -198,6 +205,16 @@ const gameState = {
   // Target marker
   targetMarker: null,
   targetPosition: null,
+
+  // Opponent's target marker (multiplayer)
+  opponentTargetMarker: null,
+  lastAimBroadcast: 0,  // Throttle aim state broadcasts
+  lastPositionSync: 0,  // Throttle position sync broadcasts
+  pendingSync: null,    // Pending position sync to interpolate toward
+
+  // Turn timer (multiplayer)
+  turnTimer: null,      // setInterval reference
+  turnTimeLeft: 60,     // Seconds remaining
 
   // Aiming line
   aimLine: null,
@@ -595,6 +612,43 @@ const PRACTICE_SCENARIOS = {
       ],
       target: { type: 'takeout', minRemoved: 2 },
       hint: 'Hit the first stone to drive it into the second'
+    },
+    {
+      id: 'takeout_6',
+      name: 'Triple Takeout',
+      difficulty: 5,
+      description: 'Remove three stones with one devastating shot',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.2 },
+        { team: 'yellow', x: -0.4, z: 40.6 },
+        { team: 'yellow', x: 0.4, z: 40.4 }
+      ],
+      target: { type: 'takeout', minRemoved: 3 },
+      hint: 'Hit the center stone hard to scatter all three'
+    },
+    {
+      id: 'takeout_7',
+      name: 'Run-back Double',
+      difficulty: 5,
+      description: 'Hit one stone into another to remove both',
+      stones: [
+        { team: 'yellow', x: 0, z: 38.5 },   // Guard in front
+        { team: 'yellow', x: 0, z: 41.0 }    // Shot stone behind
+      ],
+      target: { type: 'takeout', minRemoved: 2 },
+      hint: 'Hit the guard to drive it back into the shot stone'
+    },
+    {
+      id: 'takeout_8',
+      name: 'Raise Takeout',
+      difficulty: 5,
+      description: 'Hit your own stone to take out an opponent',
+      stones: [
+        { team: 'red', x: 0, z: 38.0 },      // Your guard
+        { team: 'yellow', x: 0, z: 41.0 }    // Target behind it
+      ],
+      target: { type: 'raise_takeout', raiseStoneIndex: 0, targetStoneIndex: 1 },
+      hint: 'Promote your guard into their stone to remove it'
     }
   ],
 
@@ -631,6 +685,39 @@ const PRACTICE_SCENARIOS = {
       ],
       target: { type: 'bump', stoneIndex: 0, zone: 'house' },
       hint: 'Promote your guard into the rings with controlled weight'
+    },
+    {
+      id: 'bump_4',
+      name: 'Raise to Button',
+      difficulty: 4,
+      description: 'Promote your guard directly onto the button',
+      stones: [
+        { team: 'red', x: 0, z: 38.5 }  // Own guard
+      ],
+      target: { type: 'bump', stoneIndex: 0, zone: 'button' },
+      hint: 'Perfect weight to raise the stone to the button'
+    },
+    {
+      id: 'bump_5',
+      name: 'Angle Raise',
+      difficulty: 5,
+      description: 'Hit the side of your guard to angle it to the button',
+      stones: [
+        { team: 'red', x: 0.6, z: 38.0 }  // Own guard offset
+      ],
+      target: { type: 'bump', stoneIndex: 0, zone: 'button' },
+      hint: 'Hit the outside of the stone to redirect it to center'
+    },
+    {
+      id: 'bump_6',
+      name: 'Hit and Stick',
+      difficulty: 4,
+      description: 'Remove opponent and stay in the same spot',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.0 }  // Target on button
+      ],
+      target: { type: 'hit_and_stick', targetZone: 'fourFoot' },
+      hint: 'Hit nose-on with enough weight to stick'
     }
   ],
 
@@ -2376,6 +2463,46 @@ function evaluatePracticeSuccess(scenario) {
       return distFromButton <= 1.83;
     }
 
+    case 'raise_takeout': {
+      // Hit your own stone to remove an opponent's stone
+      // Check that the target opponent stone was removed
+      const targetStoneData = scenario.stones[target.targetStoneIndex];
+      if (!targetStoneData || targetStoneData.team !== 'yellow') return false;
+
+      const targetStoneRemoved = !gameState.stones.some(s =>
+        s.team === 'yellow' && !s.outOfPlay
+      );
+
+      return targetStoneRemoved;
+    }
+
+    case 'hit_and_stick': {
+      // Remove opponent stone AND have thrown stone stay in target zone
+      const preThrowOpponentCount = scenario.stones.filter(s => s.team === 'yellow').length;
+      const currentOpponentCount = gameState.stones.filter(s =>
+        s.team === 'yellow' && !s.outOfPlay
+      ).length;
+      const removedCount = preThrowOpponentCount - currentOpponentCount;
+
+      if (removedCount < 1) return false;
+
+      if (!thrownStone || thrownStone.outOfPlay) return false;
+
+      const x = thrownStone.mesh.position.x;
+      const z = thrownStone.mesh.position.z;
+      const distFromButton = Math.sqrt(x * x + Math.pow(z - 41.07, 2));
+
+      if (target.targetZone === 'button') {
+        return distFromButton <= 0.15;
+      } else if (target.targetZone === 'fourFoot') {
+        return distFromButton <= 0.61;
+      } else if (target.targetZone === 'eightFoot') {
+        return distFromButton <= 1.22;
+      }
+
+      return distFromButton <= 1.83;
+    }
+
     default:
       return false;
   }
@@ -2406,7 +2533,7 @@ function checkPracticeUnlocks(drillId) {
 }
 
 // Show practice result popup
-function showPracticeResult(success) {
+function showPracticeResult(success, customMessage = null) {
   const resultEl = document.getElementById('practice-result');
   const iconEl = document.getElementById('practice-result-icon');
   const textEl = document.getElementById('practice-result-text');
@@ -2414,12 +2541,12 @@ function showPracticeResult(success) {
   if (success) {
     iconEl.textContent = '✅';
     iconEl.style.color = '#4ade80';
-    textEl.textContent = 'Success!';
+    textEl.textContent = customMessage || 'Success!';
     textEl.style.color = '#4ade80';
   } else {
     iconEl.textContent = '❌';
     iconEl.style.color = '#f87171';
-    textEl.textContent = 'Try Again';
+    textEl.textContent = customMessage || 'Try Again';
     textEl.style.color = '#f87171';
   }
 
@@ -2542,7 +2669,7 @@ function generateRandomOpponent(tierLevel, excludeCountryId = null) {
     nickname: null,
     countryId: country.id,
     dayJob,
-    teamName: tierLevel >= 3 ? `Team ${lastName}` : null,
+    teamName: tierLevel >= 3 ? `Team ${lastName}` : `${homeClub} - ${lastName}`,
     homeClub,
     skills,
     personality: { aggression, riskTolerance, patience, clutchFactor, consistency },
@@ -2690,7 +2817,7 @@ function generateTournamentField(definition, tierLevel) {
 
   // Fill remaining spots with generated opponents
   while (teams.length < numTeams) {
-    const opponent = generateRandomOpponent(tierLevel, playerCountry.id);
+    const opponent = generateRandomOpponent(tierLevel, playerCountry?.id || null);
     const country = getCountryById(opponent.countryId);
     teams.push({
       id: opponent.id,
@@ -2946,16 +3073,18 @@ function advanceLoser(rounds, match) {
 
 // Get the next match the player needs to play
 function getNextPlayerMatch(tournament) {
-  if (!tournament || !tournament.bracket) return null;
+  const t = tournament || seasonState.activeTournament;
+  if (!t || !t.bracket) return null;
 
-  for (const round of tournament.bracket.rounds) {
+  for (const round of t.bracket.rounds) {
     for (const match of round.matchups) {
-      if (match.status === 'ready') {
+      // Check for 'ready' or 'pending' status
+      if (match.status === 'ready' || match.status === 'pending') {
         // Check if player is in this match
         const playerInMatch = (match.team1 && match.team1.isPlayer) ||
                              (match.team2 && match.team2.isPlayer);
         if (playerInMatch) {
-          return match;
+          return { round, matchup: match };
         }
       }
     }
@@ -2966,13 +3095,24 @@ function getNextPlayerMatch(tournament) {
 
 // Get opponent for current match
 function getCurrentMatchOpponent(tournament) {
-  const match = tournament.currentMatchup;
+  const t = tournament || seasonState.activeTournament;
+  if (!t) return null;
+
+  // First check currentMatchup, then find from bracket
+  let match = t.currentMatchup;
+  if (!match) {
+    const nextMatch = getNextPlayerMatch(t);
+    if (nextMatch) {
+      match = nextMatch.matchup;
+    }
+  }
   if (!match) return null;
 
+  // Get opponent from match
   if (match.team1 && match.team1.isPlayer) {
-    return match.team2;
+    return match.team2?.opponent || match.team2;
   } else if (match.team2 && match.team2.isPlayer) {
-    return match.team1;
+    return match.team1?.opponent || match.team1;
   }
   return null;
 }
@@ -3190,27 +3330,45 @@ function getTournamentDefinition(tournamentId) {
 // Check if player can enter a tournament
 function canEnterTournament(tournamentId) {
   const definition = getTournamentDefinition(tournamentId);
-  if (!definition) return false;
+  if (!definition) {
+    console.log('[canEnterTournament] No definition found for:', tournamentId);
+    return false;
+  }
 
   // Check if already in a tournament
-  if (seasonState.activeTournament) return false;
+  if (seasonState.activeTournament) {
+    console.log('[canEnterTournament] Already in tournament:', seasonState.activeTournament);
+    return false;
+  }
 
   // Check tier requirement
   const playerTierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
   const tournamentTierIndex = CAREER_TIERS.indexOf(definition.requirements.minTier);
-  if (playerTierIndex < tournamentTierIndex) return false;
+  console.log('[canEnterTournament] playerTierIndex:', playerTierIndex, 'tournamentTierIndex:', tournamentTierIndex);
+  if (playerTierIndex < tournamentTierIndex) {
+    console.log('[canEnterTournament] Tier too low');
+    return false;
+  }
 
   // Check qualification requirement
   if (definition.requirements.qualification) {
-    if (!seasonState.qualifications[definition.requirements.qualification]) return false;
+    console.log('[canEnterTournament] Requires qualification:', definition.requirements.qualification);
+    if (!seasonState.qualifications[definition.requirements.qualification]) {
+      console.log('[canEnterTournament] Missing qualification');
+      return false;
+    }
   }
 
   // Check if already completed this season
   const alreadyCompleted = seasonState.seasonCalendar.completed.some(
     c => c.tournamentId === definition.id
   );
-  if (alreadyCompleted) return false;
+  if (alreadyCompleted) {
+    console.log('[canEnterTournament] Already completed this season');
+    return false;
+  }
 
+  console.log('[canEnterTournament] Can enter!');
   return true;
 }
 
@@ -5321,6 +5479,125 @@ function createTargetMarker() {
   return group;
 }
 
+// Create opponent's target marker (blue/cyan colored for visibility)
+function createOpponentTargetMarker() {
+  const group = new THREE.Group();
+
+  // Blue/cyan color scheme for opponent
+  const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x00bfff });  // Deep sky blue
+  const padMaterial = new THREE.MeshBasicMaterial({ color: 0x00bfff });
+
+  // Simplified marker - just beacon and pad (no skip figure needed)
+
+  // Vertical beacon pole
+  const beaconPoleGeometry = new THREE.CylinderGeometry(0.03, 0.03, 2.5, 8);
+  const beaconPole = new THREE.Mesh(beaconPoleGeometry, beaconMaterial);
+  beaconPole.position.set(0, 1.25, 0);
+  group.add(beaconPole);
+
+  // Top ball on beacon
+  const beaconTopGeometry = new THREE.SphereGeometry(0.12, 16, 12);
+  const beaconTop = new THREE.Mesh(beaconTopGeometry, beaconMaterial);
+  beaconTop.position.set(0, 2.5, 0);
+  group.add(beaconTop);
+
+  // Horizontal crossbar for curl direction
+  const crossbarGeometry = new THREE.CylinderGeometry(0.025, 0.025, 0.8, 8);
+  const crossbar = new THREE.Mesh(crossbarGeometry, beaconMaterial);
+  crossbar.rotation.z = Math.PI / 2;
+  crossbar.position.set(0, 2.0, 0);
+  group.add(crossbar);
+
+  // Arrow indicator for curl direction
+  const arrowGeometry = new THREE.ConeGeometry(0.08, 0.2, 8);
+  const arrow = new THREE.Mesh(arrowGeometry, beaconMaterial);
+  arrow.rotation.z = -Math.PI / 2;  // Point right by default
+  arrow.position.set(0.5, 2.0, 0);
+  arrow.name = 'curlArrow';
+  group.add(arrow);
+
+  // Broom pad on ice
+  const padGeometry = new THREE.BoxGeometry(0.25, 0.03, 0.15);
+  const broomPad = new THREE.Mesh(padGeometry, padMaterial);
+  broomPad.position.set(0, 0.015, 0);
+  group.add(broomPad);
+
+  // Glow ring on ice
+  const glowRing = new THREE.RingGeometry(0.2, 0.35, 32);
+  const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x00bfff, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
+  const glow = new THREE.Mesh(glowRing, glowMaterial);
+  glow.rotation.x = -Math.PI / 2;
+  glow.position.y = 0.005;
+  group.add(glow);
+
+  group.visible = false;
+  scene.add(group);
+  return group;
+}
+
+// Update opponent's aim preview (multiplayer)
+function updateOpponentAimPreview(data) {
+  const { targetX, targetZ, curlDirection, handleAmount } = data;
+
+  // Create opponent marker if it doesn't exist
+  if (!gameState.opponentTargetMarker) {
+    gameState.opponentTargetMarker = createOpponentTargetMarker();
+  }
+
+  // Position the marker
+  gameState.opponentTargetMarker.position.x = targetX;
+  gameState.opponentTargetMarker.position.z = targetZ;
+  gameState.opponentTargetMarker.visible = true;
+
+  // Update curl arrow direction
+  const curlArrow = gameState.opponentTargetMarker.getObjectByName('curlArrow');
+  if (curlArrow) {
+    if (curlDirection === 1) {
+      // Curl RIGHT (clockwise/in-turn)
+      curlArrow.rotation.z = -Math.PI / 2;
+      curlArrow.position.x = 0.5;
+    } else if (curlDirection === -1) {
+      // Curl LEFT (counter-clockwise/out-turn)
+      curlArrow.rotation.z = Math.PI / 2;
+      curlArrow.position.x = -0.5;
+    } else {
+      // No curl selected yet - hide arrow
+      curlArrow.visible = false;
+    }
+    if (curlDirection) {
+      curlArrow.visible = true;
+    }
+  }
+}
+
+// Hide opponent's aim preview
+function hideOpponentAimPreview() {
+  if (gameState.opponentTargetMarker) {
+    gameState.opponentTargetMarker.visible = false;
+  }
+}
+
+// Broadcast aim state to opponent (throttled)
+function broadcastAimStateThrottled() {
+  if (gameState.selectedMode !== 'online') return;
+
+  const localTeam = multiplayer.multiplayerState.localPlayer.team;
+  if (gameState.currentTeam !== localTeam) return;  // Not our turn
+
+  const now = Date.now();
+  if (now - gameState.lastAimBroadcast < 100) return;  // 10 updates/sec max
+  gameState.lastAimBroadcast = now;
+
+  if (gameState.targetPosition) {
+    multiplayer.broadcastAimState(
+      gameState.targetPosition.x,
+      gameState.targetPosition.z,
+      gameState.curlDirection,
+      gameState.handleAmount
+    );
+  }
+}
+
 // Update skip's signal arm and beacon arrow based on curl direction
 function updateSkipSignalArm() {
   if (!gameState.targetMarker) return;
@@ -5415,6 +5692,9 @@ function placeTargetMarker(screenX, screenY) {
 
       // Update signal arm for current curl direction
       updateSkipSignalArm();
+
+      // Broadcast aim state to opponent in multiplayer
+      broadcastAimStateThrottled();
 
       updateReturnButton();  // Show the return button
       updateMarkerHint();    // Hide the marker hint
@@ -5877,8 +6157,14 @@ function hogViolation() {
   updateStoneCountDisplay();
   gameState.activeStone = null;
 
-  // Show violation message briefly then next turn
+  // Show violation message briefly then handle next action
   setTimeout(() => {
+    // Practice mode: show result and allow retry
+    if (gameState.practiceMode.active) {
+      showPracticeResult(false, 'Hog Line Violation!');
+      return;
+    }
+
     nextTurn();
   }, 2000);
 }
@@ -5886,6 +6172,9 @@ function hogViolation() {
 // Phase 3: Click again = release the stone (continues at same speed)
 function releaseStone() {
   if (gameState.phase !== 'sliding') return;
+
+  // Stop turn timer when shot is made
+  stopTurnTimer();
 
   // Capture FGZ state before the throw
   captureFGZState();
@@ -5961,6 +6250,21 @@ function releaseStone() {
   gameState.stonesThrown[gameState.currentTeam]++;
   updateStoneCountDisplay();
 
+  // Broadcast shot to opponent in multiplayer mode
+  if (gameState.selectedMode === 'online') {
+    const localTeam = multiplayer.multiplayerState.localPlayer.team;
+    // Only broadcast if this is our shot
+    if (gameState.currentTeam === localTeam) {
+      multiplayer.broadcastShot(
+        gameState.maxPower,
+        gameState.aimAngle,
+        gameState.curlDirection,
+        gameState.handleAmount,
+        gameState.currentTeam
+      );
+    }
+  }
+
   // Camera will smoothly follow stone via updateCameraFollow()
   // Transition to sweeping phase after a brief moment
   setTimeout(() => {
@@ -6014,6 +6318,9 @@ window.updateCurlSlider = function(value) {
   updateCurlDisplay();
   updateSkipSignalArm();
   updatePreviewStoneRotation();
+
+  // Broadcast aim state to opponent in multiplayer
+  broadcastAimStateThrottled();
 };
 
 // Legacy function for compatibility (used by computer shots)
@@ -6031,6 +6338,9 @@ function setCurlDirection(direction) {
   updateCurlDisplay();
   updateSkipSignalArm();
   updatePreviewStoneRotation();
+
+  // Broadcast aim state to opponent in multiplayer
+  broadcastAimStateThrottled();
 }
 
 function updateCurlDisplay() {
@@ -6958,23 +7268,30 @@ function showShotFeedbackToast(message, type) {
   const toast = document.getElementById('shot-feedback-toast');
   if (!toast) return;
 
-  // Set message and style based on type
+  // Reset and set message
   toast.textContent = message;
   toast.className = 'shot-feedback-toast';
-  toast.classList.add(type === 'success' ? 'success' : 'near-miss');
 
-  // Show toast
+  // Force reflow to restart animation
+  void toast.offsetWidth;
+
+  // Add type class (triggers animation)
+  toast.classList.add(type === 'success' ? 'success' : 'near-miss');
   toast.style.display = 'block';
-  toast.style.opacity = '1';
-  toast.style.transform = 'translate(-50%, -50%) scale(1)';
 
   // Auto-dismiss after duration
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    toast.style.transform = 'translate(-50%, -50%) scale(0.8) rotate(3deg)';
+    toast.style.filter = 'blur(5px)';
+    toast.style.transition = 'all 0.4s ease-out';
     setTimeout(() => {
       toast.style.display = 'none';
-    }, SHOT_FEEDBACK_CONFIG.fadeOutDuration);
+      toast.style.transform = '';
+      toast.style.filter = '';
+      toast.style.opacity = '';
+      toast.style.transition = '';
+    }, 400);
   }, SHOT_FEEDBACK_CONFIG.displayDuration);
 }
 
@@ -7021,6 +7338,12 @@ window.returnToThrowView = function() {
   }
 
   if (gameState.phase === 'aiming' && gameState.previewLocked) {
+    // Check if marker has been placed
+    if (!gameState.targetMarker) {
+      showMarkerReminder();
+      return;
+    }
+
     gameState.previewHeight = 0;  // Animate to thrower view
     updateReturnButton();
     updateMarkerHint();
@@ -7037,13 +7360,70 @@ window.returnToThrowView = function() {
   }
 };
 
+// Show reminder to set marker
+function showMarkerReminder() {
+  // Check if reminder already visible
+  let reminder = document.getElementById('marker-reminder');
+  if (reminder) {
+    // Pulse the existing reminder
+    reminder.style.animation = 'none';
+    void reminder.offsetWidth;
+    reminder.style.animation = 'marker-reminder-pulse 0.5s ease';
+    return;
+  }
+
+  // Create reminder element
+  reminder = document.createElement('div');
+  reminder.id = 'marker-reminder';
+  reminder.innerHTML = `
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 24px;">👆</span>
+      <div>
+        <div style="font-weight: bold; margin-bottom: 4px;">Set Your Target First!</div>
+        <div style="font-size: 13px; opacity: 0.9;">Tap on the ice to place your skip's marker</div>
+      </div>
+    </div>
+  `;
+  reminder.style.cssText = `
+    position: fixed;
+    top: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(59, 130, 246, 0.95);
+    color: white;
+    padding: 16px 24px;
+    border-radius: 12px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 15px;
+    z-index: 1000;
+    box-shadow: 0 8px 32px rgba(59, 130, 246, 0.4);
+    animation: marker-reminder-enter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+  `;
+
+  document.body.appendChild(reminder);
+
+  // Auto-dismiss after 2.5 seconds
+  setTimeout(() => {
+    if (reminder && reminder.parentNode) {
+      reminder.style.opacity = '0';
+      reminder.style.transform = 'translateX(-50%) translateY(-20px)';
+      reminder.style.transition = 'all 0.3s ease';
+      setTimeout(() => {
+        if (reminder.parentNode) {
+          reminder.parentNode.removeChild(reminder);
+        }
+      }, 300);
+    }
+  }, 2500);
+}
+
 function updateReturnButton() {
   const btn = document.getElementById('return-to-throw');
   if (!btn) return;
 
-  // Show button when locked at far view (marker optional), but NOT for computer's turn
-  const isComputerTurn = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
-  if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5 && !isComputerTurn) {
+  // Show button when locked at far view (marker optional), but NOT for computer or opponent's turn
+  if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5 && !isInputBlocked()) {
     btn.style.display = 'block';
   } else {
     btn.style.display = 'none';
@@ -7058,12 +7438,11 @@ function updateMarkerHint() {
   // - In aiming phase
   // - Looking at the ice (preview height > 0.5, seeing the house)
   // - No marker currently placed
-  // - Not computer's turn
-  const isComputerTurn = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  // - Not computer or opponent's turn
   const shouldShow = gameState.phase === 'aiming' &&
                      gameState.previewHeight > 0.5 &&
                      !gameState.targetMarker &&
-                     !isComputerTurn;
+                     !isInputBlocked();
 
   hint.style.display = shouldShow ? 'block' : 'none';
 }
@@ -7112,8 +7491,14 @@ function updateSweepFromMovement(x, y) {
 
   // Check if this is the opponent's stone (defensive sweeping)
   // In 1-player mode, opponent is the computer
-  const isOpponentStone = gameState.gameMode === '1player' &&
-                          gameState.activeStone.team === gameState.computerTeam;
+  // In multiplayer mode, opponent is the remote player
+  let isOpponentStone = false;
+  if (gameState.gameMode === '1player') {
+    isOpponentStone = gameState.activeStone.team === gameState.computerTeam;
+  } else if (gameState.selectedMode === 'online') {
+    const localTeam = multiplayer.multiplayerState.localPlayer.team;
+    isOpponentStone = gameState.activeStone.team !== localTeam;
+  }
 
   // Defensive sweeping only allowed after stone passes the T-line
   if (isOpponentStone) {
@@ -7367,20 +7752,25 @@ function updateSweeping() {
   const indicator = document.getElementById('sweep-indicator');
   if (indicator && gameState.phase === 'sweeping') {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
-    // In 1-player mode, check stone ownership
-    const isComputerStone = gameState.gameMode === '1player' &&
-                            gameState.activeStone.team === gameState.computerTeam;
-    const isPlayerStone = gameState.gameMode === '1player' && !isComputerStone;
-    const canPlayerSweep = !isComputerStone || stoneZ >= TEE_LINE_FAR;
+    // Check stone ownership - works for both 1-player and multiplayer
+    let isOpponentStone = false;
+    if (gameState.gameMode === '1player') {
+      isOpponentStone = gameState.activeStone.team === gameState.computerTeam;
+    } else if (gameState.selectedMode === 'online') {
+      const localTeam = multiplayer.multiplayerState.localPlayer.team;
+      isOpponentStone = gameState.activeStone.team !== localTeam;
+    }
+    const isPlayerStone = !isOpponentStone;
+    const canPlayerSweep = !isOpponentStone || stoneZ >= TEE_LINE_FAR;
 
     // Check if computer is currently sweeping
     const computerIsSweeping = gameState._computerSweepSoundStarted;
 
     if (computerIsSweeping && gameState.isSweeping) {
-      // Computer is sweeping - show what it's doing
+      // Computer is sweeping (1-player mode only) - show what it's doing
       indicator.style.display = 'block';
       const intensity = Math.round(gameState.sweepEffectiveness * 100);
-      if (isComputerStone) {
+      if (isOpponentStone) {
         indicator.textContent = `🖥️ CPU SWEEPING ${intensity}%`;
         indicator.style.color = '#fbbf24'; // Yellow for computer
       } else {
@@ -7388,7 +7778,7 @@ function updateSweeping() {
         indicator.style.color = '#ef4444'; // Red for defensive sweep
       }
     } else if (!canPlayerSweep) {
-      // Computer's stone - player waiting for T-line
+      // Opponent's stone - player waiting for T-line (defensive sweep)
       indicator.style.display = 'block';
       indicator.textContent = 'Sweep after T-line...';
       indicator.style.color = '#888';
@@ -7424,7 +7814,7 @@ function updateSweeping() {
     } else {
       // No one is sweeping - show ready message
       indicator.style.display = 'block';
-      if (isComputerStone) {
+      if (isOpponentStone) {
         indicator.textContent = canPlayerSweep ? 'SWEEP NOW!' : 'Waiting...';
       } else {
         indicator.textContent = 'SWIPE to sweep';
@@ -7443,6 +7833,18 @@ function isComputerTurn() {
   return gameState.gameMode === '1player' &&
          gameState.currentTeam === gameState.computerTeam &&
          gameState.phase === 'aiming';
+}
+
+// Check if it's the opponent's turn in multiplayer
+function isOpponentTurn() {
+  if (gameState.selectedMode !== 'online') return false;
+  const localTeam = multiplayer.multiplayerState.localPlayer.team;
+  return gameState.currentTeam !== localTeam;
+}
+
+// Check if player input should be blocked (computer or multiplayer opponent)
+function isInputBlocked() {
+  return isComputerTurn() || isOpponentTurn();
 }
 
 // Get current opponent's profile (from tournament or default)
@@ -8006,9 +8408,44 @@ function updatePhysics() {
 
   // Sync 3D meshes with physics bodies
   for (const stone of gameState.stones) {
-    stone.mesh.position.x = stone.body.position.x / PHYSICS_SCALE;
-    stone.mesh.position.z = stone.body.position.y / PHYSICS_SCALE;
+    // Guest: use host's positions directly if available (host is authoritative)
+    if (gameState.selectedMode === 'online' && !multiplayer.multiplayerState.isHost && stone._targetPos) {
+      // Smoothly interpolate mesh toward host position
+      const targetX = stone._targetPos.x / PHYSICS_SCALE;
+      const targetZ = stone._targetPos.y / PHYSICS_SCALE;
+      stone.mesh.position.x += (targetX - stone.mesh.position.x) * 0.3;
+      stone.mesh.position.z += (targetZ - stone.mesh.position.z) * 0.3;
+
+      // Also update physics body to stay in sync
+      Matter.Body.setPosition(stone.body, { x: stone._targetPos.x, y: stone._targetPos.y });
+      if (stone._targetVel) {
+        Matter.Body.setVelocity(stone.body, { x: stone._targetVel.x, y: stone._targetVel.y });
+      }
+    } else {
+      stone.mesh.position.x = stone.body.position.x / PHYSICS_SCALE;
+      stone.mesh.position.z = stone.body.position.y / PHYSICS_SCALE;
+    }
     stone.mesh.rotation.y = stone.body.angle;
+  }
+
+  // Host: broadcast stone positions periodically during movement
+  if (gameState.selectedMode === 'online' && multiplayer.multiplayerState.isHost) {
+    if (gameState.phase === 'throwing' || gameState.phase === 'sweeping') {
+      const now = Date.now();
+      if (now - gameState.lastPositionSync > 100) {  // ~10 updates/sec
+        gameState.lastPositionSync = now;
+        const positions = gameState.stones.map((stone, index) => ({
+          index: index,
+          x: stone.body.position.x,
+          y: stone.body.position.y,
+          vx: stone.body.velocity.x,
+          vy: stone.body.velocity.y,
+          angle: stone.body.angle,
+          outOfPlay: stone.outOfPlay || false
+        }));
+        multiplayer.broadcastStonePositions(positions);
+      }
+    }
   }
 
   // Track hog line crossing after release for split time
@@ -8244,8 +8681,26 @@ function updatePhysics() {
       // Clear target marker for next turn
       clearTargetMarker();
 
-      // Process shot feedback toast (non-intrusive, works for all shots)
-      processShotFeedback();
+      // Broadcast final stone positions in multiplayer (host is authoritative)
+      if (gameState.selectedMode === 'online' && multiplayer.multiplayerState.isHost) {
+        const positions = gameState.stones.map((stone, index) => ({
+          index: index,
+          x: stone.body.position.x,
+          y: stone.body.position.y,
+          angle: stone.body.angle,
+          outOfPlay: stone.outOfPlay || false
+        }));
+        multiplayer.broadcastStonesSettled(positions);
+      }
+
+      // Process shot feedback toast (only for the player who threw)
+      const localTeam = gameState.selectedMode === 'online'
+        ? multiplayer.multiplayerState.localPlayer.team
+        : null;
+      const wasMyShot = gameState.selectedMode !== 'online' || gameState.currentTeam === localTeam;
+      if (wasMyShot) {
+        processShotFeedback();
+      }
 
       // Practice mode: evaluate outcome and show result
       if (gameState.practiceMode.active) {
@@ -8268,6 +8723,94 @@ function updatePhysics() {
   }
 
   updateSweeping();
+}
+
+// ============================================
+// TURN TIMER (Multiplayer)
+// ============================================
+const TURN_TIME_LIMIT = 60;  // seconds
+
+function startTurnTimer() {
+  // Only in multiplayer and when it's our turn
+  if (gameState.selectedMode !== 'online') return;
+
+  const localTeam = multiplayer.multiplayerState.localPlayer.team;
+  if (gameState.currentTeam !== localTeam) return;
+
+  // Clear any existing timer
+  stopTurnTimer();
+
+  gameState.turnTimeLeft = TURN_TIME_LIMIT;
+  updateTurnTimerDisplay();
+
+  const timerEl = document.getElementById('turn-timer');
+  if (timerEl) timerEl.style.display = 'block';
+
+  gameState.turnTimer = setInterval(() => {
+    gameState.turnTimeLeft--;
+    updateTurnTimerDisplay();
+
+    if (gameState.turnTimeLeft <= 0) {
+      handleTurnTimeout();
+    }
+  }, 1000);
+}
+
+function stopTurnTimer() {
+  if (gameState.turnTimer) {
+    clearInterval(gameState.turnTimer);
+    gameState.turnTimer = null;
+  }
+
+  const timerEl = document.getElementById('turn-timer');
+  if (timerEl) timerEl.style.display = 'none';
+}
+
+function updateTurnTimerDisplay() {
+  const timerEl = document.getElementById('turn-timer');
+  if (!timerEl) return;
+
+  timerEl.textContent = gameState.turnTimeLeft;
+
+  // Color based on time remaining
+  if (gameState.turnTimeLeft <= 10) {
+    timerEl.style.background = '#dc2626';  // Red - urgent
+    timerEl.style.color = 'white';
+  } else if (gameState.turnTimeLeft <= 20) {
+    timerEl.style.background = '#f59e0b';  // Orange - warning
+    timerEl.style.color = 'white';
+  } else {
+    timerEl.style.background = '#333';
+    timerEl.style.color = 'white';
+  }
+}
+
+function handleTurnTimeout() {
+  stopTurnTimer();
+
+  console.log('[Multiplayer] Turn timeout - skipping turn');
+
+  // Show timeout message
+  showToast('Time ran out! Turn skipped.', 'warning');
+
+  // Broadcast to opponent that we timed out
+  if (multiplayer.multiplayerState.channel) {
+    multiplayer.multiplayerState.channel.send({
+      type: 'broadcast',
+      event: 'turn_timeout',
+      payload: { team: gameState.currentTeam }
+    });
+  }
+
+  // Skip this turn (don't throw a stone, just move to next turn)
+  // Increment stones thrown so game progresses
+  gameState.stonesThrown[gameState.currentTeam]++;
+  updateStoneCountDisplay();
+
+  // Move to next turn
+  setTimeout(() => {
+    nextTurn();
+  }, 1000);
 }
 
 // ============================================
@@ -8301,7 +8844,26 @@ function nextTurn() {
   // Update UI
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
-  if (gameState.playerCountry && gameState.opponentCountry) {
+
+  // Multiplayer mode - use player names
+  if (gameState.selectedMode === 'online') {
+    const localTeam = multiplayer.multiplayerState.localPlayer.team;
+    const isMyTurn = gameState.currentTeam === localTeam;
+    const localName = multiplayer.multiplayerState.localPlayer.name || 'You';
+    const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
+
+    if (isMyTurn) {
+      turnText = `End ${gameState.end} - ${localName}'s Turn`;
+      // Hide opponent's aim preview when it's our turn
+      hideOpponentAimPreview();
+      // Start turn timer
+      startTurnTimer();
+    } else {
+      turnText = `End ${gameState.end} - ${remoteName}'s Turn`;
+      // Stop timer when it's opponent's turn
+      stopTurnTimer();
+    }
+  } else if (gameState.playerCountry && gameState.opponentCountry) {
     const country = gameState.currentTeam === 'red' ? gameState.playerCountry : gameState.opponentCountry;
     turnText = `End ${gameState.end} - ${country.flag} ${country.name}'s Turn${isComputer ? ' (CPU)' : ''}`;
   } else {
@@ -8785,7 +9347,7 @@ function showModeSelection() {
 window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
   gameState.gameMode = '1player';
-  gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice)
+  gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice vs online)
 
   if (mode === 'career') {
     // Career mode: check for existing career
@@ -8802,6 +9364,14 @@ window.selectMode = function(mode) {
     // Practice mode: show drill selection
     loadPracticeStats();
     showPracticeDrills();
+  } else if (mode === 'online') {
+    // Online multiplayer: show lobby
+    if (!multiplayer.isMultiplayerAvailable()) {
+      alert('Online multiplayer is not available. Please check your configuration.');
+      document.getElementById('mode-select-screen').style.display = 'block';
+      return;
+    }
+    showMultiplayerLobby();
   } else {
     // Quick Play: show difficulty selection first
     showDifficultySelection();
@@ -8943,7 +9513,8 @@ window.startPracticeScenario = function(drillId, scenarioId) {
 
   // Set up game state for practice
   gameState.setupComplete = true;
-  gameState.computerTeam = 'yellow';  // Player is red
+  gameState.gameMode = 'practice';  // Not '1player' - no computer opponent
+  gameState.computerTeam = null;    // No computer in practice mode
   gameState.currentTeam = 'red';
   gameState.end = 1;
   gameState.scores = { red: 0, yellow: 0 };
@@ -9166,15 +9737,801 @@ window.exitPractice = function() {
   showModeSelect();
 };
 
+// ============================================
+// ONLINE MULTIPLAYER - UI Functions
+// ============================================
+
+function showMultiplayerLobby() {
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('multiplayer-lobby-screen').style.display = 'block';
+
+  // Clear any previous error
+  const errorEl = document.getElementById('mp-error');
+  if (errorEl) errorEl.style.display = 'none';
+
+  // Try to restore saved player name
+  const savedName = localStorage.getItem('curlingpro_mp_name');
+  if (savedName) {
+    document.getElementById('mp-player-name').value = savedName;
+  }
+}
+
+function showMultiplayerWaiting(roomCode, isHost) {
+  document.getElementById('multiplayer-lobby-screen').style.display = 'none';
+  document.getElementById('multiplayer-waiting-screen').style.display = 'block';
+
+  // Update room code display
+  document.getElementById('mp-room-code-value').textContent = roomCode;
+
+  // Reset UI state
+  document.getElementById('mp-opponent-info').style.display = 'none';
+  document.getElementById('mp-start-game-btn').style.display = 'none';
+  document.getElementById('mp-waiting-spinner').style.display = 'block';
+
+  if (isHost) {
+    document.getElementById('mp-waiting-title').textContent = 'Waiting for opponent...';
+    document.getElementById('mp-waiting-subtitle').textContent = 'Share the room code with your friend';
+    document.getElementById('mp-room-code-display').style.display = 'block';
+  } else {
+    document.getElementById('mp-waiting-title').textContent = 'Connecting...';
+    document.getElementById('mp-waiting-subtitle').textContent = 'Joining game';
+    document.getElementById('mp-room-code-display').style.display = 'block';
+  }
+}
+
+function showMultiplayerError(message) {
+  const errorEl = document.getElementById('mp-error');
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.style.display = 'block';
+  }
+}
+
+// Create online game (host)
+window.createOnlineGame = async function() {
+  const nameInput = document.getElementById('mp-player-name');
+  const playerName = nameInput.value.trim() || 'Player';
+
+  // Save name for next time
+  localStorage.setItem('curlingpro_mp_name', playerName);
+
+  // TODO: Get player's country from career mode or let them select
+  const playerCountry = gameState.playerCountry || { code: 'UN', name: 'Player', flag: '🏳️' };
+
+  // Show waiting screen
+  showMultiplayerWaiting('------', true);
+
+  // Set up callbacks
+  multiplayer.multiplayerState.onPlayerJoined = (data) => {
+    console.log('[Main] Opponent joined:', data);
+
+    // Update UI
+    document.getElementById('mp-waiting-spinner').style.display = 'none';
+    document.getElementById('mp-waiting-title').textContent = 'Opponent connected!';
+    document.getElementById('mp-waiting-subtitle').textContent = 'Ready to start';
+
+    document.getElementById('mp-opponent-info').style.display = 'block';
+    document.getElementById('mp-opponent-name').textContent = data.name;
+
+    // Show start button for host
+    document.getElementById('mp-start-game-btn').style.display = 'block';
+  };
+
+  multiplayer.multiplayerState.onPlayerLeft = () => {
+    console.log('[Main] Opponent left');
+    document.getElementById('mp-opponent-info').style.display = 'none';
+    document.getElementById('mp-start-game-btn').style.display = 'none';
+    document.getElementById('mp-waiting-spinner').style.display = 'block';
+    document.getElementById('mp-waiting-title').textContent = 'Opponent disconnected';
+    document.getElementById('mp-waiting-subtitle').textContent = 'Waiting for a new opponent...';
+  };
+
+  // Toss choice callback (when guest wins toss and makes their choice)
+  multiplayer.multiplayerState.onTossChoice = (data) => {
+    console.log('[Main] Toss choice received:', data);
+    gameState.tossChoiceReceived = true;  // Prevent race condition with animation
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+
+    if (data.choice === 'hammer') {
+      // Guest chose hammer, host picks color
+      gameState.coinTossHammer = data.hammer;
+      gameState.isLoserPickingColor = true;
+      document.getElementById('color-choice-overlay').style.display = 'flex';
+    } else {
+      // Guest chose color, we get hammer
+      gameState.coinTossHammer = data.hammer;
+      gameState.coinTossFirstThrow = data.color;
+      // Our color is the opposite of what they chose
+      const myColor = data.color === 'red' ? 'yellow' : 'red';
+      showTeamAssignment(myColor, true);  // we have hammer
+    }
+  };
+
+  // Color choice callback (when opponent picks color after we took hammer)
+  multiplayer.multiplayerState.onColorChoice = (data) => {
+    console.log('[Main] Color choice received from opponent:', data);
+    gameState.tossChoiceReceived = true;  // Prevent race condition
+    // Hide waiting overlay
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+
+    // Opponent chose their color, we already have hammer
+    gameState.coinTossFirstThrow = data.color;
+
+    // Our color is the opposite of what they chose
+    const myColor = data.color === 'red' ? 'yellow' : 'red';
+
+    // Show assignment and start game
+    showTeamAssignment(myColor, true);  // we have hammer
+  };
+
+  // Create the game
+  const result = await multiplayer.createGame(playerName, playerCountry);
+
+  if (result.success) {
+    document.getElementById('mp-room-code-value').textContent = result.roomCode;
+  } else {
+    showMultiplayerLobby();
+    showMultiplayerError(result.error || 'Failed to create game');
+  }
+};
+
+// Join online game (guest)
+window.joinOnlineGame = async function() {
+  const nameInput = document.getElementById('mp-player-name');
+  const codeInput = document.getElementById('mp-room-code');
+
+  const playerName = nameInput.value.trim() || 'Player';
+  const roomCode = codeInput.value.trim().toUpperCase();
+
+  if (roomCode.length !== 6) {
+    showMultiplayerError('Please enter a valid 6-character room code');
+    return;
+  }
+
+  // Save name for next time
+  localStorage.setItem('curlingpro_mp_name', playerName);
+
+  // TODO: Get player's country
+  const playerCountry = gameState.playerCountry || { code: 'UN', name: 'Player', flag: '🏳️' };
+
+  // Show waiting screen
+  showMultiplayerWaiting(roomCode, false);
+
+  // Set up callbacks
+  multiplayer.multiplayerState.onGameStart = (data) => {
+    console.log('[Main] Game starting:', data);
+    // Show coin toss with result from host
+    showMultiplayerCoinToss(data.coinResult, false);
+  };
+
+  multiplayer.multiplayerState.onTossChoice = (data) => {
+    console.log('[Main] Toss choice received:', data);
+    gameState.tossChoiceReceived = true;  // Prevent race condition with animation
+    // Hide waiting overlay
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+
+    // Set up game state based on opponent's choice
+    if (data.choice === 'hammer') {
+      // Opponent chose hammer, we get to pick color
+      gameState.coinTossHammer = data.hammer;
+      // Store that we're the loser picking color
+      gameState.isLoserPickingColor = true;
+      // Show color selection overlay
+      document.getElementById('color-choice-overlay').style.display = 'flex';
+    } else {
+      // Opponent chose color, we get hammer
+      gameState.coinTossHammer = data.hammer;
+      gameState.coinTossFirstThrow = data.color;
+      // Our color is the opposite of what they chose
+      const myColor = data.color === 'red' ? 'yellow' : 'red';
+      showTeamAssignment(myColor, true);  // we have hammer
+    }
+  };
+
+  multiplayer.multiplayerState.onColorChoice = (data) => {
+    console.log('[Main] Color choice received from loser:', data);
+    gameState.tossChoiceReceived = true;  // Prevent race condition
+    // Hide waiting overlay
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+
+    // Loser chose their color, we already have hammer
+    gameState.coinTossFirstThrow = data.color;
+
+    // Our color is the opposite of what they chose
+    const myColor = data.color === 'red' ? 'yellow' : 'red';
+
+    // Show assignment and start game
+    showTeamAssignment(myColor, true);  // we have hammer
+  };
+
+  multiplayer.multiplayerState.onPlayerLeft = () => {
+    console.log('[Main] Host left');
+    showMultiplayerLobby();
+    showMultiplayerError('Host disconnected');
+  };
+
+  // Join the game
+  const result = await multiplayer.joinGame(roomCode, playerName, playerCountry);
+
+  if (result.success) {
+    // Wait for host to start the game
+    document.getElementById('mp-waiting-spinner').style.display = 'none';
+    document.getElementById('mp-waiting-title').textContent = 'Connected!';
+    document.getElementById('mp-waiting-subtitle').textContent = 'Waiting for host to start...';
+
+    // Show opponent info
+    const opponent = multiplayer.getOpponentInfo();
+    if (opponent.name) {
+      document.getElementById('mp-opponent-info').style.display = 'block';
+      document.getElementById('mp-opponent-name').textContent = opponent.name;
+    }
+  } else {
+    showMultiplayerLobby();
+    showMultiplayerError(result.error || 'Failed to join game');
+  }
+};
+
+// Copy room code to clipboard
+window.copyRoomCode = function() {
+  const code = multiplayer.getRoomCode();
+  if (code) {
+    navigator.clipboard.writeText(code).then(() => {
+      const btn = document.querySelector('#mp-room-code-display button');
+      if (btn) {
+        const originalText = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(() => btn.textContent = originalText, 2000);
+      }
+    });
+  }
+};
+
+// Cancel waiting and return to lobby
+window.cancelOnlineGame = function() {
+  multiplayer.leaveGame();
+  showMultiplayerLobby();
+};
+
+// Show multiplayer coin toss animation
+function showMultiplayerCoinToss(coinResult, isHost) {
+  // Set mode so button handlers know we're in multiplayer
+  gameState.selectedMode = 'online';
+  // Reset flag - will be set true if toss choice arrives before animation ends
+  gameState.tossChoiceReceived = false;
+
+  // Hide waiting screen
+  document.getElementById('multiplayer-waiting-screen').style.display = 'none';
+
+  const overlay = document.getElementById('coin-toss-overlay');
+  const coin = document.getElementById('coin');
+  const result = document.getElementById('toss-result');
+  const subtitle = document.getElementById('toss-subtitle');
+  const title = document.getElementById('toss-title');
+
+  overlay.style.display = 'flex';
+  result.style.display = 'none';
+  title.textContent = 'Coin Toss';
+  subtitle.textContent = 'Flipping...';
+
+  // Start coin flip animation
+  coin.classList.add('coin-flipping');
+
+  // Determine if local player won
+  const localPlayerWon = (coinResult === 'host' && isHost) || (coinResult === 'guest' && !isHost);
+  const localName = multiplayer.multiplayerState.localPlayer.name || 'You';
+  const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
+
+  // Store for later use
+  gameState.multiplayerTossWinner = localPlayerWon ? 'local' : 'remote';
+
+  // After animation, show result
+  setTimeout(() => {
+    coin.classList.remove('coin-flipping');
+
+    if (localPlayerWon) {
+      result.textContent = `${localName} wins!`;
+      result.style.color = '#4ade80';
+      subtitle.textContent = 'You get to choose...';
+    } else {
+      result.textContent = `${remoteName} wins!`;
+      result.style.color = '#f59e0b';
+      subtitle.textContent = 'Waiting for their choice...';
+    }
+    result.style.display = 'block';
+
+    // After showing result, proceed
+    setTimeout(() => {
+      // Skip if toss choice already received (race condition prevention)
+      if (gameState.tossChoiceReceived) return;
+
+      overlay.style.display = 'none';
+
+      if (localPlayerWon) {
+        // Show choice overlay for winner
+        showMultiplayerTossChoice();
+      } else {
+        // Wait for opponent's choice (handled by onTossChoice callback)
+        showWaitingForChoice();
+      }
+    }, 2000);
+  }, 2000);
+}
+
+// Show choice overlay for toss winner
+function showMultiplayerTossChoice() {
+  document.getElementById('toss-choice-overlay').style.display = 'flex';
+}
+
+// Show waiting screen while opponent chooses
+function showWaitingForChoice() {
+  const overlay = document.getElementById('coin-toss-overlay');
+  const result = document.getElementById('toss-result');
+  const subtitle = document.getElementById('toss-subtitle');
+  const title = document.getElementById('toss-title');
+
+  overlay.style.display = 'flex';
+  title.textContent = 'Waiting...';
+  result.style.display = 'none';
+  subtitle.textContent = 'Opponent is choosing...';
+}
+
+// Handle multiplayer toss choice (from winner)
+window.multiplayerChooseTossOption = function(choice) {
+  document.getElementById('toss-choice-overlay').style.display = 'none';
+
+  if (choice === 'hammer') {
+    // Winner takes hammer - wait for loser to pick color
+    const winnerTeam = multiplayer.multiplayerState.localPlayer.team;
+    gameState.coinTossHammer = winnerTeam;
+
+    // Broadcast choice - loser will pick color
+    multiplayer.broadcastTossChoice({ choice: 'hammer', hammer: winnerTeam });
+
+    // Show waiting message while loser picks color
+    showWaitingForChoice();
+  } else {
+    // Winner wants to choose color - show color selection
+    document.getElementById('color-choice-overlay').style.display = 'flex';
+  }
+};
+
+// Handle multiplayer color choice (from winner who chose color option)
+window.multiplayerChooseColor = function(color) {
+  document.getElementById('color-choice-overlay').style.display = 'none';
+
+  // Winner chose color, so opponent gets hammer
+  const opponentTeam = color === 'red' ? 'yellow' : 'red';
+  gameState.coinTossHammer = opponentTeam;
+  gameState.coinTossFirstThrow = color;  // Winner's color throws first
+
+  // Broadcast choice - game can start
+  multiplayer.broadcastTossChoice({ choice: 'color', color: color, hammer: opponentTeam });
+
+  // Show assignment and start game (we chose color, so we don't have hammer)
+  showTeamAssignment(color, false);
+};
+
+// Handle loser's color choice (when winner took hammer)
+window.multiplayerLoserChooseColor = function(color) {
+  document.getElementById('color-choice-overlay').style.display = 'none';
+
+  // Loser chose their color, winner already has hammer
+  gameState.coinTossFirstThrow = color;  // Loser's color throws first (non-hammer throws first)
+
+  // Broadcast our color choice back to winner
+  multiplayer.broadcastColorChoice({ color: color });
+
+  // Show assignment and start game
+  showTeamAssignment(color, false);  // loser doesn't have hammer
+};
+
+// Show team assignment announcement before starting game
+function showTeamAssignment(myColor, iHaveHammer) {
+  const overlay = document.getElementById('team-assignment-overlay');
+  const teamIcon = document.getElementById('assignment-your-team');
+  const teamLabel = document.getElementById('assignment-your-label');
+  const hammerInfo = document.getElementById('assignment-hammer-info');
+
+  // Set team display
+  if (myColor === 'red') {
+    teamIcon.textContent = '🔴';
+    teamLabel.textContent = 'You are playing RED';
+    teamLabel.style.color = '#f87171';
+  } else {
+    teamIcon.textContent = '🟡';
+    teamLabel.textContent = 'You are playing YELLOW';
+    teamLabel.style.color = '#fde047';
+  }
+
+  // Set hammer info
+  if (iHaveHammer) {
+    hammerInfo.textContent = '🔨 You have the hammer (last stone advantage)';
+  } else {
+    hammerInfo.textContent = '🎯 You throw first this end';
+  }
+
+  overlay.style.display = 'flex';
+
+  // Start game after showing assignment
+  setTimeout(() => {
+    overlay.style.display = 'none';
+    startMultiplayerGame();
+  }, 2500);
+}
+
+// Start the multiplayer game (host only)
+window.startOnlineGame = function() {
+  if (!multiplayer.isHost()) return;
+
+  // Do coin toss (host decides)
+  const coinResult = Math.random() < 0.5 ? 'host' : 'guest';
+
+  // Broadcast game start with coin toss result
+  multiplayer.broadcastGameStart({
+    hostCountry: multiplayer.multiplayerState.localPlayer.country,
+    guestCountry: multiplayer.multiplayerState.remotePlayer.country,
+    coinResult: coinResult
+  });
+
+  // Show coin toss animation
+  showMultiplayerCoinToss(coinResult, true);
+};
+
+// Initialize and start the actual multiplayer game
+function startMultiplayerGame() {
+  console.log('[Multiplayer] Starting game...');
+
+  // Hide multiplayer screens
+  document.getElementById('multiplayer-waiting-screen').style.display = 'none';
+  document.getElementById('multiplayer-lobby-screen').style.display = 'none';
+
+  // Set game mode to 2player (no computer AI)
+  gameState.gameMode = '2player';
+  gameState.selectedMode = 'online';
+
+  // Set up countries based on role
+  const localTeam = multiplayer.multiplayerState.localPlayer.team;
+  const remoteTeam = multiplayer.multiplayerState.remotePlayer.team;
+
+  // Host is red, guest is yellow
+  if (localTeam === 'red') {
+    gameState.playerCountry = multiplayer.multiplayerState.localPlayer.country || { code: 'UN', name: 'Player 1', flag: '🔴' };
+    gameState.opponentCountry = multiplayer.multiplayerState.remotePlayer.country || { code: 'UN', name: 'Player 2', flag: '🟡' };
+  } else {
+    gameState.playerCountry = multiplayer.multiplayerState.remotePlayer.country || { code: 'UN', name: 'Player 1', flag: '🔴' };
+    gameState.opponentCountry = multiplayer.multiplayerState.localPlayer.country || { code: 'UN', name: 'Player 2', flag: '🟡' };
+  }
+
+  // Reset game state
+  gameState.end = 1;
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.endScores = { red: [], yellow: [] };
+  gameState.hammer = gameState.coinTossHammer || 'red';  // Use coin toss result
+  gameState.currentTeam = 'red';  // Red always throws first
+
+  // Clear any existing stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(engine.world, stone.body);
+  }
+  gameState.stones = [];
+
+  // TODO: Set up multiplayer event handlers for shots, sweeping, etc.
+  setupMultiplayerGameHandlers();
+
+  // Show chat button for multiplayer
+  showChatButton();
+
+  // Start the game
+  startGame();
+
+  // Start turn timer if it's our turn (red always starts)
+  if (localTeam === 'red') {
+    startTurnTimer();
+  }
+}
+
+// Set up event handlers for multiplayer game events
+function setupMultiplayerGameHandlers() {
+  // Handle opponent's shot
+  multiplayer.multiplayerState.onOpponentShot = (data) => {
+    console.log('[Multiplayer] Opponent shot received:', data);
+    // Hide opponent's aim preview when they shoot
+    hideOpponentAimPreview();
+    executeOpponentShot(data);
+  };
+
+  // Handle opponent's aim state (real-time preview)
+  multiplayer.multiplayerState.onOpponentAimState = (data) => {
+    updateOpponentAimPreview(data);
+  };
+
+  // Handle opponent's sweeping
+  multiplayer.multiplayerState.onOpponentSweep = (data) => {
+    console.log('[Multiplayer] Opponent sweep:', data);
+    // TODO: Show sweeping effects
+  };
+
+  // Handle chat messages
+  multiplayer.multiplayerState.onChatMessage = (data) => {
+    console.log('[Multiplayer] Chat message:', data);
+
+    // Add to chat panel
+    addChatMessage(data.sender, data.message, false);
+
+    // Show toast if chat panel is closed
+    const panel = document.getElementById('mp-chat-panel');
+    if (panel.style.display !== 'block') {
+      showChatToast(data.sender, data.message);
+      chatUnreadCount++;
+      updateChatBadge();
+    }
+  };
+
+  // Handle stone positions during movement (for smooth interpolation)
+  multiplayer.multiplayerState.onStonePositions = (data) => {
+    if (multiplayer.multiplayerState.isHost) return;
+
+    const { positions } = data;
+
+    // Set target positions for each stone by index
+    for (const pos of positions) {
+      const stone = gameState.stones[pos.index];
+      if (stone) {
+        stone._targetPos = { x: pos.x, y: pos.y };
+        stone._targetVel = { x: pos.vx, y: pos.vy };
+        stone._targetAngle = pos.angle;
+        stone.outOfPlay = pos.outOfPlay;
+        if (pos.outOfPlay) {
+          stone.mesh.visible = false;
+        }
+      }
+    }
+  };
+
+  // Handle stones settled (authoritative from host)
+  multiplayer.multiplayerState.onStonesSettled = (data) => {
+    console.log('[Multiplayer] Final sync from host');
+    const { positions } = data;
+
+    // Only guest should sync (host is authoritative)
+    if (multiplayer.multiplayerState.isHost) return;
+
+    // Update each stone to match host's final positions by index
+    for (const pos of positions) {
+      const stone = gameState.stones[pos.index];
+      if (stone) {
+        // Clear interpolation target
+        delete stone._targetPos;
+        delete stone._targetVel;
+        delete stone._targetAngle;
+
+        // Set final position
+        Matter.Body.setPosition(stone.body, { x: pos.x, y: pos.y });
+        Matter.Body.setAngle(stone.body, pos.angle);
+        Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+
+        stone.mesh.position.x = pos.x / PHYSICS_SCALE;
+        stone.mesh.position.z = pos.y / PHYSICS_SCALE;
+        stone.mesh.rotation.y = pos.angle;
+
+        stone.outOfPlay = pos.outOfPlay;
+        if (pos.outOfPlay) {
+          stone.mesh.visible = false;
+        }
+      }
+    }
+  };
+
+  // Handle opponent's turn timeout
+  multiplayer.multiplayerState.onTurnTimeout = (data) => {
+    console.log('[Multiplayer] Opponent timed out:', data);
+    showToast('Opponent ran out of time!', 'info');
+
+    // Increment their stones thrown (they lose this stone)
+    gameState.stonesThrown[data.team]++;
+    updateStoneCountDisplay();
+
+    // Move to next turn after a short delay
+    setTimeout(() => {
+      nextTurn();
+    }, 1000);
+  };
+
+  // Handle end complete
+  multiplayer.multiplayerState.onEndComplete = (data) => {
+    console.log('[Multiplayer] End complete:', data);
+    // TODO: Update scores
+  };
+
+  // Handle game over
+  multiplayer.multiplayerState.onGameOver = (data) => {
+    console.log('[Multiplayer] Game over:', data);
+    // TODO: Show game over screen
+  };
+}
+
+// Execute opponent's shot in multiplayer
+function executeOpponentShot(data) {
+  const { power, angle, curlDirection, handleAmount, team } = data;
+
+  console.log('[Multiplayer] Executing opponent shot:', { power, angle, curlDirection, handleAmount, team });
+
+  // Set up the shot parameters
+  gameState.curlDirection = curlDirection;
+  gameState.handleAmount = handleAmount;
+  updateCurlDisplay();
+
+  // Start charging phase
+  gameState.phase = 'charging';
+  gameState.maxPower = power;
+  gameState.currentPower = power;
+  gameState.aimAngle = angle;
+
+  // Show power display briefly
+  const shotTypeInfo = getShotType(power);
+  document.getElementById('power-display').style.display = 'block';
+  document.getElementById('power-bar').style.display = 'block';
+  document.getElementById('power-value').textContent = Math.round(power);
+  document.getElementById('power-fill').style.width = power + '%';
+  document.getElementById('shot-type').style.display = 'block';
+  document.getElementById('shot-type').textContent = shotTypeInfo.name;
+  document.getElementById('shot-type').style.color = shotTypeInfo.color;
+
+  // Simulate the throw sequence
+  setTimeout(() => {
+    // Push off
+    pushOff();
+
+    setTimeout(() => {
+      // Release stone
+      if (gameState.phase === 'sliding') {
+        releaseStone();
+      }
+    }, 600);  // Release timing
+
+  }, 800);  // Time before push off
+}
+
+// ============================================
+// MULTIPLAYER CHAT
+// ============================================
+
+let chatUnreadCount = 0;
+
+window.toggleChat = function() {
+  const panel = document.getElementById('mp-chat-panel');
+  const isOpen = panel.style.display === 'block';
+
+  if (isOpen) {
+    panel.style.display = 'none';
+  } else {
+    panel.style.display = 'block';
+    // Clear unread count when opening
+    chatUnreadCount = 0;
+    updateChatBadge();
+    // Focus input
+    document.getElementById('mp-chat-input').focus();
+    // Scroll to bottom
+    const messages = document.getElementById('mp-chat-messages');
+    messages.scrollTop = messages.scrollHeight;
+  }
+};
+
+window.sendChatMessage = function() {
+  const input = document.getElementById('mp-chat-input');
+  const message = input.value.trim();
+
+  if (!message) return;
+
+  // Clear input
+  input.value = '';
+
+  // Add message locally
+  addChatMessage(multiplayer.multiplayerState.localPlayer.name, message, true);
+
+  // Broadcast to opponent
+  multiplayer.broadcastChat(message);
+};
+
+function addChatMessage(sender, message, isLocal) {
+  const container = document.getElementById('mp-chat-messages');
+
+  const msgDiv = document.createElement('div');
+  msgDiv.style.cssText = `
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    max-width: 85%;
+    word-wrap: break-word;
+    ${isLocal
+      ? 'background: #3b82f6; margin-left: auto; text-align: right;'
+      : 'background: #374151; margin-right: auto;'
+    }
+  `;
+
+  const nameSpan = document.createElement('div');
+  nameSpan.style.cssText = 'font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 2px;';
+  nameSpan.textContent = sender;
+
+  const textSpan = document.createElement('div');
+  textSpan.style.cssText = 'font-size: 14px; color: white;';
+  textSpan.textContent = message;
+
+  msgDiv.appendChild(nameSpan);
+  msgDiv.appendChild(textSpan);
+  container.appendChild(msgDiv);
+
+  // Scroll to bottom
+  container.scrollTop = container.scrollHeight;
+}
+
+function showChatToast(sender, message) {
+  const container = document.getElementById('mp-chat-toasts');
+
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    background: rgba(30, 30, 40, 0.95);
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 10px 14px;
+    max-width: 250px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+    animation: fadeInUp 0.3s ease-out;
+  `;
+
+  toast.innerHTML = `
+    <div style="font-size: 11px; color: #94a3b8; margin-bottom: 2px;">${sender}</div>
+    <div style="font-size: 14px; color: white;">${message}</div>
+  `;
+
+  container.appendChild(toast);
+
+  // Remove after 4 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
+}
+
+function updateChatBadge() {
+  const badge = document.getElementById('mp-chat-badge');
+  if (chatUnreadCount > 0) {
+    badge.style.display = 'block';
+    badge.textContent = chatUnreadCount > 9 ? '9+' : chatUnreadCount;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function showChatButton() {
+  document.getElementById('mp-chat-container').style.display = 'block';
+}
+
+function hideChatButton() {
+  document.getElementById('mp-chat-container').style.display = 'none';
+  document.getElementById('mp-chat-panel').style.display = 'none';
+  document.getElementById('mp-chat-messages').innerHTML = '';
+  chatUnreadCount = 0;
+}
+
 // Show mode select screen
 window.showModeSelect = function() {
   // Stop ambient crowd when returning to menu
   soundManager.stopAmbientCrowd();
 
+  // Hide chat and leave any multiplayer game
+  hideChatButton();
+  multiplayer.leaveGame();
+
   // Hide all other screens
   document.getElementById('practice-drill-screen').style.display = 'none';
   document.getElementById('practice-scenario-screen').style.display = 'none';
   document.getElementById('difficulty-select-screen').style.display = 'none';
+  document.getElementById('multiplayer-lobby-screen').style.display = 'none';
+  document.getElementById('multiplayer-waiting-screen').style.display = 'none';
 
   // Show mode select
   document.getElementById('mode-select-screen').style.display = 'block';
@@ -9717,15 +11074,27 @@ window.showTournamentEntry = function(tournamentId) {
 
   // Check requirements
   const canEnter = canEnterTournament(tournamentId);
+  console.log('[Tournament] canEnter:', canEnter, 'tournamentId:', tournamentId);
+  console.log('[Tournament] activeTournament:', seasonState.activeTournament);
+  console.log('[Tournament] careerTier:', seasonState.careerTier);
+
   const reqSection = document.getElementById('tournament-requirements');
   const enterBtn = document.getElementById('enter-tournament-btn');
   const lockedBtn = document.getElementById('tournament-locked-btn');
 
   if (canEnter) {
+    console.log('[Tournament] Showing Enter button');
     reqSection.style.display = 'none';
     enterBtn.style.display = 'block';
     lockedBtn.style.display = 'none';
+
+    // Add click handler directly
+    enterBtn.onclick = function() {
+      console.log('[Tournament] Enter button clicked via onclick');
+      window.enterSelectedTournament();
+    };
   } else {
+    console.log('[Tournament] Showing Locked button');
     document.getElementById('tournament-req-text').textContent =
       `Requires: ${tournament.requirements.requiresQualification || 'higher tier qualification'}`;
     reqSection.style.display = 'block';
@@ -9781,11 +11150,22 @@ function updateFieldPreview(tournament) {
 
 // Enter the selected tournament
 window.enterSelectedTournament = function() {
+  console.log('[Tournament] enterSelectedTournament called');
   const tournamentId = window._selectedTournamentId;
-  if (!tournamentId) return;
+  console.log('[Tournament] tournamentId:', tournamentId);
+  if (!tournamentId) {
+    console.error('[Tournament] No tournament selected');
+    return;
+  }
 
   // Create the tournament
-  createTournament(tournamentId);
+  const tournament = createTournament(tournamentId);
+  console.log('[Tournament] Created tournament:', tournament);
+
+  if (!tournament) {
+    console.error('[Tournament] Failed to create tournament');
+    return;
+  }
 
   // Show the bracket
   showBracket();
@@ -9810,15 +11190,24 @@ window.showBracket = function() {
   renderBracket();
 
   // Update play button state
-  const nextMatch = getNextPlayerMatch();
+  const nextMatch = getNextPlayerMatch(tournament);
   const playBtn = document.getElementById('play-next-match-btn');
   if (nextMatch && nextMatch.matchup.status === 'pending') {
     playBtn.style.display = 'block';
     playBtn.textContent = `Play ${nextMatch.round.name}`;
+    // Add click handler
+    playBtn.onclick = function() {
+      console.log('[Bracket] Play button clicked');
+      window.playNextMatch();
+    };
   } else if (tournament.phase === 'complete') {
     playBtn.style.display = 'none';
   } else {
     playBtn.textContent = 'Play Next Match';
+    playBtn.onclick = function() {
+      console.log('[Bracket] Play button clicked');
+      window.playNextMatch();
+    };
   }
 
   // Hide other screens and show bracket
@@ -9931,8 +11320,13 @@ function renderTeamRow(team, winner, games) {
 
 // Play next match from bracket
 window.playNextMatch = function() {
+  console.log('[playNextMatch] Called');
   const nextMatch = getNextPlayerMatch();
-  if (!nextMatch) return;
+  console.log('[playNextMatch] nextMatch:', nextMatch);
+  if (!nextMatch) {
+    console.log('[playNextMatch] No next match found');
+    return;
+  }
 
   showPreMatch();
 };
@@ -10011,8 +11405,31 @@ window.startTournamentMatch = function() {
   // Set career level for AI
   gameState.careerLevel = seasonState.activeTournament.definition.tier;
 
-  // Show country selection and proceed
-  showCountrySelection();
+  // For club/regional tier, skip country selection - just use club representation
+  const tier = seasonState.activeTournament.definition.tier;
+  if (tier === 'club' || tier === 'regional') {
+    // Use player's club instead of country
+    const playerClub = seasonState.playerTeam.club;
+    gameState.playerCountry = {
+      id: playerClub?.id || 'club',
+      name: playerClub?.name || 'My Club',
+      flag: playerClub?.crest || '🥌'
+    };
+
+    // Get opponent info
+    const opponent = getCurrentMatchOpponent();
+    gameState.opponentCountry = {
+      id: opponent?.club?.id || 'opponent',
+      name: opponent?.club?.name || opponent?.teamName || 'Opponent',
+      flag: opponent?.club?.crest || '🥌'
+    };
+
+    // Start game directly
+    startGame();
+  } else {
+    // For national/international tier, show country selection
+    showCountrySelection();
+  }
 };
 
 // Continue tournament after match ends
@@ -10311,6 +11728,12 @@ window.startCoinToss = function() {
 
 // Handle player's toss choice
 window.chooseTossOption = function(choice) {
+  // Check if we're in multiplayer mode
+  if (gameState.selectedMode === 'online') {
+    window.multiplayerChooseTossOption(choice);
+    return;
+  }
+
   document.getElementById('toss-choice-overlay').style.display = 'none';
 
   if (choice === 'hammer') {
@@ -10326,6 +11749,18 @@ window.chooseTossOption = function(choice) {
 
 // Handle player's color choice
 window.chooseColor = function(color) {
+  // Check if we're in multiplayer mode
+  if (gameState.selectedMode === 'online') {
+    // Check if loser is picking color (winner took hammer)
+    if (gameState.isLoserPickingColor) {
+      gameState.isLoserPickingColor = false;
+      window.multiplayerLoserChooseColor(color);
+    } else {
+      window.multiplayerChooseColor(color);
+    }
+    return;
+  }
+
   document.getElementById('color-choice-overlay').style.display = 'none';
 
   if (color === 'red') {
@@ -10357,18 +11792,41 @@ function startGame() {
   // Update scoreboard with flags
   updateScoreboardFlags();
 
+  // Hide level display for multiplayer mode
+  const careerDisplay = document.getElementById('career-display');
+  if (careerDisplay) {
+    careerDisplay.style.display = gameState.selectedMode === 'online' ? 'none' : 'flex';
+  }
+
   // Update turn display
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
-  const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
-  const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
-  document.getElementById('turn').textContent = `End 1 - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
+  let turnText;
+
+  if (gameState.selectedMode === 'online') {
+    // Multiplayer - use player names
+    const localTeam = multiplayer.multiplayerState.localPlayer.team;
+    const isMyTurn = gameState.currentTeam === localTeam;
+    const localName = multiplayer.multiplayerState.localPlayer.name || 'You';
+    const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
+
+    if (isMyTurn) {
+      turnText = `End 1 - ${localName}'s Turn`;
+    } else {
+      turnText = `End 1 - ${remoteName}'s Turn`;
+    }
+  } else {
+    const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
+    const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
+    turnText = `End 1 - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
+  }
+  document.getElementById('turn').textContent = turnText;
 
   // Set camera to target view
   gameState.previewHeight = 1;
   gameState.previewLocked = true;
 
-  // Show first-run aim tutorial (if it's player's turn)
-  if (!isComputer) {
+  // Show first-run aim tutorial (if it's player's turn and not multiplayer)
+  if (!isComputer && gameState.selectedMode !== 'online') {
     showFirstRunTutorial('fr_aim');
   }
 
@@ -10384,12 +11842,25 @@ function startGame() {
 
 // Update scoreboard to show flags instead of RED/YELLOW
 function updateScoreboardFlags() {
-  if (!gameState.playerCountry || !gameState.opponentCountry) return;
-
-  // Player is red, opponent is yellow
   const redLabel = document.querySelector('#red-score-row .team-col');
   const yellowLabel = document.querySelector('#yellow-score-row .team-col');
 
+  // For multiplayer, leave scoreboard empty (no flags or initials)
+  if (gameState.selectedMode === 'online') {
+    if (redLabel) {
+      redLabel.innerHTML = '';
+      redLabel.title = '';
+    }
+    if (yellowLabel) {
+      yellowLabel.innerHTML = '';
+      yellowLabel.title = '';
+    }
+    return;
+  }
+
+  if (!gameState.playerCountry || !gameState.opponentCountry) return;
+
+  // Player is red, opponent is yellow
   if (redLabel) {
     redLabel.innerHTML = `<span style="font-size: 16px;">${gameState.playerCountry.flag}</span>`;
     redLabel.title = gameState.playerCountry.name;
@@ -10898,10 +12369,26 @@ function startNewEnd() {
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
   updatePreviewStoneForTeam();  // Update preview stone for current team
 
-  const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
-  document.getElementById('turn').textContent =
-    `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+  let turnText;
+
+  if (gameState.selectedMode === 'online') {
+    // Multiplayer - use player names
+    const localTeam = multiplayer.multiplayerState.localPlayer.team;
+    const isMyTurn = gameState.currentTeam === localTeam;
+    const localName = multiplayer.multiplayerState.localPlayer.name || 'You';
+    const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
+
+    if (isMyTurn) {
+      turnText = `End ${gameState.end} - ${localName}'s Turn`;
+    } else {
+      turnText = `End ${gameState.end} - ${remoteName}'s Turn`;
+    }
+  } else {
+    const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
+    turnText = `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+  }
+  document.getElementById('turn').textContent = turnText;
 
   // Trigger computer turn if applicable, or restore player's curl preference
   if (isComputer) {
@@ -11015,6 +12502,9 @@ function updateStoneCountDisplay() {
 // INPUT HANDLERS
 // ============================================
 renderer.domElement.addEventListener('mousedown', (e) => {
+  // Block input during opponent's turn in multiplayer
+  if (isInputBlocked()) return;
+
   if (gameState.phase === 'aiming') {
     // If in preview mode (camera raised), handle marker placement
     if (gameState.previewHeight > 0.3) {
@@ -11099,6 +12589,10 @@ let lastTapPos = { x: 0, y: 0 };
 
 renderer.domElement.addEventListener('touchstart', (e) => {
   e.preventDefault();
+
+  // Block input during opponent's turn in multiplayer
+  if (isInputBlocked()) return;
+
   const touch = e.touches[0];
   const now = Date.now();
 
@@ -11414,7 +12908,28 @@ window.addEventListener('focus', () => {
 function animate() {
   requestAnimationFrame(animate);
 
-  updatePhysics();
+  // Frame-rate independent physics timing
+  const now = performance.now();
+  if (lastPhysicsTime === 0) {
+    lastPhysicsTime = now;
+  }
+  const deltaTime = now - lastPhysicsTime;
+  lastPhysicsTime = now;
+
+  // Accumulate time and run physics in fixed steps
+  physicsAccumulator += deltaTime;
+
+  // Cap accumulated time to prevent spiral of death on slow frames
+  const maxAccumulator = PHYSICS_TIMESTEP * MAX_PHYSICS_STEPS;
+  if (physicsAccumulator > maxAccumulator) {
+    physicsAccumulator = maxAccumulator;
+  }
+
+  // Run physics in fixed time steps
+  while (physicsAccumulator >= PHYSICS_TIMESTEP) {
+    updatePhysics();
+    physicsAccumulator -= PHYSICS_TIMESTEP;
+  }
 
   // Camera updates
   if (cameraAnimation) {
