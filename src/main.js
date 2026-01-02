@@ -9193,6 +9193,21 @@ function showGameOverOverlay() {
         careerMessageEl.style.display = 'block';
       }
     }
+  } else if (gameState.rankedMatch && careerMessageEl) {
+    // Handle ranked multiplayer match result
+    // Determine if local player won based on their team
+    const localTeam = multiplayer.multiplayerState?.localPlayer?.team;
+    const localWon = localTeam && winnerClass === localTeam;
+
+    // Update rating asynchronously
+    updateRankedMatchRating(localWon).then(result => {
+      if (result && careerMessageEl) {
+        const changeStr = result.change >= 0 ? `+${result.change}` : `${result.change}`;
+        careerMessageEl.textContent = `Rating: ${result.oldElo} → ${result.newElo} (${changeStr})`;
+        careerMessageEl.style.color = result.change >= 0 ? '#4ade80' : '#f87171';
+        careerMessageEl.style.display = 'block';
+      }
+    });
   } else if (careerMessageEl) {
     careerMessageEl.style.display = 'none';
   }
@@ -9741,7 +9756,7 @@ window.exitPractice = function() {
 // ONLINE MULTIPLAYER - UI Functions
 // ============================================
 
-function showMultiplayerLobby() {
+async function showMultiplayerLobby() {
   document.getElementById('mode-select-screen').style.display = 'none';
   document.getElementById('multiplayer-lobby-screen').style.display = 'block';
 
@@ -9754,10 +9769,48 @@ function showMultiplayerLobby() {
   if (savedName) {
     document.getElementById('mp-player-name').value = savedName;
   }
+
+  // Fetch and display player's ELO rating
+  const eloDisplay = document.getElementById('player-elo-display');
+  const eloValue = document.getElementById('player-elo-value');
+  const playerRecord = document.getElementById('player-record');
+
+  if (eloDisplay && eloValue) {
+    try {
+      const playerName = savedName || 'Player';
+      const rating = await multiplayer.getOrCreatePlayerRating(playerName);
+
+      if (rating) {
+        eloValue.textContent = rating.elo_rating;
+        if (playerRecord && rating.games_played > 0) {
+          playerRecord.textContent = `(${rating.wins}W - ${rating.losses}L)`;
+        } else if (playerRecord) {
+          playerRecord.textContent = '';
+        }
+        eloDisplay.style.display = 'block';
+      }
+    } catch (err) {
+      console.log('Could not fetch player rating:', err);
+      // Hide the ELO display if we can't fetch it
+      eloDisplay.style.display = 'none';
+    }
+  }
 }
 
 function showMultiplayerWaiting(roomCode, isHost) {
-  document.getElementById('multiplayer-lobby-screen').style.display = 'none';
+  // Hide all other screens that might be visible
+  const screens = [
+    'multiplayer-lobby-screen',
+    'quickmatch-searching-screen',
+    'mode-select-screen',
+    'tournament-bracket-screen',
+    'season-screen'
+  ];
+  screens.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+
   document.getElementById('multiplayer-waiting-screen').style.display = 'block';
 
   // Update room code display
@@ -9971,6 +10024,238 @@ window.joinOnlineGame = async function() {
   }
 };
 
+// ============================================
+// QUICK MATCH (Ranked Matchmaking)
+// ============================================
+
+// Start quick match search
+window.startQuickMatch = async function() {
+  const nameInput = document.getElementById('mp-player-name');
+  const playerName = nameInput.value.trim() || 'Player';
+
+  // Save name for next time
+  localStorage.setItem('curlingpro_mp_name', playerName);
+
+  // Show searching screen (hide all other screens first)
+  const lobbyScreen = document.getElementById('multiplayer-lobby-screen');
+  const modeScreen = document.getElementById('mode-select-screen');
+  const tournamentScreen = document.getElementById('tournament-bracket-screen');
+  const seasonScreen = document.getElementById('season-screen');
+  const searchScreen = document.getElementById('quickmatch-searching-screen');
+
+  if (lobbyScreen) lobbyScreen.style.display = 'none';
+  if (modeScreen) modeScreen.style.display = 'none';
+  if (tournamentScreen) tournamentScreen.style.display = 'none';
+  if (seasonScreen) seasonScreen.style.display = 'none';
+  if (searchScreen) searchScreen.style.display = 'block';
+
+  // Get player's rating
+  const rating = await multiplayer.getOrCreatePlayerRating(playerName);
+  document.getElementById('qm-player-elo').textContent = rating.elo_rating;
+
+  // Join matchmaking queue
+  const result = await multiplayer.joinMatchmakingQueue(
+    playerName,
+    // Match found callback
+    async (matchData) => {
+      console.log('[QuickMatch] Match found:', matchData);
+
+      // Show match found UI
+      document.getElementById('qm-status-title').textContent = 'Match Found!';
+      document.getElementById('qm-status-message').textContent = 'Connecting to game...';
+      document.getElementById('qm-match-found').style.display = 'block';
+      document.getElementById('qm-opponent-name').textContent = matchData.opponent.name;
+      document.getElementById('qm-opponent-elo').textContent = `Rating: ${matchData.opponent.elo}`;
+
+      // Store opponent ELO for rating update after game
+      gameState.rankedMatch = {
+        opponentElo: matchData.opponent.elo,
+        opponentName: matchData.opponent.name
+      };
+
+      // Short delay then connect to the game
+      await new Promise(resolve => setTimeout(resolve, 1500));
+
+      // DON'T hide searching screen here - let setup functions show the next screen
+      // The searching screen will be hidden by showMultiplayerWaiting or showMultiplayerCoinToss
+
+      // Connect to the game room
+      const playerCountry = gameState.playerCountry || { code: 'UN', name: 'Player', flag: '🏳️' };
+
+      if (matchData.isHost) {
+        // We're the host - create the game with the assigned room code
+        await setupQuickMatchAsHost(matchData.roomCode, playerName, playerCountry, matchData.opponent);
+      } else {
+        // We're the guest - join the game
+        await setupQuickMatchAsGuest(matchData.roomCode, playerName, playerCountry, matchData.opponent);
+      }
+    },
+    // Search update callback
+    (updateData) => {
+      document.getElementById('qm-status-message').textContent = updateData.status;
+      document.getElementById('qm-wait-time').textContent = `${updateData.waitTime}s`;
+      document.getElementById('qm-search-range').textContent = `Searching: ±${updateData.eloRange} ELO`;
+    }
+  );
+
+  if (!result.success) {
+    document.getElementById('quickmatch-searching-screen').style.display = 'none';
+    showMultiplayerLobby();
+    showMultiplayerError(result.error || 'Failed to join matchmaking');
+  }
+};
+
+// Setup quick match as host
+async function setupQuickMatchAsHost(roomCode, playerName, playerCountry, opponent) {
+  console.log('[QuickMatch Host] Setting up as host for room:', roomCode);
+
+  // Set up host callbacks (similar to createOnlineGame)
+  multiplayer.multiplayerState.onPlayerJoined = (data) => {
+    console.log('[QuickMatch Host] Opponent joined:', data);
+    // Update UI to show opponent connected
+    document.getElementById('mp-waiting-spinner').style.display = 'none';
+    document.getElementById('mp-opponent-info').style.display = 'block';
+    document.getElementById('mp-opponent-name').textContent = data.name || opponent.name;
+
+    // Auto-start the coin toss since both players are ready
+    console.log('[QuickMatch Host] Will start game in 1 second...');
+    setTimeout(() => {
+      console.log('[QuickMatch Host] Calling startOnlineGame, isHost:', multiplayer.isHost());
+      window.startOnlineGame();
+    }, 1000);
+  };
+
+  multiplayer.multiplayerState.onPlayerLeft = () => {
+    console.log('[QuickMatch] Opponent left');
+    showMultiplayerLobby();
+    showMultiplayerError('Opponent disconnected');
+  };
+
+  setupCommonMultiplayerCallbacks();
+
+  // Create the game with the matchmaking-assigned room code
+  console.log('[QuickMatch Host] Creating game with room code:', roomCode);
+  const result = await multiplayer.createGame(playerName, playerCountry, roomCode);
+  console.log('[QuickMatch Host] createGame result:', result.success, 'isHost:', multiplayer.isHost());
+
+  if (result.success) {
+    // Show waiting screen while guest connects
+    showMultiplayerWaiting(roomCode, true);
+    document.getElementById('mp-waiting-title').textContent = 'Waiting for opponent...';
+    document.getElementById('mp-waiting-subtitle').textContent = `Playing against ${opponent.name}`;
+    document.getElementById('mp-room-code-display').style.display = 'none';
+  } else {
+    showMultiplayerLobby();
+    showMultiplayerError(result.error || 'Failed to create game');
+  }
+}
+
+// Setup quick match as guest
+async function setupQuickMatchAsGuest(roomCode, playerName, playerCountry, opponent) {
+  console.log('[QuickMatch Guest] Setting up as guest for room:', roomCode);
+
+  // Set up guest callbacks (similar to joinOnlineGame)
+  multiplayer.multiplayerState.onGameStart = (data) => {
+    console.log('[QuickMatch Guest] onGameStart received:', data);
+    showMultiplayerCoinToss(data.coinResult, false);
+  };
+
+  multiplayer.multiplayerState.onPlayerLeft = () => {
+    console.log('[QuickMatch] Host left');
+    showMultiplayerLobby();
+    showMultiplayerError('Opponent disconnected');
+  };
+
+  setupCommonMultiplayerCallbacks();
+
+  // Give the host a moment to create the room before joining
+  await new Promise(resolve => setTimeout(resolve, 1500));
+
+  // Try to join the game with retry
+  let result = null;
+  let retries = 3;
+
+  while (retries > 0) {
+    result = await multiplayer.joinGame(roomCode, playerName, playerCountry);
+    if (result.success) break;
+
+    retries--;
+    if (retries > 0) {
+      console.log('[QuickMatch] Join failed, retrying...', retries, 'attempts left');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+
+  if (result && result.success) {
+    // Only show waiting screen if game hasn't already started (coin toss not showing)
+    const coinTossOverlay = document.getElementById('coin-toss-overlay');
+    if (coinTossOverlay && coinTossOverlay.style.display === 'flex') {
+      // Coin toss is already showing, don't overwrite it
+      console.log('[QuickMatch Guest] Coin toss already showing, skipping waiting screen');
+    } else {
+      // Show waiting screen briefly while waiting for host to start
+      showMultiplayerWaiting(roomCode, false);
+      document.getElementById('mp-waiting-title').textContent = 'Connected!';
+      document.getElementById('mp-waiting-subtitle').textContent = `Playing against ${opponent.name}`;
+      document.getElementById('mp-room-code-display').style.display = 'none';
+      document.getElementById('mp-waiting-spinner').style.display = 'none';
+    }
+  } else {
+    showMultiplayerLobby();
+    showMultiplayerError(result?.error || 'Failed to join game');
+  }
+}
+
+// Common callbacks used by both host and guest in quick match
+function setupCommonMultiplayerCallbacks() {
+  multiplayer.multiplayerState.onTossChoice = (data) => {
+    console.log('[QuickMatch] Toss choice received:', data);
+    gameState.tossChoiceReceived = true;
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+
+    if (data.choice === 'hammer') {
+      gameState.coinTossHammer = data.hammer;
+      gameState.isLoserPickingColor = true;
+      document.getElementById('color-choice-overlay').style.display = 'flex';
+    } else {
+      gameState.coinTossHammer = data.hammer;
+      gameState.coinTossFirstThrow = data.color;
+      const myColor = data.color === 'red' ? 'yellow' : 'red';
+      showTeamAssignment(myColor, true);
+    }
+  };
+
+  multiplayer.multiplayerState.onColorChoice = (data) => {
+    console.log('[QuickMatch] Color choice received:', data);
+    gameState.tossChoiceReceived = true;
+    document.getElementById('coin-toss-overlay').style.display = 'none';
+    gameState.coinTossFirstThrow = data.color;
+    const myColor = data.color === 'red' ? 'yellow' : 'red';
+    showTeamAssignment(myColor, true);
+  };
+}
+
+// Cancel quick match search
+window.cancelQuickMatch = async function() {
+  await multiplayer.leaveMatchmakingQueue();
+  document.getElementById('quickmatch-searching-screen').style.display = 'none';
+  showMultiplayerLobby();
+};
+
+// Update player rating after a ranked match ends
+async function updateRankedMatchRating(won) {
+  if (!gameState.rankedMatch) return null;
+
+  const result = await multiplayer.updatePlayerRating(won, gameState.rankedMatch.opponentElo);
+
+  if (result) {
+    console.log(`[Ranked] Rating: ${result.oldElo} -> ${result.newElo} (${result.change >= 0 ? '+' : ''}${result.change})`);
+  }
+
+  gameState.rankedMatch = null;
+  return result;
+}
+
 // Copy room code to clipboard
 window.copyRoomCode = function() {
   const code = multiplayer.getRoomCode();
@@ -9994,13 +10279,12 @@ window.cancelOnlineGame = function() {
 
 // Show multiplayer coin toss animation
 function showMultiplayerCoinToss(coinResult, isHost) {
+  console.log('[CoinToss] showMultiplayerCoinToss called, coinResult:', coinResult, 'isHost:', isHost);
+
   // Set mode so button handlers know we're in multiplayer
   gameState.selectedMode = 'online';
   // Reset flag - will be set true if toss choice arrives before animation ends
   gameState.tossChoiceReceived = false;
-
-  // Hide waiting screen
-  document.getElementById('multiplayer-waiting-screen').style.display = 'none';
 
   const overlay = document.getElementById('coin-toss-overlay');
   const coin = document.getElementById('coin');
@@ -10008,10 +10292,17 @@ function showMultiplayerCoinToss(coinResult, isHost) {
   const subtitle = document.getElementById('toss-subtitle');
   const title = document.getElementById('toss-title');
 
+  // IMPORTANT: Show overlay FIRST before hiding other screens to avoid flash
+  console.log('[CoinToss] Setting overlay display to flex');
   overlay.style.display = 'flex';
   result.style.display = 'none';
   title.textContent = 'Coin Toss';
   subtitle.textContent = 'Flipping...';
+
+  // Now hide other screens (overlay is already covering them)
+  document.getElementById('multiplayer-waiting-screen').style.display = 'none';
+  const searchScreen = document.getElementById('quickmatch-searching-screen');
+  if (searchScreen) searchScreen.style.display = 'none';
 
   // Start coin flip animation
   coin.classList.add('coin-flipping');
@@ -10161,10 +10452,15 @@ function showTeamAssignment(myColor, iHaveHammer) {
 
 // Start the multiplayer game (host only)
 window.startOnlineGame = function() {
-  if (!multiplayer.isHost()) return;
+  console.log('[startOnlineGame] Called, isHost:', multiplayer.isHost());
+  if (!multiplayer.isHost()) {
+    console.log('[startOnlineGame] Not host, returning');
+    return;
+  }
 
   // Do coin toss (host decides)
   const coinResult = Math.random() < 0.5 ? 'host' : 'guest';
+  console.log('[startOnlineGame] Coin result:', coinResult);
 
   // Broadcast game start with coin toss result
   multiplayer.broadcastGameStart({
@@ -10174,12 +10470,14 @@ window.startOnlineGame = function() {
   });
 
   // Show coin toss animation
+  console.log('[startOnlineGame] Showing coin toss for host');
   showMultiplayerCoinToss(coinResult, true);
 };
 
 // Initialize and start the actual multiplayer game
 function startMultiplayerGame() {
-  console.log('[Multiplayer] Starting game...');
+  console.log('[Multiplayer] startMultiplayerGame called');
+  console.trace('[Multiplayer] Stack trace:');
 
   // Hide multiplayer screens
   document.getElementById('multiplayer-waiting-screen').style.display = 'none';
@@ -11845,15 +12143,26 @@ function updateScoreboardFlags() {
   const redLabel = document.querySelector('#red-score-row .team-col');
   const yellowLabel = document.querySelector('#yellow-score-row .team-col');
 
-  // For multiplayer, leave scoreboard empty (no flags or initials)
+  // For multiplayer, show player names
   if (gameState.selectedMode === 'online') {
+    const hostName = multiplayer.multiplayerState.isHost
+      ? multiplayer.multiplayerState.localPlayer.name
+      : multiplayer.multiplayerState.remotePlayer.name;
+    const guestName = multiplayer.multiplayerState.isHost
+      ? multiplayer.multiplayerState.remotePlayer.name
+      : multiplayer.multiplayerState.localPlayer.name;
+
     if (redLabel) {
-      redLabel.innerHTML = '';
-      redLabel.title = '';
+      // Red is always host
+      const shortName = (hostName || 'Host').substring(0, 8);
+      redLabel.innerHTML = `<span style="font-size: 11px;">${shortName}</span>`;
+      redLabel.title = hostName || 'Host';
     }
     if (yellowLabel) {
-      yellowLabel.innerHTML = '';
-      yellowLabel.title = '';
+      // Yellow is always guest
+      const shortName = (guestName || 'Guest').substring(0, 8);
+      yellowLabel.innerHTML = `<span style="font-size: 11px;">${shortName}</span>`;
+      yellowLabel.title = guestName || 'Guest';
     }
     return;
   }
