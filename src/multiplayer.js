@@ -55,6 +55,7 @@ export const multiplayerState = {
   onEndComplete: null,
   onGameOver: null,
   onRematchRequest: null,
+  onRematchAccept: null,
   onError: null
 };
 
@@ -381,7 +382,9 @@ function setupChannelListeners(channel) {
   // Rematch accepted
   channel.on('broadcast', { event: 'rematch_accept' }, () => {
     console.log('[Multiplayer] Rematch accepted');
-    // Trigger new game start
+    if (multiplayerState.onRematchAccept) {
+      multiplayerState.onRematchAccept();
+    }
   });
 
   // Handle presence changes (disconnections)
@@ -995,4 +998,139 @@ export async function getPlayerStats() {
 // Check if matchmaking is available
 export function isMatchmakingAvailable() {
   return supabase !== null;
+}
+
+// ============================================
+// LEADERBOARD
+// ============================================
+
+// Get global leaderboard
+export async function getLeaderboard(limit = 100, offset = 0) {
+  if (!supabase) return { success: false, data: [] };
+
+  try {
+    const { data, error, count } = await supabase
+      .from('player_ratings')
+      .select('player_id, player_name, elo_rating, games_played, wins, losses', { count: 'exact' })
+      .order('elo_rating', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    // Add rank numbers
+    const rankedData = data.map((player, index) => ({
+      ...player,
+      rank: offset + index + 1,
+      winRate: player.games_played > 0
+        ? Math.round((player.wins / player.games_played) * 100)
+        : 0
+    }));
+
+    return { success: true, data: rankedData, totalPlayers: count };
+
+  } catch (error) {
+    console.error('[Leaderboard] Error fetching:', error);
+    return { success: false, data: [], error: error.message };
+  }
+}
+
+// Get current player's rank
+export async function getPlayerRank() {
+  if (!supabase) return { success: false, rank: null };
+
+  const playerId = getPlayerId();
+
+  try {
+    // Get player's ELO
+    const { data: player, error: playerError } = await supabase
+      .from('player_ratings')
+      .select('elo_rating')
+      .eq('player_id', playerId)
+      .single();
+
+    if (playerError || !player) {
+      return { success: false, rank: null };
+    }
+
+    // Count players with higher ELO
+    const { count, error: countError } = await supabase
+      .from('player_ratings')
+      .select('*', { count: 'exact', head: true })
+      .gt('elo_rating', player.elo_rating);
+
+    if (countError) throw countError;
+
+    // Rank is count of players with higher ELO + 1
+    const rank = (count || 0) + 1;
+
+    return { success: true, rank };
+
+  } catch (error) {
+    console.error('[Leaderboard] Error getting rank:', error);
+    return { success: false, rank: null, error: error.message };
+  }
+}
+
+// ============================================
+// MATCH HISTORY
+// ============================================
+
+// Save match to history (for ranked matches)
+export async function saveMatchToHistory(matchData) {
+  if (!supabase) return { success: false };
+
+  const playerId = getPlayerId();
+
+  try {
+    const { error } = await supabase
+      .from('match_history')
+      .insert({
+        player_id: playerId,
+        player_name: matchData.playerName,
+        opponent_id: matchData.opponentId || null,
+        opponent_name: matchData.opponentName,
+        match_type: matchData.matchType,
+        won: matchData.won,
+        player_score: matchData.playerScore,
+        opponent_score: matchData.opponentScore,
+        end_scores: matchData.endScores || null,
+        player_elo_before: matchData.eloBefore || null,
+        player_elo_after: matchData.eloAfter || null,
+        elo_change: matchData.eloChange || null,
+        game_length: matchData.gameLength || 8
+      });
+
+    if (error) throw error;
+
+    console.log('[MatchHistory] Saved ranked match');
+    return { success: true };
+
+  } catch (error) {
+    console.error('[MatchHistory] Error saving:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// Get match history for current player
+export async function getMatchHistory(limit = 50) {
+  if (!supabase) return { success: false, data: [] };
+
+  const playerId = getPlayerId();
+
+  try {
+    const { data, error } = await supabase
+      .from('match_history')
+      .select('*')
+      .eq('player_id', playerId)
+      .order('played_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    return { success: true, data: data || [] };
+
+  } catch (error) {
+    console.error('[MatchHistory] Error fetching:', error);
+    return { success: false, data: [], error: error.message };
+  }
 }

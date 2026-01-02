@@ -129,3 +129,119 @@ A dedicated training mode for skill development.
 - R key for quick reset
 - Reset button in practice overlay
 - No full game progression - just focused practice
+
+---
+
+## High-Value Features
+
+### Leaderboard System
+- Global rankings by ELO rating
+- Filter by country/region
+- Weekly/monthly/all-time views
+- Show player's current rank and nearby competitors
+
+### Match History
+- Record of recent games (wins/losses/opponent)
+- Filter by mode (ranked, private, career)
+- View end scores and final stone positions
+- Option to share notable matches
+
+### Statistics Dashboard
+- Win rate, average score differential
+- Best/worst ends, comebacks
+- Shot accuracy by type (draw, takeout, guard)
+- Career progression graphs
+
+### Rematch Button
+- After multiplayer game ends, offer quick rematch
+- Both players must accept
+- Maintains same lobby/room for faster restart
+
+---
+
+## Polish & Engagement
+
+### Achievement System
+- Unlock badges for milestones (first win, 10-game streak, perfect end)
+- Display on player profile
+- Track progress toward incomplete achievements
+- Rare achievements for exceptional plays
+
+### Daily Challenges
+- One new challenge each day
+- Examples: "Win a game using only draws", "Score 3+ in one end"
+- Small rewards (cosmetic unlock, XP boost)
+- Streak bonuses for consecutive days
+
+### Loading Tips
+- Curling strategy tips during loading screens
+- Rotate through tips library
+- Tips contextual to player's recent performance
+
+### Share Results
+- Generate shareable image of final scoreboard
+- Include key stats (big ends, hammer usage)
+- Social media integration or copy-to-clipboard
+
+---
+
+## Multiplayer Enhancements
+
+### Friend List System
+- Add friends by username or invite code
+- See online status
+- Quick invite to match
+- Recent opponents list
+
+### Spectator Mode
+- Watch live ranked matches
+- Commentary-style view with delayed feed
+- Learn from top players
+
+### Private Lobbies
+- Custom match settings (ends, time limits)
+- Password-protected rooms
+- Invite multiple spectators
+
+---
+
+## Accessibility & Quality of Life
+
+### Colorblind Mode
+- Alternative stone color schemes
+- High-contrast options
+- Pattern overlays on stones
+
+### Shot Replay
+- Review previous shot with slow-motion
+- Analyze stone paths and collisions
+- Available between throws
+
+### Undo in Practice Mode
+- Step back to previous state
+- Experiment with different shot approaches
+- Learn from mistakes without full reset
+
+---
+
+## Longer-Term Ideas
+
+### Full Tournament Mode
+- Multi-day online tournaments
+- Bracket progression with elimination
+- Seasonal events with prizes
+
+### Custom Team Creation
+- Design team logo/crest
+- Name your team
+- Invite friends to form a team roster
+
+### Seasonal Rankings
+- Rating resets each season
+- Placement matches at season start
+- End-of-season rewards based on rank
+
+### AI Tutor Chatbot (from Learn Mode)
+- Interactive chat interface
+- User can ask questions about curling rules, strategy, technique
+- Would integrate with AI API for natural conversation

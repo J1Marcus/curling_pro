@@ -2120,6 +2120,102 @@ function saveCareer() {
 }
 
 // ============================================
+// LOCAL MATCH HISTORY (Career/Quickplay)
+// ============================================
+
+const MATCH_HISTORY_KEY = 'curlingpro_match_history';
+const MAX_LOCAL_MATCHES = 50;
+
+function saveLocalMatchToHistory(matchData) {
+  try {
+    let history = JSON.parse(localStorage.getItem(MATCH_HISTORY_KEY) || '{"matches":[]}');
+
+    const match = {
+      id: 'local_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      opponentName: matchData.opponentName,
+      matchType: matchData.matchType,
+      won: matchData.won,
+      playerScore: matchData.playerScore,
+      opponentScore: matchData.opponentScore,
+      endScores: matchData.endScores || null,
+      gameLength: matchData.gameLength || 8,
+      playedAt: new Date().toISOString(),
+      careerLevel: matchData.careerLevel || null,
+      careerLevelName: matchData.careerLevelName || null
+    };
+
+    // Add to beginning (most recent first)
+    history.matches.unshift(match);
+
+    // Enforce 50 match limit
+    if (history.matches.length > MAX_LOCAL_MATCHES) {
+      history.matches = history.matches.slice(0, MAX_LOCAL_MATCHES);
+    }
+
+    localStorage.setItem(MATCH_HISTORY_KEY, JSON.stringify(history));
+    console.log('[MatchHistory] Saved local match:', matchData.matchType);
+
+  } catch (e) {
+    console.warn('Could not save match history:', e);
+  }
+}
+
+function getLocalMatchHistory() {
+  try {
+    const history = JSON.parse(localStorage.getItem(MATCH_HISTORY_KEY) || '{"matches":[]}');
+    return history.matches || [];
+  } catch (e) {
+    console.warn('Could not load match history:', e);
+    return [];
+  }
+}
+
+function getLocalMatchStats() {
+  const matches = getLocalMatchHistory();
+
+  const stats = {
+    totalGames: matches.length,
+    wins: 0,
+    losses: 0,
+    careerGames: 0,
+    careerWins: 0,
+    quickplayGames: 0,
+    quickplayWins: 0,
+    avgPlayerScore: 0,
+    avgOpponentScore: 0
+  };
+
+  let totalPlayerScore = 0;
+  let totalOpponentScore = 0;
+
+  matches.forEach(m => {
+    if (m.won) stats.wins++;
+    else stats.losses++;
+
+    if (m.matchType === 'career') {
+      stats.careerGames++;
+      if (m.won) stats.careerWins++;
+    } else if (m.matchType === 'quickplay') {
+      stats.quickplayGames++;
+      if (m.won) stats.quickplayWins++;
+    }
+
+    totalPlayerScore += m.playerScore || 0;
+    totalOpponentScore += m.opponentScore || 0;
+  });
+
+  if (stats.totalGames > 0) {
+    stats.avgPlayerScore = (totalPlayerScore / stats.totalGames).toFixed(1);
+    stats.avgOpponentScore = (totalOpponentScore / stats.totalGames).toFixed(1);
+    stats.winRate = Math.round((stats.wins / stats.totalGames) * 100);
+  } else {
+    stats.winRate = 0;
+  }
+
+  return stats;
+}
+
+// ============================================
 // SEASON/TOURNAMENT STATE PERSISTENCE
 // ============================================
 
@@ -9167,10 +9263,28 @@ function showGameOverOverlay() {
   if (gameState.gameMode === '1player' && winnerClass !== 'tie') {
     const userWon = winnerClass === userTeam;
 
+    // Calculate player/opponent scores
+    const playerScore = userTeam === 'red' ? gameState.scores.red : gameState.scores.yellow;
+    const opponentScore = userTeam === 'red' ? gameState.scores.yellow : gameState.scores.red;
+    const level = getCurrentLevel();
+
     // Check if this is a tournament match
     if (gameState.inTournamentMatch && seasonState.activeTournament) {
       // Handle tournament match result
       handleTournamentMatchResult(userWon);
+
+      // Save to match history
+      saveLocalMatchToHistory({
+        opponentName: 'Tournament Opponent',
+        matchType: 'career',
+        won: userWon,
+        playerScore,
+        opponentScore,
+        endScores: gameState.endScores,
+        gameLength: gameState.settings.gameLength,
+        careerLevel: gameState.career.level,
+        careerLevelName: level.name
+      });
 
       if (careerMessageEl) {
         careerMessageEl.textContent = userWon ? 'Tournament match won!' : 'Eliminated from tournament';
@@ -9180,6 +9294,20 @@ function showGameOverOverlay() {
     } else {
       // Regular career progression
       const careerResult = handleCareerResult(userWon);
+
+      // Save to match history
+      const matchType = gameState.selectedMode === 'career' ? 'career' : 'quickplay';
+      saveLocalMatchToHistory({
+        opponentName: level.name + ' AI',
+        matchType,
+        won: userWon,
+        playerScore,
+        opponentScore,
+        endScores: gameState.endScores,
+        gameLength: gameState.settings.gameLength,
+        careerLevel: gameState.career.level,
+        careerLevelName: level.name
+      });
 
       if (careerMessageEl && careerResult) {
         careerMessageEl.textContent = careerResult.message;
@@ -9199,17 +9327,45 @@ function showGameOverOverlay() {
     const localTeam = multiplayer.multiplayerState?.localPlayer?.team;
     const localWon = localTeam && winnerClass === localTeam;
 
-    // Update rating asynchronously
-    updateRankedMatchRating(localWon).then(result => {
+    // Calculate player/opponent scores for history
+    const playerScore = localTeam === 'red' ? gameState.scores.red : gameState.scores.yellow;
+    const opponentScore = localTeam === 'red' ? gameState.scores.yellow : gameState.scores.red;
+
+    // Update rating and save to history asynchronously
+    updateRankedMatchRating(localWon).then(async result => {
       if (result && careerMessageEl) {
         const changeStr = result.change >= 0 ? `+${result.change}` : `${result.change}`;
         careerMessageEl.textContent = `Rating: ${result.oldElo} → ${result.newElo} (${changeStr})`;
         careerMessageEl.style.color = result.change >= 0 ? '#4ade80' : '#f87171';
         careerMessageEl.style.display = 'block';
+
+        // Save to match history
+        await multiplayer.saveMatchToHistory({
+          playerName: multiplayer.multiplayerState.localPlayer?.name || 'Player',
+          opponentId: null,  // We don't have opponent's player_id stored
+          opponentName: multiplayer.multiplayerState.remotePlayer?.name || 'Opponent',
+          matchType: 'ranked',
+          won: localWon,
+          playerScore,
+          opponentScore,
+          endScores: gameState.endScores,
+          eloBefore: result.oldElo,
+          eloAfter: result.newElo,
+          eloChange: result.change,
+          gameLength: gameState.settings.gameLength
+        });
       }
     });
   } else if (careerMessageEl) {
     careerMessageEl.style.display = 'none';
+  }
+
+  // Show/hide rematch button based on game mode
+  const rematchBtn = document.getElementById('gameover-rematch');
+  if (rematchBtn) {
+    // Only show rematch for online multiplayer games
+    const isMultiplayer = multiplayer.multiplayerState.connected && gameState.selectedMode === 'online';
+    rematchBtn.style.display = isMultiplayer ? 'block' : 'none';
   }
 
   // Show overlay
@@ -10647,6 +10803,18 @@ function setupMultiplayerGameHandlers() {
   multiplayer.multiplayerState.onGameOver = (data) => {
     console.log('[Multiplayer] Game over:', data);
     // TODO: Show game over screen
+  };
+
+  // Handle rematch request
+  multiplayer.multiplayerState.onRematchRequest = (data) => {
+    console.log('[Multiplayer] Rematch request received:', data);
+    handleRematchRequest(data);
+  };
+
+  // Handle rematch accept
+  multiplayer.multiplayerState.onRematchAccept = () => {
+    console.log('[Multiplayer] Rematch accept received');
+    handleRematchAccept();
   };
 }
 
@@ -12512,6 +12680,449 @@ window.closeAbout = function() {
     }
   }
 };
+
+// ============================================
+// LEADERBOARD
+// ============================================
+
+window.showLeaderboard = async function() {
+  const screen = document.getElementById('leaderboard-screen');
+  if (!screen) return;
+
+  screen.style.display = 'block';
+
+  // Show loading state
+  const rowsContainer = document.getElementById('leaderboard-rows');
+  if (rowsContainer) {
+    rowsContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: #64748b;">Loading...</div>';
+  }
+
+  // Fetch leaderboard data
+  const result = await multiplayer.getLeaderboard(100);
+
+  if (result.success && result.data.length > 0) {
+    renderLeaderboard(result.data);
+  } else {
+    if (rowsContainer) {
+      rowsContainer.innerHTML = '<div style="padding: 40px; text-align: center; color: #64748b;">No ranked players yet. Be the first!</div>';
+    }
+  }
+
+  // Get current player's rank
+  const playerId = multiplayer.getPlayerId();
+  const rankResult = await multiplayer.getPlayerRank();
+  const playerRankEl = document.getElementById('leaderboard-player-rank');
+  const notRankedEl = document.getElementById('leaderboard-not-ranked');
+
+  if (rankResult.success && rankResult.rank) {
+    if (playerRankEl) {
+      playerRankEl.textContent = `Your Rank: #${rankResult.rank}`;
+      playerRankEl.style.display = 'block';
+    }
+    if (notRankedEl) notRankedEl.style.display = 'none';
+  } else {
+    if (playerRankEl) playerRankEl.style.display = 'none';
+    if (notRankedEl) notRankedEl.style.display = 'block';
+  }
+};
+
+function renderLeaderboard(players) {
+  const container = document.getElementById('leaderboard-rows');
+  if (!container) return;
+
+  const currentPlayerId = multiplayer.getPlayerId();
+
+  container.innerHTML = players.map(player => {
+    const isCurrentPlayer = player.player_id === currentPlayerId;
+    const bgColor = isCurrentPlayer ? 'rgba(251, 191, 36, 0.15)' : 'transparent';
+    const borderStyle = isCurrentPlayer ? 'border-left: 3px solid #fbbf24;' : '';
+
+    // Rank medal for top 3
+    let rankDisplay = `#${player.rank}`;
+    if (player.rank === 1) rankDisplay = '🥇';
+    else if (player.rank === 2) rankDisplay = '🥈';
+    else if (player.rank === 3) rankDisplay = '🥉';
+
+    return `
+      <div style="
+        display: grid;
+        grid-template-columns: 60px 1fr 80px 100px 70px;
+        padding: 12px 16px;
+        background: ${bgColor};
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        ${borderStyle}
+        align-items: center;
+      ">
+        <div style="color: ${player.rank <= 3 ? '#fbbf24' : '#94a3b8'}; font-weight: bold;">${rankDisplay}</div>
+        <div style="color: white; font-weight: ${isCurrentPlayer ? 'bold' : 'normal'};">
+          ${escapeHtml(player.player_name)}${isCurrentPlayer ? ' (You)' : ''}
+        </div>
+        <div style="text-align: center; color: #fbbf24; font-weight: bold;">${player.elo_rating}</div>
+        <div style="text-align: center; color: #94a3b8;">${player.wins}-${player.losses}</div>
+        <div style="text-align: center; color: ${player.winRate >= 50 ? '#4ade80' : '#f87171'};">${player.winRate}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+window.closeLeaderboard = function() {
+  const screen = document.getElementById('leaderboard-screen');
+  if (screen) {
+    screen.style.display = 'none';
+  }
+};
+
+// ============================================
+// STATISTICS DASHBOARD
+// ============================================
+
+let currentStatsTab = 'ranked';
+
+window.showStats = async function() {
+  const screen = document.getElementById('stats-screen');
+  if (!screen) return;
+
+  screen.style.display = 'block';
+
+  // Load both ranked and career stats
+  await loadRankedStats();
+  loadCareerStats();
+  await loadMatchHistoryDisplay();
+};
+
+window.closeStats = function() {
+  const screen = document.getElementById('stats-screen');
+  if (screen) {
+    screen.style.display = 'none';
+  }
+};
+
+window.showStatsTab = function(tab) {
+  currentStatsTab = tab;
+
+  const rankedTab = document.getElementById('stats-tab-ranked');
+  const careerTab = document.getElementById('stats-tab-career');
+  const rankedPanel = document.getElementById('stats-panel-ranked');
+  const careerPanel = document.getElementById('stats-panel-career');
+
+  if (tab === 'ranked') {
+    rankedTab.style.background = 'rgba(139, 92, 246, 0.3)';
+    rankedTab.style.borderColor = '#8b5cf6';
+    rankedTab.style.color = 'white';
+    careerTab.style.background = 'rgba(59, 130, 246, 0.1)';
+    careerTab.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+    careerTab.style.color = '#94a3b8';
+    rankedPanel.style.display = 'block';
+    careerPanel.style.display = 'none';
+  } else {
+    careerTab.style.background = 'rgba(59, 130, 246, 0.3)';
+    careerTab.style.borderColor = '#3b82f6';
+    careerTab.style.color = 'white';
+    rankedTab.style.background = 'rgba(139, 92, 246, 0.1)';
+    rankedTab.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+    rankedTab.style.color = '#94a3b8';
+    careerPanel.style.display = 'block';
+    rankedPanel.style.display = 'none';
+  }
+
+  // Reload match history for current tab
+  loadMatchHistoryDisplay();
+};
+
+async function loadRankedStats() {
+  const stats = await multiplayer.getPlayerStats();
+
+  const eloEl = document.getElementById('stats-elo');
+  const rankEl = document.getElementById('stats-rank');
+  const gamesEl = document.getElementById('stats-ranked-games');
+  const winsEl = document.getElementById('stats-ranked-wins');
+  const winrateEl = document.getElementById('stats-ranked-winrate');
+
+  if (stats) {
+    if (eloEl) eloEl.textContent = stats.elo_rating || 1000;
+    if (gamesEl) gamesEl.textContent = stats.games_played || 0;
+    if (winsEl) winsEl.textContent = stats.wins || 0;
+
+    const winRate = stats.games_played > 0
+      ? Math.round((stats.wins / stats.games_played) * 100)
+      : 0;
+    if (winrateEl) winrateEl.textContent = winRate + '%';
+
+    // Get rank
+    const rankResult = await multiplayer.getPlayerRank();
+    if (rankResult.success && rankResult.rank) {
+      if (rankEl) rankEl.textContent = `Rank: #${rankResult.rank}`;
+    } else {
+      if (rankEl) rankEl.textContent = 'Rank: Unranked';
+    }
+  } else {
+    if (eloEl) eloEl.textContent = '--';
+    if (rankEl) rankEl.textContent = 'Rank: --';
+    if (gamesEl) gamesEl.textContent = '0';
+    if (winsEl) winsEl.textContent = '0';
+    if (winrateEl) winrateEl.textContent = '0%';
+  }
+}
+
+function loadCareerStats() {
+  const level = getCurrentLevel();
+  const localStats = getLocalMatchStats();
+
+  const levelEl = document.getElementById('stats-career-level');
+  const progressEl = document.getElementById('stats-career-progress');
+  const gamesEl = document.getElementById('stats-career-games');
+  const winsEl = document.getElementById('stats-career-wins');
+  const winrateEl = document.getElementById('stats-career-winrate');
+
+  if (levelEl) {
+    levelEl.textContent = level.name;
+    levelEl.style.color = level.color;
+  }
+
+  if (progressEl) {
+    const remaining = level.winsToAdvance ? level.winsToAdvance - gameState.career.wins : 0;
+    if (gameState.career.level >= 8) {
+      progressEl.textContent = 'Maximum level reached!';
+    } else {
+      progressEl.textContent = `${gameState.career.wins}/${level.winsToAdvance} wins to advance`;
+    }
+  }
+
+  if (gamesEl) gamesEl.textContent = localStats.careerGames || 0;
+  if (winsEl) winsEl.textContent = localStats.careerWins || 0;
+
+  const winRate = localStats.careerGames > 0
+    ? Math.round((localStats.careerWins / localStats.careerGames) * 100)
+    : 0;
+  if (winrateEl) winrateEl.textContent = winRate + '%';
+}
+
+async function loadMatchHistoryDisplay() {
+  const container = document.getElementById('stats-match-history');
+  if (!container) return;
+
+  let matches = [];
+
+  if (currentStatsTab === 'ranked') {
+    // Get ranked matches from Supabase
+    const result = await multiplayer.getMatchHistory(20);
+    if (result.success) {
+      matches = result.data;
+    }
+  } else {
+    // Get local matches (career/quickplay)
+    matches = getLocalMatchHistory().slice(0, 20);
+  }
+
+  if (matches.length === 0) {
+    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #64748b;">No matches yet</div>';
+    return;
+  }
+
+  container.innerHTML = matches.map(match => {
+    const won = match.won;
+    const date = new Date(match.played_at || match.playedAt);
+    const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    // For ranked matches
+    const eloChange = match.elo_change || match.eloChange;
+    const eloStr = eloChange != null
+      ? `<span style="color: ${eloChange >= 0 ? '#4ade80' : '#f87171'};">${eloChange >= 0 ? '+' : ''}${eloChange}</span>`
+      : '';
+
+    return `
+      <div style="
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+      ">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: ${won ? '#4ade80' : '#f87171'};
+          "></div>
+          <div>
+            <div style="color: white; font-size: 14px;">vs ${escapeHtml(match.opponent_name || match.opponentName || 'Unknown')}</div>
+            <div style="color: #64748b; font-size: 12px;">${dateStr}</div>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="color: ${won ? '#4ade80' : '#f87171'}; font-weight: bold;">
+            ${match.player_score || match.playerScore}-${match.opponent_score || match.opponentScore}
+          </div>
+          ${eloStr ? `<div style="font-size: 12px;">${eloStr}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
+// REMATCH SYSTEM
+// ============================================
+
+let rematchState = {
+  requested: false,
+  waitingForResponse: false
+};
+
+window.requestRematch = function() {
+  if (!multiplayer.multiplayerState.connected) {
+    console.log('[Rematch] Not connected, cannot request rematch');
+    return;
+  }
+
+  rematchState.requested = true;
+  rematchState.waitingForResponse = true;
+
+  // Update UI to show waiting state
+  const rematchBtn = document.getElementById('gameover-rematch');
+  if (rematchBtn) {
+    rematchBtn.textContent = 'Waiting...';
+    rematchBtn.disabled = true;
+    rematchBtn.style.opacity = '0.6';
+  }
+
+  // Send rematch request
+  multiplayer.broadcastRematchRequest();
+  console.log('[Rematch] Request sent');
+};
+
+window.acceptRematch = function() {
+  const overlay = document.getElementById('rematch-request-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Send acceptance
+  multiplayer.broadcastRematchAccept();
+
+  // Start new game
+  startRematchGame();
+};
+
+window.declineRematch = function() {
+  const overlay = document.getElementById('rematch-request-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Just close the overlay - opponent will timeout or leave
+  console.log('[Rematch] Declined');
+};
+
+function handleRematchRequest(data) {
+  console.log('[Rematch] Request received from:', data?.from);
+
+  // If we already requested, this means both want rematch - auto accept
+  if (rematchState.requested) {
+    console.log('[Rematch] Both requested, auto-accepting');
+    startRematchGame();
+    return;
+  }
+
+  // Show rematch request overlay
+  const overlay = document.getElementById('rematch-request-overlay');
+  const title = document.getElementById('rematch-title');
+  const message = document.getElementById('rematch-message');
+  const buttons = document.getElementById('rematch-buttons');
+  const waiting = document.getElementById('rematch-waiting');
+
+  if (title) title.textContent = 'Rematch Request';
+  if (message) {
+    const opponentName = multiplayer.multiplayerState.remotePlayer?.name || 'Opponent';
+    message.textContent = `${opponentName} wants to play again!`;
+  }
+  if (buttons) buttons.style.display = 'flex';
+  if (waiting) waiting.style.display = 'none';
+  if (overlay) overlay.style.display = 'flex';
+}
+
+function handleRematchAccept() {
+  console.log('[Rematch] Opponent accepted!');
+  rematchState.waitingForResponse = false;
+
+  // Start new game
+  startRematchGame();
+}
+
+function startRematchGame() {
+  console.log('[Rematch] Starting new game');
+
+  // Reset rematch state
+  rematchState.requested = false;
+  rematchState.waitingForResponse = false;
+
+  // Hide overlays
+  const gameoverOverlay = document.getElementById('gameover-overlay');
+  const rematchOverlay = document.getElementById('rematch-request-overlay');
+  if (gameoverOverlay) {
+    gameoverOverlay.classList.remove('visible');
+    gameoverOverlay.style.display = 'none';
+  }
+  if (rematchOverlay) rematchOverlay.style.display = 'none';
+
+  // Clear confetti/rain
+  const confettiContainer = document.getElementById('confetti-container');
+  if (confettiContainer) confettiContainer.innerHTML = '';
+
+  // Reset rematch button state
+  const rematchBtn = document.getElementById('gameover-rematch');
+  if (rematchBtn) {
+    rematchBtn.textContent = 'Rematch';
+    rematchBtn.disabled = false;
+    rematchBtn.style.opacity = '1';
+  }
+
+  // Reset game state for new match
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.endScores = { red: [], yellow: [] };
+  gameState.end = 1;
+  gameState.shotNumber = 0;
+  gameState.currentTeam = 'red';
+  gameState.isThrown = false;
+  gameState.isPaused = false;
+  gameState.rankedMatch = null;  // Reset ranked match tracking
+
+  // Reset stones
+  resetAllStones();
+
+  // Update UI
+  updateScoreboard();
+
+  // Start new coin toss (host initiates)
+  if (multiplayer.multiplayerState.isHost) {
+    const coinResult = Math.random() < 0.5 ? 'host' : 'guest';
+    const hostWins = coinResult === 'host';
+
+    // Broadcast game start with new coin toss
+    multiplayer.broadcastGameStart({
+      hostWins,
+      coinResult,
+      isRematch: true
+    });
+
+    showMultiplayerCoinToss(coinResult, true);
+  } else {
+    // Guest waits for host to broadcast game start
+    console.log('[Rematch] Guest waiting for host to start new game');
+  }
+
+  // Start ambient crowd
+  soundManager.startAmbientCrowd();
+}
+
+// Wire up multiplayer callbacks for rematch (called during multiplayer setup)
+function setupRematchCallbacks() {
+  multiplayer.multiplayerState.onRematchRequest = handleRematchRequest;
+  // Note: onRematchAccept is handled via the broadcast listener in multiplayer.js
+}
 
 window.showPrivacyPolicy = function() {
   const overlay = document.getElementById('privacy-overlay');
