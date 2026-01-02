@@ -11658,7 +11658,7 @@ window.showBracket = function() {
   // Update play button state
   const nextMatch = getNextPlayerMatch(tournament);
   const playBtn = document.getElementById('play-next-match-btn');
-  if (nextMatch && nextMatch.matchup.status === 'pending') {
+  if (nextMatch && (nextMatch.matchup.status === 'pending' || nextMatch.matchup.status === 'ready')) {
     playBtn.style.display = 'block';
     playBtn.textContent = `Play ${nextMatch.round.name}`;
     // Add click handler
@@ -11669,6 +11669,7 @@ window.showBracket = function() {
   } else if (tournament.phase === 'complete') {
     playBtn.style.display = 'none';
   } else {
+    playBtn.style.display = 'block';
     playBtn.textContent = 'Play Next Match';
     playBtn.onclick = function() {
       console.log('[Bracket] Play button clicked');
