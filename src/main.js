@@ -2245,6 +2245,55 @@ function saveSeasonState() {
   }
 }
 
+// Save current match progress (for crash recovery during tournament matches)
+function saveMatchProgress() {
+  if (!seasonState.activeTournament) return;
+
+  try {
+    const matchState = {
+      end: gameState.end,
+      scores: gameState.scores,
+      endScores: gameState.endScores,
+      hammer: gameState.hammer,
+      currentTeam: gameState.currentTeam,
+      computerTeam: gameState.computerTeam,
+      gameMode: gameState.gameMode,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('curlingpro_match_progress', JSON.stringify(matchState));
+    console.log('[Save] Match progress saved - End', gameState.end, 'Score:', gameState.scores);
+  } catch (e) {
+    console.warn('Could not save match progress:', e);
+  }
+}
+
+// Load match progress if available
+function loadMatchProgress() {
+  try {
+    const saved = localStorage.getItem('curlingpro_match_progress');
+    if (saved) {
+      const data = JSON.parse(saved);
+      // Only restore if it's recent (within last hour) to avoid stale data
+      const hourAgo = Date.now() - (60 * 60 * 1000);
+      if (data.timestamp && data.timestamp > hourAgo) {
+        return data;
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load match progress:', e);
+  }
+  return null;
+}
+
+// Clear match progress (when match completes)
+function clearMatchProgress() {
+  try {
+    localStorage.removeItem('curlingpro_match_progress');
+  } catch (e) {
+    console.warn('Could not clear match progress:', e);
+  }
+}
+
 function loadSeasonState() {
   try {
     const saved = localStorage.getItem('curlingpro_season');
@@ -7509,14 +7558,18 @@ function processShotFeedback() {
 
 // Return to throw view button
 window.returnToThrowView = function() {
+  console.log('[returnToThrowView] phase:', gameState.phase, 'previewLocked:', gameState.previewLocked, 'targetMarker:', !!gameState.targetMarker);
+
   // Prevent during computer's turn
   if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+    console.log('[returnToThrowView] Blocked - computer turn');
     return;
   }
 
   if (gameState.phase === 'aiming' && gameState.previewLocked) {
     // Check if marker has been placed
     if (!gameState.targetMarker) {
+      console.log('[returnToThrowView] No marker - showing reminder');
       showMarkerReminder();
       return;
     }
@@ -7770,6 +7823,8 @@ function updateSweepFromMovement(x, y) {
     // Start/stop sweeping sound
     if (gameState.isSweeping && !wasSweeping) {
       soundManager.startSweeping();
+    } else if (!gameState.isSweeping && wasSweeping) {
+      soundManager.stopSweeping();
     }
 
     // Calculate sweep direction bias (-1 to 1) for lateral effect
@@ -9021,6 +9076,7 @@ function nextTurn() {
   // Update UI
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
+  const totalEnds = gameState.settings.gameLength;
 
   // Multiplayer mode - use player names
   if (gameState.selectedMode === 'online') {
@@ -9030,22 +9086,22 @@ function nextTurn() {
     const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
 
     if (isMyTurn) {
-      turnText = `End ${gameState.end} - ${localName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${localName}'s Turn`;
       // Hide opponent's aim preview when it's our turn
       hideOpponentAimPreview();
       // Start turn timer
       startTurnTimer();
     } else {
-      turnText = `End ${gameState.end} - ${remoteName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${remoteName}'s Turn`;
       // Stop timer when it's opponent's turn
       stopTurnTimer();
     }
   } else if (gameState.playerCountry && gameState.opponentCountry) {
     const country = gameState.currentTeam === 'red' ? gameState.playerCountry : gameState.opponentCountry;
-    turnText = `End ${gameState.end} - ${country.flag} ${country.name}'s Turn${isComputer ? ' (CPU)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${country.flag} ${country.name}'s Turn${isComputer ? ' (CPU)' : ''}`;
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
-    turnText = `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
@@ -9122,6 +9178,10 @@ function calculateScore() {
   gameState.hammer = nonScoringTeam;
 
   updateScoreDisplay();
+
+  // Save match progress after each end (for crash recovery)
+  saveMatchProgress();
+
   showScoreOverlay(scoringTeam, points, gameState.end);
 }
 
@@ -9281,6 +9341,9 @@ function launchRaindrops() {
 }
 
 function showGameOverOverlay() {
+  // Clear saved match progress since match is complete
+  clearMatchProgress();
+
   const overlay = document.getElementById('gameover-overlay');
   const winnerDisplay = document.getElementById('gameover-winner');
   const subtitleDisplay = document.getElementById('gameover-subtitle');
@@ -11941,6 +12004,22 @@ window.showPreMatch = function() {
     rivalrySection.style.display = 'none';
   }
 
+  // Update player card with club crest and team name
+  const playerAvatar = document.getElementById('player-match-avatar');
+  const playerName = document.getElementById('player-match-name');
+  const playerTeamEl = document.getElementById('player-match-team');
+
+  if (playerAvatar && seasonState.playerTeam) {
+    const crest = seasonState.playerTeam.club?.crest || '🥌';
+    playerAvatar.textContent = crest;
+  }
+  if (playerName && seasonState.playerTeam?.name) {
+    playerName.textContent = seasonState.playerTeam.name;
+  }
+  if (playerTeamEl && seasonState.playerTeam?.club?.name) {
+    playerTeamEl.textContent = seasonState.playerTeam.club.name;
+  }
+
   // Hide bracket, show pre-match
   document.getElementById('bracket-screen').style.display = 'none';
   screen.style.display = 'block';
@@ -11974,6 +12053,11 @@ window.startTournamentMatch = function() {
   const tierIndex = CAREER_TIERS.indexOf(seasonState.activeTournament.definition.tier);
   const difficulties = ['easy', 'easy', 'medium', 'medium', 'hard', 'hard'];
   gameState.settings.difficulty = difficulties[tierIndex] || 'medium';
+
+  // Set game length based on tier (realistic end counts)
+  // Club/Regional: 6 ends, Provincial/National: 8 ends, International/Olympic: 10 ends
+  const endCounts = [6, 6, 8, 8, 10, 10];
+  gameState.settings.gameLength = endCounts[tierIndex] || 8;
 
   // Set career level for AI
   gameState.careerLevel = seasonState.activeTournament.definition.tier;
@@ -12359,11 +12443,26 @@ window.chooseColor = function(color) {
 function startGame() {
   gameState.setupComplete = true;
 
+  // Check for saved match progress (crash recovery)
+  const savedProgress = loadMatchProgress();
+  if (savedProgress && seasonState.activeTournament) {
+    console.log('[Recovery] Restoring match progress from End', savedProgress.end);
+    gameState.end = savedProgress.end;
+    gameState.scores = savedProgress.scores;
+    gameState.endScores = savedProgress.endScores;
+    gameState.hammer = savedProgress.hammer;
+    gameState.currentTeam = savedProgress.currentTeam;
+    if (savedProgress.computerTeam) {
+      gameState.computerTeam = savedProgress.computerTeam;
+    }
+  }
+
   // Start ambient crowd sound
   soundManager.startAmbientCrowd();
 
-  // Update scoreboard with flags
+  // Update scoreboard with flags and configure for game length
   updateScoreboardFlags();
+  updateScoreboardForGameLength();
 
   // Hide level display for multiplayer mode
   const careerDisplay = document.getElementById('career-display');
@@ -12371,10 +12470,14 @@ function startGame() {
     careerDisplay.style.display = gameState.selectedMode === 'online' ? 'none' : 'flex';
   }
 
+  // Update score display (important for crash recovery)
+  updateScoreDisplay();
+
   // Update turn display
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
 
+  const totalEnds = gameState.settings.gameLength;
   if (gameState.selectedMode === 'online') {
     // Multiplayer - use player names
     const localTeam = multiplayer.multiplayerState.localPlayer.team;
@@ -12383,14 +12486,14 @@ function startGame() {
     const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
 
     if (isMyTurn) {
-      turnText = `End 1 - ${localName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${localName}'s Turn`;
     } else {
-      turnText = `End 1 - ${remoteName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${remoteName}'s Turn`;
     }
   } else {
     const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
     const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
-    turnText = `End 1 - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
@@ -13415,6 +13518,19 @@ function startNewEnd() {
     return;
   }
 
+  // Check if it's mathematically impossible for the losing team to catch up
+  // Max points per end = 8 (all 8 stones counting)
+  const remainingEnds = gameState.settings.gameLength - gameState.end + 1;
+  const maxPossiblePoints = remainingEnds * 8;
+  const scoreDifference = Math.abs(gameState.scores.red - gameState.scores.yellow);
+
+  if (scoreDifference > maxPossiblePoints) {
+    // Game over - impossible to catch up
+    console.log(`[MERCY] Game ending early - score difference ${scoreDifference} > max possible ${maxPossiblePoints}`);
+    showGameOverOverlay();
+    return;
+  }
+
   gameState.phase = 'aiming';
   gameState.previewHeight = 1;  // Start in target view (like nextTurn)
   gameState.previewLocked = true;  // Locked in target view
@@ -13424,6 +13540,7 @@ function startNewEnd() {
 
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
+  const totalEnds = gameState.settings.gameLength;
 
   if (gameState.selectedMode === 'online') {
     // Multiplayer - use player names
@@ -13433,13 +13550,13 @@ function startNewEnd() {
     const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
 
     if (isMyTurn) {
-      turnText = `End ${gameState.end} - ${localName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${localName}'s Turn`;
     } else {
-      turnText = `End ${gameState.end} - ${remoteName}'s Turn`;
+      turnText = `End ${gameState.end}/${totalEnds} - ${remoteName}'s Turn`;
     }
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
-    turnText = `End ${gameState.end} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
@@ -13463,8 +13580,9 @@ function updateScoreDisplay() {
   if (redTotal) redTotal.textContent = gameState.scores.red;
   if (yellowTotal) yellowTotal.textContent = gameState.scores.yellow;
 
-  // Update end-by-end scores
-  for (let i = 0; i < 8; i++) {
+  // Update end-by-end scores (support up to 10 ends)
+  const maxEnds = Math.max(gameState.settings.gameLength, 10);
+  for (let i = 0; i < maxEnds; i++) {
     const redCell = document.getElementById(`red-end-${i + 1}`);
     const yellowCell = document.getElementById(`yellow-end-${i + 1}`);
 
@@ -13504,6 +13622,27 @@ function updateScoreDisplay() {
   if (yellowHammer) {
     yellowHammer.innerHTML = gameState.hammer === 'yellow' ? '<span class="hammer-indicator">●</span>' : '';
   }
+}
+
+// Configure scoreboard to show correct number of end columns
+function updateScoreboardForGameLength() {
+  const gameLength = gameState.settings.gameLength;
+
+  // Show/hide columns for ends 1-10
+  for (let i = 1; i <= 10; i++) {
+    const headerCell = document.getElementById(`header-end-${i}`);
+    const redCell = document.getElementById(`red-end-${i}`);
+    const yellowCell = document.getElementById(`yellow-end-${i}`);
+
+    const shouldShow = i <= gameLength;
+    const display = shouldShow ? '' : 'none';
+
+    if (headerCell) headerCell.style.display = display;
+    if (redCell) redCell.style.display = display;
+    if (yellowCell) yellowCell.style.display = display;
+  }
+
+  console.log(`[Scoreboard] Configured for ${gameLength} ends`);
 }
 
 function updateStoneCountDisplay() {
