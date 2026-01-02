@@ -12487,6 +12487,32 @@ window.closeFeedback = function() {
   }
 };
 
+window.showAbout = function(fromSettings = true) {
+  const screen = document.getElementById('about-screen');
+  if (screen) {
+    screen.style.display = 'block';
+    screen.dataset.fromSettings = fromSettings ? 'true' : 'false';
+  }
+  // Close settings modal if open
+  const settingsOverlay = document.getElementById('settings-overlay');
+  if (settingsOverlay && settingsOverlay.style.display !== 'none') {
+    window.closeSettings();
+    if (screen) screen.dataset.fromSettings = 'true';
+  }
+};
+
+window.closeAbout = function() {
+  const screen = document.getElementById('about-screen');
+  if (screen) {
+    const fromSettings = screen.dataset.fromSettings === 'true';
+    screen.style.display = 'none';
+    // Reopen settings only if we came from there
+    if (fromSettings) {
+      window.openSettings();
+    }
+  }
+};
+
 window.showPrivacyPolicy = function() {
   const overlay = document.getElementById('privacy-overlay');
   if (overlay) {

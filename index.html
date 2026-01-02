@@ -650,7 +650,7 @@
       z-index: 9000;
       overflow-y: auto;
     ">
-      <!-- Legal links -->
+      <!-- Footer links -->
       <div style="
         position: absolute;
         bottom: max(30px, env(safe-area-inset-bottom));
@@ -661,6 +661,14 @@
         z-index: 100;
         font-family: 'Segoe UI', system-ui, sans-serif;
       ">
+        <button onclick="window.showAbout(false)" style="
+          padding: 8px 12px;
+          background: transparent;
+          border: none;
+          color: #64748b;
+          font-size: 12px;
+          cursor: pointer;
+        ">About</button>
         <button onclick="window.showPrivacyPolicy()" style="
           padding: 8px 12px;
           background: transparent;
@@ -668,7 +676,7 @@
           color: #64748b;
           font-size: 12px;
           cursor: pointer;
-        ">Privacy Policy</button>
+        ">Privacy</button>
         <button onclick="window.showTermsOfService()" style="
           padding: 8px 12px;
           background: transparent;
@@ -676,7 +684,7 @@
           color: #64748b;
           font-size: 12px;
           cursor: pointer;
-        ">Terms of Service</button>
+        ">Terms</button>
       </div>
 
       <div style="
@@ -2805,6 +2813,28 @@
           </button>
         </div>
 
+        <!-- About Button -->
+        <div style="margin-bottom: 15px;">
+          <button onclick="window.showAbout()" style="
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #8b5cf6;
+            background: rgba(139, 92, 246, 0.15);
+            color: #c4b5fd;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+          ">
+            <span style="font-size: 18px;">🥌</span>
+            <span>About Curling Pro</span>
+          </button>
+        </div>
+
         <!-- Legal Links -->
         <div style="margin-bottom: 20px; display: flex; gap: 10px;">
           <button onclick="window.showPrivacyPolicy()" style="
@@ -3115,6 +3145,166 @@
 
           <p id="feedback-status" style="margin: 15px 0 0 0; text-align: center; font-size: 14px; display: none;"></p>
         </form>
+      </div>
+    </div>
+
+    <!-- About Screen -->
+    <div id="about-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9100;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Back button -->
+        <button onclick="window.closeAbout()" style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: none;
+          border: none;
+          color: #60a5fa;
+          font-size: 16px;
+          cursor: pointer;
+          padding: 10px 0;
+          margin-bottom: 20px;
+        ">
+          <span>←</span> Back
+        </button>
+
+        <!-- Hero Section -->
+        <div style="text-align: center; margin-bottom: 40px;">
+          <div style="font-size: 64px; margin-bottom: 16px;">🥌</div>
+          <h1 style="margin: 0; font-size: 32px; color: white;">Curling Pro</h1>
+          <p style="margin: 8px 0 0 0; color: #8b5cf6; font-size: 16px;">The sport of chess on ice, now in your browser</p>
+        </div>
+
+        <!-- Welcome Section -->
+        <div style="
+          background: rgba(139, 92, 246, 0.1);
+          border: 1px solid rgba(139, 92, 246, 0.3);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+        ">
+          <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #c4b5fd;">Welcome to the Sheet!</h2>
+          <p style="margin: 0; color: #94a3b8; line-height: 1.6;">
+            Whether you're a seasoned curler or have never thrown a stone, Curling Pro is here to bring the
+            thrill of this incredible sport to you. We believe curling is one of the most strategic,
+            exciting, and surprisingly intense sports out there - and we want to share that with everyone.
+          </p>
+        </div>
+
+        <!-- Philosophy Section -->
+        <div style="
+          background: rgba(59, 130, 246, 0.1);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+        ">
+          <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #93c5fd;">Our Philosophy</h2>
+          <p style="margin: 0 0 16px 0; color: #94a3b8; line-height: 1.6;">
+            <strong style="color: white;">Fun meets education.</strong> We built Curling Pro to be more than just a game -
+            it's a way to actually improve your real-life curling. The physics are realistic, the strategies
+            work on real ice, and every shot you practice here translates to the rink.
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px;">
+            <div style="
+              flex: 1;
+              min-width: 140px;
+              background: rgba(0,0,0,0.2);
+              padding: 12px;
+              border-radius: 8px;
+              text-align: center;
+            ">
+              <div style="font-size: 24px; margin-bottom: 4px;">🎯</div>
+              <div style="color: #94a3b8; font-size: 13px;">Learn Strategy</div>
+            </div>
+            <div style="
+              flex: 1;
+              min-width: 140px;
+              background: rgba(0,0,0,0.2);
+              padding: 12px;
+              border-radius: 8px;
+              text-align: center;
+            ">
+              <div style="font-size: 24px; margin-bottom: 4px;">🧊</div>
+              <div style="color: #94a3b8; font-size: 13px;">Realistic Physics</div>
+            </div>
+            <div style="
+              flex: 1;
+              min-width: 140px;
+              background: rgba(0,0,0,0.2);
+              padding: 12px;
+              border-radius: 8px;
+              text-align: center;
+            ">
+              <div style="font-size: 24px; margin-bottom: 4px;">🏆</div>
+              <div style="color: #94a3b8; font-size: 13px;">Compete & Grow</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features Section -->
+        <div style="
+          background: rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.3);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+        ">
+          <h2 style="margin: 0 0 16px 0; font-size: 20px; color: #86efac;">What's Inside</h2>
+          <div style="color: #94a3b8; line-height: 1.8;">
+            <div style="margin-bottom: 8px;">🎮 <strong style="color: white;">Career Mode</strong> - Rise from club level to world champion</div>
+            <div style="margin-bottom: 8px;">🌐 <strong style="color: white;">Online Multiplayer</strong> - Challenge players worldwide with ranked matchmaking</div>
+            <div style="margin-bottom: 8px;">🎓 <strong style="color: white;">Practice Mode</strong> - Master specific shots and scenarios</div>
+            <div style="margin-bottom: 8px;">📚 <strong style="color: white;">Learn Mode</strong> - Tutorials that actually teach you curling</div>
+            <div style="margin-bottom: 8px;">🎭 <strong style="color: white;">Realistic Simulation</strong> - Curl, weight, sweeping - it all matters</div>
+            <div>🏟️ <strong style="color: white;">Crowd Atmosphere</strong> - Feel the excitement of a real arena</div>
+          </div>
+        </div>
+
+        <!-- Fun Fact Section -->
+        <div style="
+          background: rgba(251, 191, 36, 0.1);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 12px;
+          padding: 24px;
+          margin-bottom: 24px;
+        ">
+          <h2 style="margin: 0 0 12px 0; font-size: 20px; color: #fcd34d;">Did You Know?</h2>
+          <p style="margin: 0; color: #94a3b8; line-height: 1.6;">
+            Curling stones are made from rare granite quarried from just two places in the world:
+            Ailsa Craig island in Scotland and the Trefor Granite Quarry in Wales. Each stone weighs
+            about 44 pounds (20 kg) and can cost over $600! Good thing these virtual ones are free. 🪨
+          </p>
+        </div>
+
+        <!-- Call to Action -->
+        <div style="text-align: center; padding: 20px 0;">
+          <p style="color: #64748b; font-size: 14px; margin: 0 0 16px 0;">
+            Now get out there and throw some rocks!
+          </p>
+          <div style="font-size: 32px; color: #fbbf24;">🥌 Good Curling! 🥌</div>
+        </div>
+
+        <!-- Version -->
+        <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #333;">
+          <p style="color: #4a5568; font-size: 12px; margin: 0;">
+            Curling Pro v1.1.0 | Made with ❤️ for curlers everywhere
+          </p>
+        </div>
       </div>
     </div>
 
