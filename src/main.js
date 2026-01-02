@@ -1083,7 +1083,7 @@ const CLUB_OPTIONS = [
   { id: 'granite', name: 'Granite Curling Club', crest: '🏔️', colors: { primary: '#64748b', secondary: '#1e293b' } },
   { id: 'maple', name: 'Maple Leaf CC', crest: '🍁', colors: { primary: '#dc2626', secondary: '#450a0a' } },
   { id: 'northern', name: 'Northern Lights CC', crest: '✨', colors: { primary: '#22c55e', secondary: '#14532d' } },
-  { id: 'highland', name: 'Highland CC', crest: '⛰️', colors: { primary: '#7c3aed', secondary: '#1e1b4b' } },
+  { id: 'highland', name: 'Highland CC', crest: '🏰', colors: { primary: '#7c3aed', secondary: '#1e1b4b' } },
   { id: 'coastal', name: 'Coastal Curling Club', crest: '🌊', colors: { primary: '#0ea5e9', secondary: '#0c4a6e' } },
   { id: 'prairie', name: 'Prairie CC', crest: '🌾', colors: { primary: '#eab308', secondary: '#422006' } },
   { id: 'metro', name: 'Metro Curling Club', crest: '🏙️', colors: { primary: '#f97316', secondary: '#431407' } },
@@ -11271,6 +11271,16 @@ window.confirmRestartCareer = function() {
 // Track selected club during setup
 let selectedClubId = null;
 let selectedCareerDifficulty = 'easy';
+let customCrest = '🥌';  // Default custom crest
+let customCrestIsImage = false;  // Track if crest is an uploaded image
+
+// Emoji options for custom crest picker
+const CREST_EMOJIS = [
+  '🥌', '🏆', '🎯', '⭐', '🌟', '💎', '👑', '🦅',
+  '🦁', '🐺', '🐻', '🦌', '🦬', '🐎', '🦊', '🐲',
+  '⚡', '🔥', '❄️', '🌊', '🏔️', '🌲', '🍁', '☘️',
+  '🛡️', '⚔️', '🏰', '🗡️', '🎖️', '🏅', '🌙', '☀️'
+];
 
 // Show club selection screen
 function showClubSelection() {
@@ -11302,7 +11312,117 @@ function showClubSelection() {
   // Update difficulty buttons
   updateCareerDifficultyButtons();
 
+  // Reset and populate custom crest picker
+  customCrest = '🥌';
+  customCrestIsImage = false;
+  populateEmojiCrestGrid();
+  updateCrestPreview();
+
   screen.style.display = 'block';
+}
+
+// Populate the emoji crest picker grid
+function populateEmojiCrestGrid() {
+  const grid = document.getElementById('emoji-crest-grid');
+  if (!grid) return;
+
+  grid.innerHTML = CREST_EMOJIS.map(emoji => `
+    <button onclick="window.selectEmojiCrest('${emoji}')" style="
+      padding: 8px;
+      background: ${emoji === customCrest && !customCrestIsImage ? 'rgba(74, 222, 128, 0.3)' : 'rgba(255, 255, 255, 0.05)'};
+      border: 2px solid ${emoji === customCrest && !customCrestIsImage ? '#4ade80' : 'transparent'};
+      border-radius: 8px;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+    ">${emoji}</button>
+  `).join('');
+}
+
+// Update crest preview display
+function updateCrestPreview() {
+  const preview = document.getElementById('custom-crest-preview');
+  if (!preview) return;
+
+  if (customCrestIsImage) {
+    preview.innerHTML = `<img src="${customCrest}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">`;
+  } else {
+    preview.innerHTML = customCrest;
+  }
+}
+
+// Select an emoji as crest
+window.selectEmojiCrest = function(emoji) {
+  customCrest = emoji;
+  customCrestIsImage = false;
+  populateEmojiCrestGrid();
+  updateCrestPreview();
+};
+
+// Handle image upload for custom crest
+window.handleCrestUpload = function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file');
+    return;
+  }
+
+  // Validate file size (max 500KB for localStorage)
+  if (file.size > 500 * 1024) {
+    alert('Image too large. Please use an image under 500KB.');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    // Resize image to reduce storage size
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const maxSize = 64;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > maxSize) {
+          height *= maxSize / width;
+          width = maxSize;
+        }
+      } else {
+        if (height > maxSize) {
+          width *= maxSize / height;
+          height = maxSize;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      customCrest = canvas.toDataURL('image/png');
+      customCrestIsImage = true;
+      populateEmojiCrestGrid();
+      updateCrestPreview();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+// Clear custom crest to default
+window.clearCustomCrest = function() {
+  customCrest = '🥌';
+  customCrestIsImage = false;
+  populateEmojiCrestGrid();
+  updateCrestPreview();
+
+  // Clear file input
+  const fileInput = document.getElementById('custom-crest-upload');
+  if (fileInput) fileInput.value = '';
 }
 
 // Handle club selection
@@ -11365,11 +11485,15 @@ window.startNewCareer = function() {
   const teamNameInput = document.getElementById('team-name-input');
   const teamName = teamNameInput?.value?.trim() || 'Team Player';
 
-  // Get custom club name if applicable
+  // Get custom club name and crest if applicable
   let clubName = club.name;
+  let clubCrest = club.crest;
+  let crestIsImage = false;
   if (selectedClubId === 'custom') {
     const customNameInput = document.getElementById('custom-club-name');
     clubName = customNameInput?.value?.trim() || 'My Curling Club';
+    clubCrest = customCrest;
+    crestIsImage = customCrestIsImage;
   }
 
   // Initialize new season with club identity
@@ -11381,7 +11505,8 @@ window.startNewCareer = function() {
     id: selectedClubId,
     name: clubName,
     colors: { ...club.colors },
-    crest: club.crest
+    crest: clubCrest,
+    crestIsImage: crestIsImage
   };
 
   // Set difficulty
@@ -11582,7 +11707,11 @@ function updatePlayerIdentityDisplay() {
   // Update club crest
   const crestEl = document.getElementById('player-club-crest');
   if (crestEl && club) {
-    crestEl.textContent = club.crest || '🥌';
+    if (club.crestIsImage) {
+      crestEl.innerHTML = `<img src="${club.crest}" style="width: 36px; height: 36px; object-fit: cover; border-radius: 6px;">`;
+    } else {
+      crestEl.textContent = club.crest || '🥌';
+    }
   }
 
   // Update team name
@@ -11968,13 +12097,19 @@ function renderTeamRow(team, winner, games) {
 
   // Determine team icon: player uses club crest, opponents use country flag
   let teamIcon = '';
+  let isImageCrest = false;
   if (team.isPlayer) {
     // Player: show club crest if available, otherwise default curling stone
     teamIcon = team.club?.crest || '🥌';
+    isImageCrest = team.club?.crestIsImage || false;
   } else if (team.country?.flag) {
     // Opponent: show country flag
     teamIcon = team.country.flag;
   }
+
+  const iconHtml = isImageCrest
+    ? `<img src="${teamIcon}" style="width: 18px; height: 18px; object-fit: cover; border-radius: 3px;">`
+    : teamIcon;
 
   return `
     <div style="
@@ -11991,7 +12126,7 @@ function renderTeamRow(team, winner, games) {
         font-size: 13px;
         font-weight: ${isWinner ? 'bold' : 'normal'};
       ">
-        ${teamIcon ? `<span style="font-size: 14px;">${teamIcon}</span>` : ''}
+        ${teamIcon ? `<span style="font-size: 14px; display: flex; align-items: center;">${iconHtml}</span>` : ''}
         <span>${team.name}</span>
       </div>
       ${games && games.length > 0 ? `
@@ -12075,7 +12210,12 @@ window.showPreMatch = function() {
 
   if (playerAvatar && seasonState.playerTeam) {
     const crest = seasonState.playerTeam.club?.crest || '🥌';
-    playerAvatar.textContent = crest;
+    const isImage = seasonState.playerTeam.club?.crestIsImage;
+    if (isImage) {
+      playerAvatar.innerHTML = `<img src="${crest}" style="width: 48px; height: 48px; object-fit: cover; border-radius: 8px;">`;
+    } else {
+      playerAvatar.textContent = crest;
+    }
   }
   if (playerName && seasonState.playerTeam?.name) {
     playerName.textContent = seasonState.playerTeam.name;
