@@ -3937,6 +3937,20 @@
       font-family: 'Segoe UI', system-ui, sans-serif;
       -webkit-tap-highlight-color: transparent;
     ">
+      <!-- Settings button in pause overlay -->
+      <button onclick="event.stopPropagation(); window.openSettings()" ontouchend="event.stopPropagation(); window.openSettings()" style="
+        position: absolute;
+        top: max(20px, env(safe-area-inset-top));
+        right: max(20px, env(safe-area-inset-right));
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.6);
+        border: 2px solid #666;
+        border-radius: 8px;
+        color: white;
+        font-size: 20px;
+        cursor: pointer;
+        pointer-events: auto;
+      " title="Settings">&#9881;</button>
       <div style="text-align: center; pointer-events: none;">
         <div style="font-size: 64px; margin-bottom: 20px;">&#9208;</div>
         <h2 style="color: white; margin: 0 0 15px 0; font-size: 32px; font-weight: bold;">PAUSED</h2>
