@@ -2157,7 +2157,7 @@
             <div id="yellow-stone-icons" style="display: flex; gap: 2px;"></div>
           </div>
         </div>
-        <button id="pause-btn" onclick="window.manualPause()" ontouchend="window.manualPause()" style="
+        <button id="save-scenario-btn" onclick="window.saveScenarioPrompt()" ontouchend="window.saveScenarioPrompt()" style="
           background: rgba(100, 116, 139, 0.8);
           border: none;
           border-radius: 6px;
@@ -2166,6 +2166,16 @@
           cursor: pointer;
           color: white;
           margin-left: auto;
+          display: none;
+        " title="Save Scenario">💾</button>
+        <button id="pause-btn" onclick="window.manualPause()" ontouchend="window.manualPause()" style="
+          background: rgba(100, 116, 139, 0.8);
+          border: none;
+          border-radius: 6px;
+          padding: 4px 10px;
+          font-size: 16px;
+          cursor: pointer;
+          color: white;
         " title="Pause Game">⏸</button>
       </div>
       <!-- Career Display -->
@@ -3982,6 +3992,74 @@
             font-weight: bold;
             cursor: pointer;
           ">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save Scenario Dialog -->
+    <div id="save-scenario-overlay" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 4000;
+      justify-content: center;
+      align-items: center;
+    ">
+      <div style="
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border: 2px solid #3b82f6;
+        border-radius: 16px;
+        padding: 30px;
+        width: 90%;
+        max-width: 360px;
+        text-align: center;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        box-shadow: 0 10px 40px rgba(59, 130, 246, 0.2);
+      ">
+        <div style="font-size: 40px; margin-bottom: 15px;">💾</div>
+        <h3 style="color: white; margin: 0 0 10px 0; font-size: 20px;">Save Scenario</h3>
+        <p style="color: #94a3b8; margin: 0 0 20px 0; font-size: 14px;">
+          Save current stone positions for practice
+        </p>
+        <input type="text" id="scenario-name-input" placeholder="Enter scenario name..." maxlength="30" style="
+          width: 100%;
+          padding: 12px;
+          border: 2px solid #374151;
+          border-radius: 8px;
+          background: #1e293b;
+          color: white;
+          font-size: 16px;
+          margin-bottom: 20px;
+          box-sizing: border-box;
+        ">
+        <div id="save-scenario-stone-count" style="color: #64748b; font-size: 12px; margin-bottom: 15px;"></div>
+        <div style="display: flex; gap: 12px;">
+          <button onclick="window.hideSaveScenario()" ontouchend="window.hideSaveScenario()" style="
+            flex: 1;
+            padding: 12px;
+            background: #374151;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+          ">Cancel</button>
+          <button onclick="window.confirmSaveScenario()" ontouchend="window.confirmSaveScenario()" style="
+            flex: 1;
+            padding: 12px;
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+          ">Save</button>
         </div>
       </div>
     </div>

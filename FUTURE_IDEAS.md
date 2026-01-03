@@ -130,6 +130,14 @@ A dedicated training mode for skill development.
 - Reset button in practice overlay
 - No full game progression - just focused practice
 
+### Save Scenario (Custom Drills)
+- During gameplay, button to save current stone positions as a practice scenario
+- Captures: stone positions and colors only
+- Saved scenarios appear in Practice Mode under "Custom" category
+- Can name/label saved scenarios
+- Manage (rename/delete) saved scenarios from practice menu
+- LocalStorage for persistence
+
 ---
 
 ## High-Value Features

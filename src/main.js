@@ -2415,6 +2415,130 @@ function resetPracticeStats() {
   localStorage.removeItem('curlingpro_practice');
 }
 
+// ============================================
+// CUSTOM SCENARIOS (Save from gameplay)
+// ============================================
+
+const CUSTOM_SCENARIOS_KEY = 'curlingpro_custom_scenarios';
+
+function getCustomScenarios() {
+  try {
+    const saved = localStorage.getItem(CUSTOM_SCENARIOS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    console.warn('Could not load custom scenarios:', e);
+    return [];
+  }
+}
+
+function saveCustomScenarios(scenarios) {
+  try {
+    localStorage.setItem(CUSTOM_SCENARIOS_KEY, JSON.stringify(scenarios));
+  } catch (e) {
+    console.warn('Could not save custom scenarios:', e);
+  }
+}
+
+let saveScenarioGuard = false;
+
+window.saveScenarioPrompt = function() {
+  // Guard against double-firing
+  if (saveScenarioGuard) return;
+  saveScenarioGuard = true;
+  setTimeout(() => { saveScenarioGuard = false; }, 300);
+
+  // Check if there are any stones on the ice
+  const stonesInPlay = gameState.stones.filter(s => !s.outOfPlay);
+  if (stonesInPlay.length === 0) {
+    console.log('[SaveScenario] No stones to save');
+    return;
+  }
+
+  // Show the dialog
+  const overlay = document.getElementById('save-scenario-overlay');
+  const input = document.getElementById('scenario-name-input');
+  const countDisplay = document.getElementById('save-scenario-stone-count');
+
+  // Count stones by team
+  const redCount = stonesInPlay.filter(s => s.team === 'red').length;
+  const yellowCount = stonesInPlay.filter(s => s.team === 'yellow').length;
+  countDisplay.textContent = `${redCount} red, ${yellowCount} yellow stones`;
+
+  // Generate default name
+  const existing = getCustomScenarios();
+  input.value = `Custom ${existing.length + 1}`;
+
+  overlay.style.display = 'flex';
+  input.focus();
+  input.select();
+};
+
+window.hideSaveScenario = function() {
+  document.getElementById('save-scenario-overlay').style.display = 'none';
+};
+
+let confirmSaveGuard = false;
+
+window.confirmSaveScenario = function() {
+  // Guard against double-firing
+  if (confirmSaveGuard) return;
+  confirmSaveGuard = true;
+  setTimeout(() => { confirmSaveGuard = false; }, 300);
+
+  const input = document.getElementById('scenario-name-input');
+  const name = input.value.trim() || 'Custom Scenario';
+
+  // Get stones in play
+  const stonesInPlay = gameState.stones.filter(s => !s.outOfPlay);
+  if (stonesInPlay.length === 0) {
+    window.hideSaveScenario();
+    return;
+  }
+
+  // Extract stone positions
+  const stones = stonesInPlay.map(s => ({
+    team: s.team,
+    x: s.mesh.position.x,
+    z: s.mesh.position.z
+  }));
+
+  // Create scenario object
+  const scenario = {
+    id: 'custom_' + Date.now(),
+    name: name,
+    stones: stones,
+    createdAt: Date.now()
+  };
+
+  // Save to localStorage
+  const existing = getCustomScenarios();
+  existing.push(scenario);
+  saveCustomScenarios(existing);
+
+  console.log('[SaveScenario] Saved:', scenario.name, 'with', stones.length, 'stones');
+
+  // Hide dialog and show confirmation
+  window.hideSaveScenario();
+
+  // Brief visual feedback
+  const btn = document.getElementById('save-scenario-btn');
+  if (btn) {
+    btn.textContent = '✓';
+    btn.style.background = 'rgba(34, 197, 94, 0.8)';
+    setTimeout(() => {
+      btn.textContent = '💾';
+      btn.style.background = 'rgba(100, 116, 139, 0.8)';
+    }, 1500);
+  }
+};
+
+window.deleteCustomScenario = function(scenarioId) {
+  const scenarios = getCustomScenarios();
+  const filtered = scenarios.filter(s => s.id !== scenarioId);
+  saveCustomScenarios(filtered);
+  console.log('[SaveScenario] Deleted scenario:', scenarioId);
+};
+
 // Evaluate practice shot outcome
 function processPracticeOutcome() {
   const drillId = gameState.practiceMode.currentDrill;
@@ -9610,6 +9734,10 @@ window.restartGame = function() {
       if (redLabel) redLabel.innerHTML = 'RED';
       if (yellowLabel) yellowLabel.innerHTML = 'YELLOW';
 
+      // Hide save scenario button
+      const saveScenarioBtn = document.getElementById('save-scenario-btn');
+      if (saveScenarioBtn) saveScenarioBtn.style.display = 'none';
+
       // If this was a tournament match, show post-match screen instead of mode selection
       if (wasTournamentMatch) {
         showPostMatch();
@@ -9727,7 +9855,7 @@ window.showPracticeDrills = function() {
   document.getElementById('practice-scenario-screen').style.display = 'none';
 
   // Build drill cards
-  grid.innerHTML = Object.entries(PRACTICE_DRILLS).map(([drillId, drill]) => {
+  let html = Object.entries(PRACTICE_DRILLS).map(([drillId, drill]) => {
     const stats = practiceStats[drillId];
     const rate = stats.attempts > 0
       ? Math.round((stats.successes / stats.attempts) * 100)
@@ -9744,6 +9872,19 @@ window.showPracticeDrills = function() {
     `;
   }).join('');
 
+  // Add Custom Scenarios card if there are any saved
+  const customScenarios = getCustomScenarios();
+  html += `
+    <div class="practice-drill-card ${customScenarios.length === 0 ? 'no-data' : ''}" onclick="window.showCustomScenarios()" style="border-color: #3b82f6;">
+      <div class="practice-drill-icon">💾</div>
+      <div class="practice-drill-name">Custom</div>
+      <div class="practice-drill-rate ${customScenarios.length === 0 ? 'no-data' : ''}">
+        ${customScenarios.length} saved
+      </div>
+    </div>
+  `;
+
+  grid.innerHTML = html;
   screen.style.display = 'block';
 };
 
@@ -9865,6 +10006,133 @@ window.startPracticeScenario = function(drillId, scenarioId) {
   // Start the game
   gameState.phase = 'aiming';
   updatePreviewStone();
+};
+
+// Show custom scenarios list
+window.showCustomScenarios = function() {
+  const screen = document.getElementById('practice-scenario-screen');
+  const list = document.getElementById('practice-scenario-list');
+  const customScenarios = getCustomScenarios();
+
+  if (!screen || !list) return;
+
+  // Store that we're in custom mode
+  gameState.practiceMode.currentDrill = 'custom';
+
+  // Update header
+  document.getElementById('scenario-drill-title').textContent = '💾 Custom Scenarios';
+  document.getElementById('scenario-drill-desc').textContent = 'Scenarios saved from your games';
+
+  // Update stats (hide them for custom)
+  document.getElementById('drill-success-rate').textContent = '-';
+  document.getElementById('drill-attempts').textContent = customScenarios.length;
+  document.getElementById('drill-unlocked').textContent = 'N/A';
+
+  if (customScenarios.length === 0) {
+    list.innerHTML = `
+      <div style="text-align: center; color: #64748b; padding: 40px;">
+        <div style="font-size: 48px; margin-bottom: 15px;">💾</div>
+        <div style="margin-bottom: 10px;">No saved scenarios yet</div>
+        <div style="font-size: 12px;">During gameplay, tap the 💾 button to save the current stone positions</div>
+      </div>
+    `;
+  } else {
+    list.innerHTML = customScenarios.map(scenario => {
+      const stoneCount = scenario.stones.length;
+      const redCount = scenario.stones.filter(s => s.team === 'red').length;
+      const yellowCount = scenario.stones.filter(s => s.team === 'yellow').length;
+      const dateStr = new Date(scenario.createdAt).toLocaleDateString();
+
+      return `
+        <div class="practice-scenario-card" style="position: relative;">
+          <div class="scenario-header">
+            <div class="scenario-name">${scenario.name}</div>
+            <button onclick="event.stopPropagation(); window.deleteCustomScenarioConfirm('${scenario.id}')" style="
+              background: none;
+              border: none;
+              color: #ef4444;
+              font-size: 16px;
+              cursor: pointer;
+              padding: 4px 8px;
+            ">🗑️</button>
+          </div>
+          <div class="scenario-description" style="color: #94a3b8;">
+            ${redCount} red, ${yellowCount} yellow stones • Saved ${dateStr}
+          </div>
+          <div class="scenario-stats">
+            <div class="scenario-best">${stoneCount} stones total</div>
+            <button class="scenario-start-btn" onclick="window.startCustomScenario('${scenario.id}')">START</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // Hide drill screen, show scenario screen
+  document.getElementById('practice-drill-screen').style.display = 'none';
+  screen.style.display = 'block';
+};
+
+// Start a custom scenario
+window.startCustomScenario = function(scenarioId) {
+  const customScenarios = getCustomScenarios();
+  const scenario = customScenarios.find(s => s.id === scenarioId);
+
+  if (!scenario) return;
+
+  // Set up practice mode state
+  gameState.practiceMode.active = true;
+  gameState.practiceMode.currentDrill = 'custom';
+  gameState.practiceMode.currentScenario = scenarioId;
+  gameState.practiceMode.difficulty = 0;  // No difficulty for custom
+  gameState.practiceMode.attempts = 0;
+  gameState.practiceMode.successes = 0;
+  gameState.practiceMode.currentStreak = 0;
+  gameState.practiceMode.lastOutcome = null;
+  gameState.practiceMode.isCustom = true;  // Flag for custom scenarios
+
+  // Hide selection screens
+  document.getElementById('practice-scenario-screen').style.display = 'none';
+  document.getElementById('practice-drill-screen').style.display = 'none';
+
+  // Set up game state for practice
+  gameState.setupComplete = true;
+  gameState.gameMode = 'practice';
+  gameState.computerTeam = null;
+  gameState.currentTeam = 'red';
+  gameState.end = 1;
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+
+  // Load the custom scenario
+  loadPracticeScenario(scenario);
+
+  // Show practice UI overlay (simplified for custom)
+  showPracticeOverlay({
+    name: scenario.name,
+    hint: 'Custom scenario - practice freely!',
+    target: null  // No success criteria for custom
+  });
+
+  // Start ambient crowd
+  soundManager.startAmbientCrowd();
+
+  // Start the game
+  gameState.phase = 'aiming';
+  updatePreviewStone();
+};
+
+// Confirm delete custom scenario
+window.deleteCustomScenarioConfirm = function(scenarioId) {
+  const scenarios = getCustomScenarios();
+  const scenario = scenarios.find(s => s.id === scenarioId);
+  if (!scenario) return;
+
+  if (confirm(`Delete "${scenario.name}"?`)) {
+    window.deleteCustomScenario(scenarioId);
+    // Refresh the list
+    window.showCustomScenarios();
+  }
 };
 
 // Load a practice scenario (position stones)
@@ -10035,8 +10303,17 @@ window.practiceQuickReset = function() {
 
   const drillId = gameState.practiceMode.currentDrill;
   const scenarioId = gameState.practiceMode.currentScenario;
-  const scenarios = PRACTICE_SCENARIOS[drillId];
-  const scenario = scenarios.find(s => s.id === scenarioId);
+
+  let scenario;
+  if (drillId === 'custom') {
+    // Custom scenario
+    const customScenarios = getCustomScenarios();
+    scenario = customScenarios.find(s => s.id === scenarioId);
+  } else {
+    // Built-in scenario
+    const scenarios = PRACTICE_SCENARIOS[drillId];
+    scenario = scenarios?.find(s => s.id === scenarioId);
+  }
 
   if (!scenario) return;
 
@@ -12757,6 +13034,12 @@ function startGame() {
   const careerDisplay = document.getElementById('career-display');
   if (careerDisplay) {
     careerDisplay.style.display = gameState.selectedMode === 'online' ? 'none' : 'flex';
+  }
+
+  // Show save scenario button (not in practice mode or multiplayer)
+  const saveScenarioBtn = document.getElementById('save-scenario-btn');
+  if (saveScenarioBtn) {
+    saveScenarioBtn.style.display = (gameState.practiceMode?.active || gameState.selectedMode === 'online') ? 'none' : 'block';
   }
 
   // Update score display (important for crash recovery)
