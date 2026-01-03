@@ -13186,6 +13186,9 @@ function startGame() {
   }
   document.getElementById('turn').textContent = turnText;
 
+  // Update preview stone color for the current team
+  updatePreviewStoneForTeam();
+
   // Set camera view - target view for player, thrower view for computer
   if (isComputer) {
     // Computer's turn - go straight to thrower view
