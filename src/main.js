@@ -11274,12 +11274,12 @@ let selectedCareerDifficulty = 'easy';
 let customCrest = '🥌';  // Default custom crest
 let customCrestIsImage = false;  // Track if crest is an uploaded image
 
-// Emoji options for custom crest picker
+// Emoji options for custom crest picker (excludes existing club crests)
 const CREST_EMOJIS = [
-  '🥌', '🏆', '🎯', '⭐', '🌟', '💎', '👑', '🦅',
+  '🏆', '🎯', '⭐', '🌟', '💎', '👑', '🦅', '🦉',
   '🦁', '🐺', '🐻', '🦌', '🦬', '🐎', '🦊', '🐲',
-  '⚡', '🔥', '❄️', '🌊', '🏔️', '🌲', '🍁', '☘️',
-  '🛡️', '⚔️', '🏰', '🗡️', '🎖️', '🏅', '🌙', '☀️'
+  '⚡', '🔥', '❄️', '🌲', '☘️', '🦈', '🐧', '🗻',
+  '🛡️', '⚔️', '🗡️', '🎖️', '🏅', '🌙', '☀️', '🔱'
 ];
 
 // Show club selection screen
