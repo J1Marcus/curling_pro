@@ -7765,6 +7765,9 @@ function updateScoreboardVisibility() {
   // Sliding phase includes: sliding, throwing, sweeping
   const isSlidingPhase = gameState.phase === 'sliding' || gameState.phase === 'throwing' || gameState.phase === 'sweeping';
 
+  // Check if it's CPU's turn
+  const isCpuTurn = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+
   // Target view: aiming phase with camera looking at house
   const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
 
@@ -7772,16 +7775,17 @@ function updateScoreboardVisibility() {
   const canShowSave = inTargetView &&
     !gameState.practiceMode?.active &&
     gameState.selectedMode !== 'online' &&
-    !(gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam);
+    !isCpuTurn;
 
   if (scoreboard) scoreboard.style.display = hideScoreboard ? 'none' : '';
   if (turnRow) turnRow.style.display = hideScoreboard ? 'none' : '';
   if (stoneCount) stoneCount.style.display = hideScoreboard ? 'none' : '';
   if (careerDisplay) careerDisplay.style.display = hideScoreboard ? 'none' : '';
 
-  // Settings and pause buttons swap - pause shows during sliding, settings otherwise
-  if (settingsBtn) settingsBtn.style.display = isSlidingPhase ? 'none' : '';
-  if (pauseBtn) pauseBtn.style.display = isSlidingPhase ? '' : 'none';
+  // Settings and pause buttons swap - pause shows during player's sliding phase only
+  const showPause = isSlidingPhase && !isCpuTurn;
+  if (settingsBtn) settingsBtn.style.display = showPause ? 'none' : '';
+  if (pauseBtn) pauseBtn.style.display = showPause ? '' : 'none';
 
   // Save button only shows in target view (with extra conditions)
   if (saveBtn) saveBtn.style.display = canShowSave ? '' : 'none';
