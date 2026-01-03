@@ -2198,7 +2198,7 @@
     </div>
     <div id="sweep-indicator">SWEEPING!</div>
     <div id="marker-hint">Click on the ice to set your target</div>
-    <button id="return-to-throw" onclick="window.returnToThrowView()">READY</button>
+    <button id="return-to-throw" onclick="window.returnToThrowView()" ontouchend="window.returnToThrowView(); event.preventDefault();">READY</button>
     <style>
       #return-to-throw {
         position: fixed;

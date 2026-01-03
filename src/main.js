@@ -9119,6 +9119,10 @@ function nextTurn() {
     updatePreviewStoneRotation();
   }
 
+  // Force update button visibility after state changes
+  updateReturnButton();
+  updateMarkerHint();
+
   // Update coach panel for learn mode
   updateCoachPanel();
 }
@@ -13702,6 +13706,13 @@ window.sendFeedback = async function(event) {
 };
 
 function startNewEnd() {
+  // Safety: ensure score overlay is fully hidden
+  const scoreOverlay = document.getElementById('score-overlay');
+  if (scoreOverlay) {
+    scoreOverlay.classList.remove('visible');
+    scoreOverlay.style.display = 'none';
+  }
+
   // Clear stones
   for (const stone of gameState.stones) {
     scene.remove(stone.mesh);
@@ -13775,6 +13786,10 @@ function startNewEnd() {
     updateSkipSignalArm();
     updatePreviewStoneRotation();
   }
+
+  // Force update button visibility after state changes
+  updateReturnButton();
+  updateMarkerHint();
 }
 
 function updateScoreDisplay() {
