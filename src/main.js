@@ -12329,8 +12329,8 @@ window.startTournamentMatch = function() {
       flag: opponent?.club?.crest || '🥌'
     };
 
-    // Start game directly
-    startGame();
+    // Show coin toss
+    window.startCoinToss();
   } else {
     // For national/international tier, show country selection
     showCountrySelection();
