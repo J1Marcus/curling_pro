@@ -7713,7 +7713,7 @@ function processShotFeedback() {
 
 // Return to throw view button
 window.returnToThrowView = function() {
-  console.log('[returnToThrowView] phase:', gameState.phase, 'previewLocked:', gameState.previewLocked, 'targetMarker:', !!gameState.targetMarker);
+  console.log('[returnToThrowView] phase:', gameState.phase, 'previewLocked:', gameState.previewLocked, 'targetPosition:', !!gameState.targetPosition);
 
   // Prevent during computer's turn
   if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
@@ -7722,8 +7722,8 @@ window.returnToThrowView = function() {
   }
 
   if (gameState.phase === 'aiming' && gameState.previewLocked) {
-    // Check if marker has been placed
-    if (!gameState.targetMarker) {
+    // Check if marker has been placed (use targetPosition, not targetMarker object)
+    if (!gameState.targetPosition) {
       console.log('[returnToThrowView] No marker - showing reminder');
       showMarkerReminder();
       return;
@@ -7822,11 +7822,11 @@ function updateMarkerHint() {
   // Show hint when:
   // - In aiming phase
   // - Looking at the ice (preview height > 0.5, seeing the house)
-  // - No marker currently placed
+  // - No marker currently placed this turn (check targetPosition, not targetMarker object)
   // - Not computer or opponent's turn
   const shouldShow = gameState.phase === 'aiming' &&
                      gameState.previewHeight > 0.5 &&
-                     !gameState.targetMarker &&
+                     !gameState.targetPosition &&
                      !isInputBlocked();
 
   hint.style.display = shouldShow ? 'block' : 'none';
