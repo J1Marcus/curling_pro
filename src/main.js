@@ -934,7 +934,7 @@ const TOURNAMENT_DEFINITIONS = [
       bestOf: 1
     },
     requirements: { minTier: 'club' },
-    rewards: { points: 50, qualifiesFor: 'regionalQualified', tierAdvance: true },
+    rewards: { points: 75, qualifiesFor: 'regionalQualified', tierAdvance: true },
     color: '#6b7280'
   },
   // Regional Tier
@@ -949,7 +949,7 @@ const TOURNAMENT_DEFINITIONS = [
       bestOf: 1
     },
     requirements: { minTier: 'regional', qualification: 'regionalQualified' },
-    rewards: { points: 100, qualifiesFor: 'provincialQualified', tierAdvance: true },
+    rewards: { points: 150, qualifiesFor: 'provincialQualified', tierAdvance: true },
     color: '#3b82f6'
   },
   // Provincial Tier
@@ -964,7 +964,7 @@ const TOURNAMENT_DEFINITIONS = [
       bestOf: 1
     },
     requirements: { minTier: 'provincial', qualification: 'provincialQualified' },
-    rewards: { points: 200, qualifiesFor: 'nationalQualified', tierAdvance: true },
+    rewards: { points: 300, qualifiesFor: 'nationalQualified', tierAdvance: true },
     color: '#8b5cf6'
   },
   // National Tier
