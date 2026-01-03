@@ -7745,19 +7745,20 @@ function processShotFeedback() {
 // Update scoreboard visibility based on camera view
 function updateScoreboardVisibility() {
   const scoreboard = document.getElementById('scoreboard');
-  const turnRow = document.getElementById('turn')?.parentElement;
+  const turnDiv = document.getElementById('turn');
+  const turnRow = turnDiv?.parentElement?.parentElement;  // Get the outer flex container
   const stoneCount = document.getElementById('stone-count');
   const careerDisplay = document.getElementById('career-display');
   const pauseBtn = document.getElementById('pause-btn');
+  const saveBtn = document.getElementById('save-scenario-btn');
 
-  // Hide in target view (previewHeight > 0.5 and in aiming phase)
-  const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
   // Keep scoreboard hidden during entire aiming phase to avoid overlap with curl slider
   const inAimingPhase = gameState.phase === 'aiming';
 
   if (scoreboard) scoreboard.style.display = inAimingPhase ? 'none' : '';
   if (turnRow) turnRow.style.display = inAimingPhase ? 'none' : '';
-  if (pauseBtn) pauseBtn.style.display = inTargetView ? 'none' : '';
+  if (pauseBtn) pauseBtn.style.display = inAimingPhase ? 'none' : '';
+  if (saveBtn) saveBtn.style.display = inAimingPhase ? 'none' : '';
   if (stoneCount) stoneCount.style.display = inAimingPhase ? 'none' : '';
   if (careerDisplay) careerDisplay.style.display = inAimingPhase ? 'none' : '';
 }
@@ -9340,6 +9341,10 @@ function nextTurn() {
   clearTargetMarker();  // Remove target marker from previous turn
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
   updatePreviewStoneForTeam();  // Update preview stone color for new team
+
+  // Hide power display from previous turn
+  document.getElementById('power-display').style.display = 'none';
+  document.getElementById('hold-warning').style.display = 'none';
 
   // Update UI
   let turnText;
