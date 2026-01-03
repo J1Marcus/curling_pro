@@ -16,10 +16,6 @@ if (supabaseUrl && supabaseAnonKey) {
   console.log('[Analytics] Supabase not configured (missing env vars)');
 }
 
-// Enable debug mode with ?debug_analytics=1 in URL
-if (typeof window !== 'undefined') {
-  window.DEBUG_ANALYTICS = new URLSearchParams(window.location.search).has('debug_analytics');
-}
 
 // ============================================
 // SESSION MANAGEMENT
@@ -201,54 +197,30 @@ export async function endSession() {
 
 // Track a custom event
 export async function trackEvent(eventType, eventName, eventData = null) {
-  if (!supabase) {
-    console.log('[Analytics] No supabase client, skipping event:', eventType, eventName);
-    if (window.DEBUG_ANALYTICS) alert(`No supabase client - skipping ${eventType}`);
-    return;
-  }
+  if (!supabase) return;
 
   // Wait for session to be ready before tracking events
   if (sessionReadyPromise) {
-    console.log('[Analytics] Waiting for session ready...');
     await sessionReadyPromise;
-    console.log('[Analytics] Session ready, sessionId:', sessionId);
   }
 
-  if (!sessionId) {
-    console.warn('[Analytics] No session ID, skipping event:', eventType, eventName);
-    if (window.DEBUG_ANALYTICS) alert(`No session ID - skipping ${eventType}`);
-    return;
-  }
+  if (!sessionId) return;
 
   try {
-    console.log('[Analytics] Inserting event:', { session_id: sessionId, event_type: eventType, event_name: eventName, event_data: eventData });
-
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('analytics_events')
       .insert({
         session_id: sessionId,
         event_type: eventType,
         event_name: eventName,
         event_data: eventData
-      })
-      .select();
+      });
 
     if (error) {
-      console.error('[Analytics] Event insert error:', error);
-      // Show visible error for debugging on mobile
-      if (window.DEBUG_ANALYTICS) {
-        alert(`Analytics error: ${error.message}`);
-      }
-      return;
+      console.warn('[Analytics] Event insert error:', error.message);
     }
-
-    console.log('[Analytics] Event tracked:', eventType, eventName, data);
   } catch (e) {
-    console.error('[Analytics] Failed to track event:', e);
-    // Show visible error for debugging on mobile
-    if (window.DEBUG_ANALYTICS) {
-      alert(`Analytics exception: ${e.message}`);
-    }
+    console.warn('[Analytics] Failed to track event:', e.message);
   }
 }
 
@@ -268,8 +240,6 @@ export function trackButtonClick(buttonName) {
 
 // Track game start
 export function trackGameStart(gameMode, difficulty = null) {
-  console.log('[Analytics] trackGameStart called:', gameMode, difficulty);
-  if (window.DEBUG_ANALYTICS) alert(`trackGameStart: ${gameMode}, ${difficulty}`);
   return trackEvent('game_start', gameMode, { difficulty });
 }
 
