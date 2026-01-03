@@ -12326,7 +12326,8 @@ window.startTournamentMatch = function() {
 
   // Check if we're resuming a match in progress (skip coin toss)
   const savedProgress = loadMatchProgress();
-  const isResuming = savedProgress && savedProgress.end > 1;
+  const hasScores = savedProgress && (savedProgress.scores.red > 0 || savedProgress.scores.yellow > 0);
+  const isResuming = savedProgress && (savedProgress.end > 1 || hasScores);
 
   // For club/regional tier, skip country selection - just use club representation
   const tier = seasonState.activeTournament.definition.tier;
@@ -13837,6 +13838,9 @@ function startNewEnd() {
   clearTargetMarker();  // Remove target marker
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
   updatePreviewStoneForTeam();  // Update preview stone for current team
+
+  // Save progress at start of new end (so resume works correctly)
+  saveMatchProgress();
 
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
