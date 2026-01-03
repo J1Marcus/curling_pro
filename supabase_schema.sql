@@ -153,3 +153,144 @@ CREATE TRIGGER match_history_limit_trigger
   AFTER INSERT ON match_history
   FOR EACH ROW
   EXECUTE FUNCTION enforce_match_history_limit();
+
+-- ============================================
+-- ANALYTICS SCHEMA
+-- ============================================
+
+-- Analytics sessions - track unique visitors and session duration
+CREATE TABLE IF NOT EXISTS analytics_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id TEXT UNIQUE NOT NULL,        -- Client-generated unique session ID
+  player_id TEXT,                          -- Optional: linked player ID
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_activity TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ,
+  duration_seconds INTEGER,                -- Calculated on session end
+  device_type TEXT,                        -- 'mobile', 'tablet', 'desktop'
+  browser TEXT,                            -- Browser name
+  os TEXT,                                 -- Operating system
+  screen_width INTEGER,
+  screen_height INTEGER,
+  referrer TEXT,                           -- Where they came from
+  country TEXT                             -- Geo location (optional)
+);
+
+-- Analytics events - track specific user actions
+CREATE TABLE IF NOT EXISTS analytics_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,                -- e.g., 'game_start', 'button_click', 'page_view'
+  event_name TEXT NOT NULL,                -- e.g., 'career_mode', 'ready_button', 'settings'
+  event_data JSONB,                        -- Additional context
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Analytics daily aggregates - for fast dashboard queries
+CREATE TABLE IF NOT EXISTS analytics_daily (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  date DATE UNIQUE NOT NULL,
+  total_sessions INTEGER DEFAULT 0,
+  unique_visitors INTEGER DEFAULT 0,
+  total_games_started INTEGER DEFAULT 0,
+  total_games_completed INTEGER DEFAULT 0,
+  career_games INTEGER DEFAULT 0,
+  quick_games INTEGER DEFAULT 0,
+  multiplayer_games INTEGER DEFAULT 0,
+  avg_session_duration_seconds INTEGER DEFAULT 0,
+  mobile_sessions INTEGER DEFAULT 0,
+  desktop_sessions INTEGER DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Indexes for efficient queries
+CREATE INDEX IF NOT EXISTS idx_analytics_sessions_started
+  ON analytics_sessions(started_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_sessions_session_id
+  ON analytics_sessions(session_id);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_session
+  ON analytics_events(session_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_events_type
+  ON analytics_events(event_type, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_analytics_daily_date
+  ON analytics_daily(date DESC);
+
+-- Enable RLS
+ALTER TABLE analytics_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE analytics_daily ENABLE ROW LEVEL SECURITY;
+
+-- Allow anonymous insert (for tracking)
+CREATE POLICY "Allow anonymous insert on analytics_sessions"
+  ON analytics_sessions FOR INSERT
+  WITH CHECK (true);
+
+CREATE POLICY "Allow anonymous update on analytics_sessions"
+  ON analytics_sessions FOR UPDATE
+  USING (true);
+
+CREATE POLICY "Allow anonymous insert on analytics_events"
+  ON analytics_events FOR INSERT
+  WITH CHECK (true);
+
+-- Read access requires service role (admin only) - no public read policy
+-- The admin dashboard will use a service role key
+
+-- Function to update daily aggregates (call from a cron job or trigger)
+CREATE OR REPLACE FUNCTION update_analytics_daily(target_date DATE)
+RETURNS void AS $$
+BEGIN
+  INSERT INTO analytics_daily (date, total_sessions, unique_visitors, avg_session_duration_seconds, mobile_sessions, desktop_sessions, updated_at)
+  SELECT
+    target_date,
+    COUNT(*) as total_sessions,
+    COUNT(DISTINCT COALESCE(player_id, session_id)) as unique_visitors,
+    COALESCE(AVG(duration_seconds), 0)::INTEGER as avg_duration,
+    COUNT(*) FILTER (WHERE device_type = 'mobile') as mobile,
+    COUNT(*) FILTER (WHERE device_type = 'desktop') as desktop,
+    NOW()
+  FROM analytics_sessions
+  WHERE started_at::DATE = target_date
+  ON CONFLICT (date) DO UPDATE SET
+    total_sessions = EXCLUDED.total_sessions,
+    unique_visitors = EXCLUDED.unique_visitors,
+    avg_session_duration_seconds = EXCLUDED.avg_session_duration_seconds,
+    mobile_sessions = EXCLUDED.mobile_sessions,
+    desktop_sessions = EXCLUDED.desktop_sessions,
+    updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Update game counts from events
+CREATE OR REPLACE FUNCTION update_analytics_game_counts(target_date DATE)
+RETURNS void AS $$
+BEGIN
+  UPDATE analytics_daily SET
+    total_games_started = (
+      SELECT COUNT(*) FROM analytics_events
+      WHERE event_type = 'game_start' AND created_at::DATE = target_date
+    ),
+    total_games_completed = (
+      SELECT COUNT(*) FROM analytics_events
+      WHERE event_type = 'game_complete' AND created_at::DATE = target_date
+    ),
+    career_games = (
+      SELECT COUNT(*) FROM analytics_events
+      WHERE event_type = 'game_start' AND event_name = 'career' AND created_at::DATE = target_date
+    ),
+    quick_games = (
+      SELECT COUNT(*) FROM analytics_events
+      WHERE event_type = 'game_start' AND event_name = 'quickplay' AND created_at::DATE = target_date
+    ),
+    multiplayer_games = (
+      SELECT COUNT(*) FROM analytics_events
+      WHERE event_type = 'game_start' AND event_name = 'multiplayer' AND created_at::DATE = target_date
+    ),
+    updated_at = NOW()
+  WHERE date = target_date;
+END;
+$$ LANGUAGE plpgsql;

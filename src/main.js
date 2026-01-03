@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import Matter from 'matter-js';
 import { soundManager } from './sounds.js';
 import * as multiplayer from './multiplayer.js';
+import * as analytics from './analytics.js';
 
 // ============================================
 // SPLASH SCREEN / LOADING
@@ -9379,6 +9380,13 @@ function showGameOverOverlay() {
     ? (gameState.computerTeam === 'yellow' ? 'red' : 'yellow')
     : null;
 
+  // Track game completion
+  const gameMode = gameState.selectedMode || 'quickplay';
+  const playerScore = userTeam ? gameState.scores[userTeam] : gameState.scores.red;
+  const opponentScore = userTeam ? gameState.scores[userTeam === 'red' ? 'yellow' : 'red'] : gameState.scores.yellow;
+  const won = userTeam ? (playerScore > opponentScore) : null;
+  analytics.trackGameComplete(gameMode, won, playerScore, opponentScore, gameState.end);
+
   if (winnerClass !== 'tie') {
     if (gameState.gameMode === '2player') {
       // 2-player: confetti for winner
@@ -9667,6 +9675,9 @@ window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
   gameState.gameMode = '1player';
   gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice vs online)
+
+  // Track mode selection
+  analytics.trackPageView(mode + '_mode');
 
   if (mode === 'career') {
     // Career mode: check for existing career
@@ -12679,6 +12690,10 @@ window.chooseColor = function(color) {
 // Start the actual game after setup
 function startGame() {
   gameState.setupComplete = true;
+
+  // Track game start
+  const gameMode = gameState.selectedMode || 'quickplay';
+  analytics.trackGameStart(gameMode, gameState.settings.difficulty);
 
   // Check for saved match progress (crash recovery)
   const savedProgress = loadMatchProgress();
