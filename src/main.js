@@ -7855,7 +7855,7 @@ function updateMarkerHint() {
 }
 
 // ============================================
-// SPLIT TIME DISPLAY
+// T-LINE TIME DISPLAY
 // ============================================
 function displaySplitTime(time) {
   const splitDisplay = document.getElementById('split-time');
@@ -7877,7 +7877,7 @@ function displaySplitTime(time) {
     color = '#ef4444';
   }
 
-  splitDisplay.innerHTML = `<span style="color:${color}">${time.toFixed(1)}s - ${category}</span>`;
+  splitDisplay.innerHTML = `<span style="color:#9ca3af; font-size: 14px;">T-line:</span> <span style="color:${color}">${time.toFixed(1)}s - ${category}</span>`;
   splitDisplay.style.display = 'block';
 
   // Hide after 3 seconds
