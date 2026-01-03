@@ -13104,10 +13104,9 @@ window.startCoinToss = function() {
         // Show choice overlay
         document.getElementById('toss-choice-overlay').style.display = 'flex';
       } else {
-        // Computer chooses hammer
-        gameState.hammer = 'yellow';
-        gameState.currentTeam = 'red';  // Player throws first
-        startGame();
+        // Computer chooses hammer - player gets to choose color
+        gameState.cpuTookHammer = true;
+        document.getElementById('color-choice-overlay').style.display = 'flex';
       }
     }, 2000);
   }, 2000);
@@ -13150,10 +13149,19 @@ window.chooseColor = function(color) {
 
   document.getElementById('color-choice-overlay').style.display = 'none';
 
+  // Check if CPU won toss and took hammer (player just picking color)
+  const cpuHasHammer = gameState.cpuTookHammer;
+  gameState.cpuTookHammer = false;  // Reset flag
+
   if (color === 'red') {
     // Player keeps red, opponent stays yellow (default setup)
-    gameState.hammer = 'yellow';  // Opponent gets hammer
-    gameState.currentTeam = 'red';  // Player throws first
+    if (cpuHasHammer) {
+      gameState.hammer = 'yellow';  // CPU (yellow) has hammer
+      gameState.currentTeam = 'red';  // Player throws first
+    } else {
+      gameState.hammer = 'yellow';  // Opponent gets hammer
+      gameState.currentTeam = 'red';  // Player throws first
+    }
   } else {
     // Player wants yellow - swap the countries and computer team
     const tempCountry = gameState.playerCountry;
@@ -13162,8 +13170,13 @@ window.chooseColor = function(color) {
 
     // Player is now yellow, computer is red
     gameState.computerTeam = 'red';
-    gameState.hammer = 'red';  // Computer (now red) gets hammer
-    gameState.currentTeam = 'yellow';  // Player (now yellow) throws first
+    if (cpuHasHammer) {
+      gameState.hammer = 'red';  // CPU (now red) has hammer
+      gameState.currentTeam = 'yellow';  // Player throws first
+    } else {
+      gameState.hammer = 'red';  // Computer (now red) gets hammer
+      gameState.currentTeam = 'yellow';  // Player (now yellow) throws first
+    }
   }
 
   startGame();
