@@ -6255,6 +6255,7 @@ function pushOff() {
   hideAimLine();  // Hide aiming line on push off
   gameState.phase = 'sliding';
   setCurlButtonsEnabled(false);  // Disable curl buttons during throw
+  setCurlDisplayVisible(false);  // Hide curl slider during throw
   gameState.slideStartTime = Date.now();
 
   // Play throw sound
