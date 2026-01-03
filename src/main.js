@@ -12618,22 +12618,22 @@ window.startTournamentMatch = function() {
   const hasScores = savedProgress && (savedProgress.scores.red > 0 || savedProgress.scores.yellow > 0);
   const isResuming = savedProgress && (savedProgress.end > 1 || hasScores);
 
-  // For club/regional tier, skip country selection - just use club representation
+  // For club/regional tier, skip country selection - just use team names with club crests
   const tier = seasonState.activeTournament.definition.tier;
   if (tier === 'club' || tier === 'regional') {
-    // Use player's club instead of country
+    // Use player's team name with club crest
     const playerClub = seasonState.playerTeam.club;
     gameState.playerCountry = {
       id: playerClub?.id || 'club',
-      name: playerClub?.name || 'My Club',
+      name: seasonState.playerTeam.name || 'Team Player',
       flag: playerClub?.crest || '🥌'
     };
 
-    // Get opponent info
+    // Get opponent info - use team name instead of club name
     const opponent = getCurrentMatchOpponent();
     gameState.opponentCountry = {
       id: opponent?.club?.id || 'opponent',
-      name: opponent?.club?.name || opponent?.teamName || 'Opponent',
+      name: opponent?.teamName || `Team ${opponent?.lastName || 'Opponent'}`,
       flag: opponent?.club?.crest || '🥌'
     };
 
