@@ -1941,17 +1941,23 @@ window.resetTutorials = function() {
 // (between hog line and the house) cannot be removed from play.
 // If violated, stones are reset and the thrown stone is removed.
 
-// FGZ boundaries: between far hog line and the house (12-foot ring edge)
-const FGZ_START = HOG_LINE_FAR;  // ~34.67m
-const FGZ_END = TEE_LINE_FAR - RING_12FT;  // ~39.24m (tee - 12ft radius)
+// FGZ (Free Guard Zone) rule: During stones 1-4, opponent stones OUTSIDE the house
+// cannot be removed from play. This includes guards and any stone not in the 12-foot ring.
+// The "house" is the 12-foot ring (stones within RING_12FT of the button)
 
 // State for FGZ tracking
-let fgzPreThrowGuards = [];  // Guards in FGZ before each throw
+let fgzPreThrowGuards = [];  // Opponent stones outside the house before each throw
 let fgzThrownStone = null;   // Reference to the stone just thrown
 
-// Check if a stone position is in the Free Guard Zone
-function isInFGZ(z) {
-  return z >= FGZ_START && z < FGZ_END;
+// Check if a stone is outside the house (protected during FGZ)
+function isOutsideHouse(stone) {
+  const buttonX = 0;
+  const buttonZ = TEE_LINE_FAR;
+  const dx = stone.mesh.position.x - buttonX;
+  const dz = stone.mesh.position.z - buttonZ;
+  const distFromButton = Math.sqrt(dx * dx + dz * dz);
+  // Stone is outside the house if it's beyond the 12-foot ring
+  return distFromButton > RING_12FT + STONE_RADIUS;
 }
 
 // Capture FGZ state before a throw
@@ -1968,16 +1974,16 @@ function captureFGZState() {
   const throwingTeam = gameState.currentTeam;
   const opponentTeam = throwingTeam === 'red' ? 'yellow' : 'red';
 
-  // Find opponent guards in the FGZ (guards that are protected)
+  // Find opponent stones OUTSIDE the house (all are protected during FGZ period)
   fgzPreThrowGuards = [];
   for (const stone of gameState.stones) {
     if (stone.team === opponentTeam && !stone.outOfPlay) {
-      const z = stone.mesh.position.z;
-      if (isInFGZ(z)) {
+      // Check if stone is outside the house (protected by FGZ rule)
+      if (isOutsideHouse(stone)) {
         fgzPreThrowGuards.push({
           stone: stone,
           originalX: stone.mesh.position.x,
-          originalZ: z,
+          originalZ: stone.mesh.position.z,
           bodyX: stone.body.position.x,
           bodyY: stone.body.position.y
         });
@@ -1985,31 +1991,37 @@ function captureFGZState() {
     }
   }
 
-  console.log(`[FGZ] Stone ${totalThrown + 1} of end - ${fgzPreThrowGuards.length} protected guards in FGZ`);
+  console.log(`[FGZ] Stone ${totalThrown + 1} of end - ${fgzPreThrowGuards.length} protected stones outside house`);
 }
 
 // Check for FGZ violation after stones stop
 function checkFGZViolation() {
   const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
 
+  console.log(`[FGZ] Checking violation - totalThrown: ${totalThrown}, protected guards: ${fgzPreThrowGuards.length}`);
+
   // FGZ only applies during stones 1-4
   if (totalThrown > 4) {
+    console.log('[FGZ] FGZ not active (> 4 stones thrown)');
     return false;
   }
 
   // No guards were protected
   if (fgzPreThrowGuards.length === 0) {
+    console.log('[FGZ] No protected guards were captured');
     return false;
   }
 
   // Check if any protected guard was removed from play
   for (const guardInfo of fgzPreThrowGuards) {
+    console.log(`[FGZ] Checking guard - outOfPlay: ${guardInfo.stone.outOfPlay}, originalPos: (${guardInfo.originalX.toFixed(2)}, ${guardInfo.originalZ.toFixed(2)}), currentPos: (${guardInfo.stone.mesh.position.x.toFixed(2)}, ${guardInfo.stone.mesh.position.z.toFixed(2)})`);
     if (guardInfo.stone.outOfPlay) {
       console.log('[FGZ] VIOLATION: Protected guard was removed from play!');
       return true;
     }
   }
 
+  console.log('[FGZ] No violation detected - guards still in play');
   return false;
 }
 
@@ -8517,13 +8529,15 @@ function getComputerShot() {
     }
   } else if (guardsPlayer.length > 0 && !computerHasShot) {
     // Player has guards blocking - try to peel or come around
-    // Check if FGZ rule applies (stones 1-4, guards in FGZ are protected)
+    // Check if FGZ rule applies (stones 1-4, stones outside house are protected)
     const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
     const fgzActive = totalThrown < 4;
     const targetGuard = guardsPlayer[0];
-    const guardInFGZ = isInFGZ(targetGuard.z);
+    // Guard is protected if it's outside the 12-foot ring
+    const distFromButton = Math.sqrt(targetGuard.x * targetGuard.x + Math.pow(targetGuard.z - TEE_LINE_FAR, 2));
+    const guardProtected = distFromButton > RING_12FT + STONE_RADIUS;
 
-    if (fgzActive && guardInFGZ) {
+    if (fgzActive && guardProtected) {
       // Can't peel FGZ-protected guard - must come around or draw
       console.log('[FGZ] Computer avoiding protected guard, playing around it');
       shotType = 'come-around';
