@@ -2127,10 +2127,10 @@
           </tbody>
         </table>
       </div>
-      <!-- Turn and Stone Count Row -->
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 8px;">
+      <!-- Turn Row -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
-          <div id="turn" style="margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">End 1 - Red's Turn</div>
+          <div id="turn" style="margin: 0; white-space: nowrap;">End 1 - Red's Turn</div>
           <div id="turn-timer" style="
             display: none;
             background: #333;
@@ -2141,21 +2141,6 @@
             min-width: 45px;
             text-align: center;
           ">60</div>
-        </div>
-        <div id="stone-count" style="
-          display: flex;
-          gap: 12px;
-          font-size: 12px;
-          flex-shrink: 0;
-        ">
-          <div id="red-stones" style="display: flex; align-items: center; gap: 3px;">
-            <span style="color: #dc2626; font-weight: bold;">R:</span>
-            <div id="red-stone-icons" style="display: flex; gap: 2px;"></div>
-          </div>
-          <div id="yellow-stones" style="display: flex; align-items: center; gap: 3px;">
-            <span style="color: #fbbf24; font-weight: bold;">Y:</span>
-            <div id="yellow-stone-icons" style="display: flex; gap: 2px;"></div>
-          </div>
         </div>
         <button id="save-scenario-btn" onclick="window.saveScenarioPrompt()" ontouchend="event.preventDefault(); window.saveScenarioPrompt()" style="
           background: rgba(100, 116, 139, 0.8);
@@ -2178,6 +2163,22 @@
           color: white;
           flex-shrink: 0;
         " title="Pause Game">⏸</button>
+      </div>
+      <!-- Stone Count Row -->
+      <div id="stone-count" style="
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        margin-bottom: 6px;
+      ">
+        <div id="red-stones" style="display: flex; align-items: center; gap: 3px;">
+          <span style="color: #dc2626; font-weight: bold;">R:</span>
+          <div id="red-stone-icons" style="display: flex; gap: 2px;"></div>
+        </div>
+        <div id="yellow-stones" style="display: flex; align-items: center; gap: 3px;">
+          <span style="color: #fbbf24; font-weight: bold;">Y:</span>
+          <div id="yellow-stone-icons" style="display: flex; gap: 2px;"></div>
+        </div>
       </div>
       <!-- Career Display -->
       <div id="career-display" style="
