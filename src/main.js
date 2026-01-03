@@ -11049,6 +11049,35 @@ window.sendChatMessage = function() {
   multiplayer.broadcastChat(message);
 };
 
+// Track if chat input was focused intentionally (via direct tap)
+let chatInputIntentional = false;
+
+window.onChatInputFocus = function(event) {
+  // Check if the chat panel is visible - if not, blur immediately
+  const chatPanel = document.getElementById('mp-chat-panel');
+  if (chatPanel && chatPanel.style.display === 'none') {
+    event.target.blur();
+    return;
+  }
+
+  // Mark as intentionally focused after a brief delay
+  // (to distinguish from accidental focus during swipe)
+  setTimeout(() => {
+    chatInputIntentional = true;
+  }, 100);
+};
+
+window.onChatInputBlur = function() {
+  chatInputIntentional = false;
+};
+
+// Blur any focused input when tapping on the game canvas
+window.blurAllInputs = function() {
+  if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+    document.activeElement.blur();
+  }
+};
+
 function addChatMessage(sender, message, isLocal) {
   const container = document.getElementById('mp-chat-messages');
 
@@ -14000,6 +14029,9 @@ let lastTapPos = { x: 0, y: 0 };
 
 renderer.domElement.addEventListener('touchstart', (e) => {
   e.preventDefault();
+
+  // Blur any focused input (dismiss keyboard) when touching the game canvas
+  window.blurAllInputs();
 
   // Block input during opponent's turn in multiplayer
   if (isInputBlocked()) return;

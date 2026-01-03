@@ -1974,6 +1974,8 @@
         ">
           <input type="text" id="mp-chat-input" placeholder="Type a message..."
             onkeypress="if(event.key==='Enter')window.sendChatMessage()"
+            onfocus="window.onChatInputFocus(event)"
+            onblur="window.onChatInputBlur()"
             style="
               flex: 1;
               padding: 10px 12px;
