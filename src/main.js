@@ -6352,6 +6352,10 @@ function startPull(x, y) {
     gameState.coachTargetMarker = null;
   }
 
+  // Move curl display down to make room for power display
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) curlDisplay.style.top = '140px';
+
   document.getElementById('power-display').style.display = 'block';
   document.getElementById('power-bar').style.display = 'block';
   document.getElementById('phase-text').style.color = '#4ade80';
@@ -6406,7 +6410,9 @@ function pushOff() {
     gameState.phase = 'aiming';
     document.getElementById('power-display').style.display = 'none';
     hideAimLine();
-    // Restore save button (shot was canceled)
+    // Reset curl display position and restore save button (shot was canceled)
+    const curlDisplay = document.getElementById('curl-display');
+    if (curlDisplay) curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
     updateGameButtons(true);
     return;
   }
@@ -9342,9 +9348,11 @@ function nextTurn() {
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
   updatePreviewStoneForTeam();  // Update preview stone color for new team
 
-  // Hide power display from previous turn
+  // Hide power display and reset curl display position from previous turn
   document.getElementById('power-display').style.display = 'none';
   document.getElementById('hold-warning').style.display = 'none';
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
 
   // Update UI
   let turnText;
@@ -14615,6 +14623,10 @@ renderer.domElement.addEventListener('touchstart', (e) => {
       if (gameState.phase === 'charging') {
         gameState.phase = 'aiming';
         touchStartedInAiming = false;
+        // Reset curl display position
+        const curlDisplay = document.getElementById('curl-display');
+        if (curlDisplay) curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
+        document.getElementById('power-display').style.display = 'none';
       }
 
       if (gameState.previewLocked) {
