@@ -6224,6 +6224,9 @@ function updatePreviewCamera(x, y, isMouseMove = true) {
   camera.position.y += (targetHeight - camera.position.y) * 0.1;
   camera.position.z += (targetCamZ - camera.position.z) * 0.1;
   camera.lookAt(0, 0, targetLookZ);
+
+  // Update scoreboard visibility based on view
+  updateScoreboardVisibility();
 }
 
 // Follow stone during sliding phase
@@ -7734,6 +7737,22 @@ function processShotFeedback() {
   }
 }
 
+// Update scoreboard visibility based on camera view
+function updateScoreboardVisibility() {
+  const scoreboard = document.getElementById('scoreboard');
+  const turnRow = document.getElementById('turn')?.parentElement;
+  const stoneCount = document.getElementById('stone-count');
+  const careerDisplay = document.getElementById('career-display');
+
+  // Hide in target view (previewHeight > 0.5 and in aiming phase)
+  const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
+
+  if (scoreboard) scoreboard.style.display = inTargetView ? 'none' : '';
+  if (turnRow) turnRow.style.display = inTargetView ? 'none' : '';
+  if (stoneCount) stoneCount.style.display = inTargetView ? 'none' : '';
+  if (careerDisplay) careerDisplay.style.display = inTargetView ? 'none' : '';
+}
+
 // Return to throw view button
 window.returnToThrowView = function() {
   console.log('[returnToThrowView] phase:', gameState.phase, 'previewLocked:', gameState.previewLocked, 'targetPosition:', !!gameState.targetPosition);
@@ -7755,6 +7774,7 @@ window.returnToThrowView = function() {
     gameState.previewHeight = 0;  // Animate to thrower view
     updateReturnButton();
     updateMarkerHint();
+    updateScoreboardVisibility();  // Show scoreboard when returning to throw view
 
     // Show the green beacon now that we're preparing to throw
     if (gameState.targetMarker) {
