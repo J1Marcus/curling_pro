@@ -2458,8 +2458,13 @@ function saveCustomScenarios(scenarios) {
 let saveScenarioGuard = false;
 
 window.saveScenarioPrompt = function() {
+  console.log('[SaveScenario] Button tapped');
+
   // Guard against double-firing
-  if (saveScenarioGuard) return;
+  if (saveScenarioGuard) {
+    console.log('[SaveScenario] Guard active, ignoring');
+    return;
+  }
   saveScenarioGuard = true;
   setTimeout(() => { saveScenarioGuard = false; }, 300);
 
@@ -2467,6 +2472,7 @@ window.saveScenarioPrompt = function() {
   const stonesInPlay = gameState.stones.filter(s => !s.outOfPlay);
   if (stonesInPlay.length === 0) {
     console.log('[SaveScenario] No stones to save');
+    showToast('No stones to save', 'info');
     return;
   }
 
