@@ -2289,12 +2289,7 @@ function loadMatchProgress() {
   try {
     const saved = localStorage.getItem('curlingpro_match_progress');
     if (saved) {
-      const data = JSON.parse(saved);
-      // Only restore if it's recent (within last hour) to avoid stale data
-      const hourAgo = Date.now() - (60 * 60 * 1000);
-      if (data.timestamp && data.timestamp > hourAgo) {
-        return data;
-      }
+      return JSON.parse(saved);
     }
   } catch (e) {
     console.warn('Could not load match progress:', e);
