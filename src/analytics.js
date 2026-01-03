@@ -141,10 +141,28 @@ async function updateActivity() {
   }
 }
 
-// Handle visibility change (tab switch, minimize)
-function handleVisibilityChange() {
+// Handle visibility change (tab switch, minimize, mobile app background)
+async function handleVisibilityChange() {
   if (document.visibilityState === 'hidden') {
-    updateActivity();
+    // Update activity timestamp
+    await updateActivity();
+
+    // Also update session duration (important for mobile where beforeunload doesn't fire)
+    if (supabase && sessionId && sessionStartTime) {
+      try {
+        const now = new Date();
+        const durationSeconds = Math.floor((now - sessionStartTime) / 1000);
+        await supabase
+          .from('analytics_sessions')
+          .update({
+            duration_seconds: durationSeconds
+          })
+          .eq('session_id', sessionId);
+        console.log('[Analytics] Duration updated on visibility hidden:', durationSeconds, 'seconds');
+      } catch (e) {
+        // Silently fail
+      }
+    }
   }
 }
 
