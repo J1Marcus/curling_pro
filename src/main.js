@@ -7758,15 +7758,15 @@ function updateScoreboardVisibility() {
   const pauseBtn = document.getElementById('pause-btn');
   const saveBtn = document.getElementById('save-scenario-btn');
 
-  // Keep scoreboard hidden during entire aiming phase to avoid overlap with curl slider
-  const inAimingPhase = gameState.phase === 'aiming';
+  // Keep scoreboard hidden during aiming and charging phases (until thrower releases)
+  const hideScoreboard = gameState.phase === 'aiming' || gameState.phase === 'charging';
 
-  if (scoreboard) scoreboard.style.display = inAimingPhase ? 'none' : '';
-  if (turnRow) turnRow.style.display = inAimingPhase ? 'none' : '';
-  if (pauseBtn) pauseBtn.style.display = inAimingPhase ? 'none' : '';
-  if (saveBtn) saveBtn.style.display = inAimingPhase ? 'none' : '';
-  if (stoneCount) stoneCount.style.display = inAimingPhase ? 'none' : '';
-  if (careerDisplay) careerDisplay.style.display = inAimingPhase ? 'none' : '';
+  if (scoreboard) scoreboard.style.display = hideScoreboard ? 'none' : '';
+  if (turnRow) turnRow.style.display = hideScoreboard ? 'none' : '';
+  if (pauseBtn) pauseBtn.style.display = hideScoreboard ? 'none' : '';
+  if (saveBtn) saveBtn.style.display = hideScoreboard ? 'none' : '';
+  if (stoneCount) stoneCount.style.display = hideScoreboard ? 'none' : '';
+  if (careerDisplay) careerDisplay.style.display = hideScoreboard ? 'none' : '';
 }
 
 // Return to throw view button
