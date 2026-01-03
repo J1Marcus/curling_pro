@@ -14293,6 +14293,31 @@ function pauseGame() {
   showPauseOverlay(hasMovingStone ? 'Shot in progress' : '');
 }
 
+// Manual pause (user pressed pause button)
+let manualPauseGuard = false;
+window.manualPause = function() {
+  // Guard against double-firing from touch + click
+  if (manualPauseGuard) return;
+  manualPauseGuard = true;
+  setTimeout(() => { manualPauseGuard = false; }, 300);
+
+  // Don't pause if already paused
+  if (gameState.isPaused) return;
+
+  // Don't pause during menus or setup
+  const activePhases = ['aiming', 'charging', 'sliding', 'throwing', 'sweeping', 'waiting'];
+  if (!activePhases.includes(gameState.phase)) return;
+
+  // Don't pause in multiplayer (opponent would wait)
+  if (gameState.selectedMode === 'online') {
+    console.log('[Pause] Manual pause disabled in multiplayer');
+    return;
+  }
+
+  console.log('[PAUSE] Manual pause triggered');
+  pauseGame();
+};
+
 // Called when user taps to resume (from pause overlay)
 window.resumeFromPause = function() {
   if (!gameState.isPaused) {
