@@ -7886,6 +7886,33 @@ function displaySplitTime(time) {
   }, 3000);
 }
 
+// Display hog-to-hog time (interval time / peel time)
+function displayHogToHogTime(time) {
+  const hogDisplay = document.getElementById('hog-to-hog-time');
+  if (!hogDisplay) return;
+
+  // Hog-to-hog time correlates with shot weight
+  // Faster times = harder shots
+  let color;
+  if (time >= 14.0) {
+    color = '#34d399';  // Green - very soft
+  } else if (time >= 11.0) {
+    color = '#fbbf24';  // Yellow - draw weight
+  } else if (time >= 8.0) {
+    color = '#f97316';  // Orange - takeout weight
+  } else {
+    color = '#ef4444';  // Red - peel/hit weight
+  }
+
+  hogDisplay.innerHTML = `<span style="color:#9ca3af; font-size: 14px;">Hog-to-hog:</span> <span style="color:${color}">${time.toFixed(1)}s</span>`;
+  hogDisplay.style.display = 'block';
+
+  // Hide after 2 seconds
+  setTimeout(() => {
+    hogDisplay.style.display = 'none';
+  }, 2000);
+}
+
 // ============================================
 // SWEEPING
 // ============================================
@@ -8907,6 +8934,9 @@ function updatePhysics() {
       const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
       console.log(`[TIMING] Far hog crossed - Hog-to-hog: ${hogToHog.toFixed(2)}s (target: ~14s for draw)`);
       console.log(`[TIMING] Speed at far hog: ${speed.toFixed(3)} (cliff kicks in at < 1.0)`);
+
+      // Display hog-to-hog time for player feedback
+      displayHogToHogTime(hogToHog);
     }
   }
 
