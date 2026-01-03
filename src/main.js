@@ -7500,6 +7500,17 @@ function evaluateShotOutcome() {
 
   if (!thrownStone) return null;
 
+  // Helper: Check if throwing team now has shot stone (closest to button)
+  const allInPlayStones = gameState.stones.filter(s => !s.outOfPlay);
+  const getDistFromButton = (stone) => {
+    const dx = stone.mesh.position.x - buttonPos.x;
+    const dz = stone.mesh.position.z - buttonPos.z;
+    return Math.sqrt(dx * dx + dz * dz);
+  };
+  const stonesInHouse = allInPlayStones.filter(s => getDistFromButton(s) <= RING_12FT + STONE_RADIUS);
+  const sortedByDist = stonesInHouse.sort((a, b) => getDistFromButton(a) - getDistFromButton(b));
+  const hasShotStone = sortedByDist.length > 0 && sortedByDist[0].team === throwingTeam;
+
   // Check if stone went out of play
   if (thrownStone.outOfPlay) {
     // Analyze what happened before giving up
@@ -7556,16 +7567,18 @@ function evaluateShotOutcome() {
     }
 
     // Check for near-miss on takeout attempt (clipped but didn't remove)
-    // Look for opponent stones that moved significantly but weren't removed
-    for (const preStone of preOpponentStones) {
-      const currentStone = currentOpponentStones.find(s => {
-        const dx = Math.abs(s.mesh.position.x - preStone.x);
-        const dz = Math.abs(s.mesh.position.z - preStone.z);
-        return dx > 0.3 || dz > 0.3; // Stone moved
-      });
-      if (currentStone && !currentStone.outOfPlay) {
-        // We hit something but didn't remove it
-        return { type: 'nearMiss', category: 'almostTakeout' };
+    // But if we now have shot stone, it's actually a good result!
+    if (!hasShotStone) {
+      for (const preStone of preOpponentStones) {
+        const currentStone = currentOpponentStones.find(s => {
+          const dx = Math.abs(s.mesh.position.x - preStone.x);
+          const dz = Math.abs(s.mesh.position.z - preStone.z);
+          return dx > 0.3 || dz > 0.3; // Stone moved
+        });
+        if (currentStone && !currentStone.outOfPlay) {
+          // We hit something but didn't remove it
+          return { type: 'nearMiss', category: 'almostTakeout' };
+        }
       }
     }
   }
@@ -7597,16 +7610,23 @@ function evaluateShotOutcome() {
     return { type: 'success', category: 'guard' };
   }
 
-  // Check for near misses
-  // Just short of house
-  if (distFromButton <= RING_12FT + STONE_RADIUS + config.thresholds.nearMissBuffer &&
-      distFromButton > RING_12FT + STONE_RADIUS) {
-    return { type: 'nearMiss', category: 'almostHouse' };
+  // Check for near misses (but not if we have shot stone - that's a win!)
+  if (!hasShotStone) {
+    // Just short of house
+    if (distFromButton <= RING_12FT + STONE_RADIUS + config.thresholds.nearMissBuffer &&
+        distFromButton > RING_12FT + STONE_RADIUS) {
+      return { type: 'nearMiss', category: 'almostHouse' };
+    }
+
+    // Just through (past back line but close)
+    if (stoneZ > BACK_LINE_FAR - 0.5 && stoneZ < BACK_LINE_FAR + 1) {
+      return { type: 'nearMiss', category: 'justHeavy' };
+    }
   }
 
-  // Just through (past back line but close)
-  if (stoneZ > BACK_LINE_FAR - 0.5 && stoneZ < BACK_LINE_FAR + 1) {
-    return { type: 'nearMiss', category: 'justHeavy' };
+  // If we have shot stone but didn't match other success categories, still give positive feedback
+  if (hasShotStone && distFromButton <= RING_12FT + STONE_RADIUS) {
+    return { type: 'success', category: 'twelveFoot' };
   }
 
   // Miss - no feedback to avoid noise
