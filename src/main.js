@@ -3790,6 +3790,15 @@ function handleCareerResult(won) {
 function updateCareerDisplay() {
   const level = getCurrentLevel();
 
+  // Get user's selected difficulty label
+  const difficultyLabels = {
+    'easy': 'Easy',
+    'medium': 'Medium',
+    'hard': 'Hard',
+    'expert': 'Expert'
+  };
+  const userDifficulty = difficultyLabels[gameState.settings.difficulty] || 'Medium';
+
   // Update main display
   const levelDisplay = document.getElementById('career-level');
   const progressDisplay = document.getElementById('career-progress');
@@ -3801,7 +3810,7 @@ function updateCareerDisplay() {
   }
 
   if (difficultyDisplay) {
-    difficultyDisplay.textContent = `(${level.difficultyLabel})`;
+    difficultyDisplay.textContent = `(${userDifficulty})`;
   }
 
   if (progressDisplay) {
@@ -3823,7 +3832,7 @@ function updateCareerDisplay() {
   }
 
   if (settingsDifficulty) {
-    settingsDifficulty.textContent = `(${level.difficultyLabel})`;
+    settingsDifficulty.textContent = `(${userDifficulty})`;
   }
 
   if (settingsProgress) {
