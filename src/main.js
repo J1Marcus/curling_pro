@@ -9199,17 +9199,26 @@ function nextTurn() {
   gameState.currentTeam = gameState.currentTeam === 'red' ? 'yellow' : 'red';
   gameState.phase = 'aiming';
 
+  // Determine if it's computer's turn (needed for camera view)
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+
   console.log('[TURN] Switched from', previousTeam, 'to', gameState.currentTeam,
     '- computerTeam:', gameState.computerTeam,
-    '- isComputerTurn:', gameState.currentTeam === gameState.computerTeam);
-  gameState.previewHeight = 1;  // Start in target view
-  gameState.previewLocked = true;
+    '- isComputerTurn:', isComputer);
+
+  // Set camera view - target view for player, thrower view for computer
+  if (isComputer) {
+    gameState.previewHeight = 0;  // Thrower view for computer
+    gameState.previewLocked = false;
+  } else {
+    gameState.previewHeight = 1;  // Target view for player
+    gameState.previewLocked = true;
+  }
   clearTargetMarker();  // Remove target marker from previous turn
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
   updatePreviewStoneForTeam();  // Update preview stone color for new team
 
   // Update UI
-  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
   const totalEnds = gameState.settings.gameLength;
 
@@ -13078,19 +13087,21 @@ function startGame() {
   }
   document.getElementById('turn').textContent = turnText;
 
-  // Set camera to target view
-  gameState.previewHeight = 1;
-  gameState.previewLocked = true;
-
-  // Show first-run aim tutorial (if it's player's turn and not multiplayer)
-  if (!isComputer && gameState.selectedMode !== 'online') {
-    showFirstRunTutorial('fr_aim');
-  }
-
-  // If computer goes first, trigger their turn
+  // Set camera view - target view for player, thrower view for computer
   if (isComputer) {
+    // Computer's turn - go straight to thrower view
+    gameState.previewHeight = 0;
+    gameState.previewLocked = false;
     console.log('[COMPUTER] Computer goes first, scheduling shot...');
     scheduleComputerShot();
+  } else {
+    // Player's turn - start in target view
+    gameState.previewHeight = 1;
+    gameState.previewLocked = true;
+    // Show first-run aim tutorial
+    if (gameState.selectedMode !== 'online') {
+      showFirstRunTutorial('fr_aim');
+    }
   }
 
   // Trigger coach panel/tutorials
