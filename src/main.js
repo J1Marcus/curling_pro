@@ -7862,23 +7862,19 @@ function displaySplitTime(time) {
   const splitDisplay = document.getElementById('split-time');
   if (!splitDisplay) return;
 
-  // Determine weight category based on timing
-  let category, color;
+  // Color based on timing (green=slow/guard, red=fast/hit)
+  let color;
   if (time >= 4.3) {
-    category = 'GUARD';
-    color = '#34d399';
+    color = '#34d399';  // Green - guard weight
   } else if (time >= 3.6) {
-    category = 'DRAW';
-    color = '#fbbf24';
+    color = '#fbbf24';  // Yellow - draw weight
   } else if (time >= 2.9) {
-    category = 'TAKEOUT';
-    color = '#f97316';
+    color = '#f97316';  // Orange - takeout weight
   } else {
-    category = 'HIT';
-    color = '#ef4444';
+    color = '#ef4444';  // Red - hit weight
   }
 
-  splitDisplay.innerHTML = `<span style="color:#9ca3af; font-size: 14px;">T-line:</span> <span style="color:${color}">${time.toFixed(1)}s - ${category}</span>`;
+  splitDisplay.innerHTML = `<span style="color:${color}">${time.toFixed(1)}s</span> <span style="color:#9ca3af;">T-Time</span>`;
   splitDisplay.style.display = 'block';
 
   // Hide after 3 seconds
