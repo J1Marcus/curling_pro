@@ -15007,6 +15007,9 @@ function animate() {
     updateCameraFollow();  // Follow stone during sliding/throwing phase
   }
 
+  // Update scoreboard visibility based on phase (show during non-aiming phases)
+  updateScoreboardVisibility();
+
   // Update preview stone visibility based on phase and camera height
   updatePreviewStoneVisibility();
 
