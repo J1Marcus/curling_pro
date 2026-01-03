@@ -9242,7 +9242,8 @@ function nextTurn() {
     }
   } else if (gameState.playerCountry && gameState.opponentCountry) {
     const country = gameState.currentTeam === 'red' ? gameState.playerCountry : gameState.opponentCountry;
-    turnText = `End ${gameState.end}/${totalEnds} - ${country.flag} ${country.name}'s Turn${isComputer ? ' (CPU)' : ''}`;
+    // Use non-breaking spaces to keep team name and "'s Turn" together
+    turnText = `End ${gameState.end}/${totalEnds} - ${country.flag}\u00A0${country.name}'s\u00A0Turn${isComputer ? ' (CPU)' : ''}`;
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
     turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
@@ -13083,7 +13084,8 @@ function startGame() {
   } else {
     const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
     const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
-    turnText = `End ${gameState.end}/${totalEnds} - ${teamFlag} ${teamName}'s Turn${isComputer ? ' (CPU)' : ''}`;
+    // Use non-breaking spaces to keep team name and "'s Turn" together
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamFlag}\u00A0${teamName}'s\u00A0Turn${isComputer ? ' (CPU)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
