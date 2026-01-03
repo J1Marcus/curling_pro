@@ -3905,7 +3905,7 @@ scene.background = new THREE.Color(0x0d1117);
 // Add fog for depth
 scene.fog = new THREE.Fog(0x0d1117, 30, 60);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
 camera.position.set(THROWER_CAM.x, THROWER_CAM.y, THROWER_CAM.z);
 camera.lookAt(THROWER_CAM.lookAt.x, THROWER_CAM.lookAt.y, THROWER_CAM.lookAt.z);
 

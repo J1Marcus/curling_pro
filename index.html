@@ -2211,11 +2211,19 @@
         <span id="career-progress" style="font-size: 11px; color: #64748b;">0/2 wins</span>
       </div>
       <!-- Curl/Handle Control (hidden until target placed) -->
-      <div id="curl-display" style="margin-top: 0; padding: 8px; display: none;">
+      <div id="curl-display" style="
+        position: fixed;
+        top: max(20px, env(safe-area-inset-top));
+        left: max(10px, env(safe-area-inset-left));
+        right: max(10px, env(safe-area-inset-right));
+        padding: 8px;
+        display: none;
+        z-index: 100;
+      ">
         <div id="curl-direction" style="color: #fff; font-size: 13px; margin-bottom: 6px;">
           Handle: <span id="handle-value">0</span>
         </div>
-        <div class="curl-slider-container" style="position: relative; width: 100%; padding: 0 5px;">
+        <div class="curl-slider-container" style="position: relative; width: 100%; padding: 0;">
           <div style="display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; margin-bottom: 4px;">
             <span>↺ CCW</span>
             <span style="color: #f59e0b;">MORE CURL</span>
