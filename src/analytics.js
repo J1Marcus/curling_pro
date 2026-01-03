@@ -97,7 +97,8 @@ export async function startSession() {
         os: deviceInfo.os,
         screen_width: deviceInfo.screenWidth,
         screen_height: deviceInfo.screenHeight,
-        referrer: document.referrer || null
+        referrer: document.referrer || null,
+        last_activity: lastActivityTime.toISOString()
       });
 
     if (error) {
