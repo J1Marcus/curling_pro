@@ -8250,7 +8250,7 @@ function updateSweeping() {
       if (isOpponentStone) {
         indicator.textContent = canPlayerSweep ? 'SWEEP NOW!' : 'Waiting...';
       } else {
-        indicator.textContent = 'SWIPE to sweep';
+        indicator.textContent = 'SWIPE ↕';
       }
       indicator.style.color = '#4ade80';
     }
