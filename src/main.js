@@ -535,6 +535,10 @@ const FAQ_DATA = [
       {
         q: 'How do I reset my career?',
         a: 'Open Settings (gear icon) during a game, scroll to the Career Progress section, and tap "Reset Career". This will erase all progress and let you start fresh.'
+      },
+      {
+        q: 'How do I save a game scenario for practice?',
+        a: 'During a game, when stones have stopped moving, a 💾 button appears in the top-right. Tap it to save the current stone positions. Saved scenarios appear in Practice Mode under "Custom" - perfect for practicing tricky situations you encounter!'
       }
     ]
   }
@@ -6306,6 +6310,9 @@ function startPull(x, y) {
   // Save pre-shot state for potential rollback on interruption
   savePreShotState();
 
+  // Hide save button, show pause button when shot starts
+  updateGameButtons(false);
+
   gameState.phase = 'charging';
   gameState.pullStart = { x, y };
   gameState.pullCurrent = { x, y };
@@ -6373,6 +6380,8 @@ function pushOff() {
     gameState.phase = 'aiming';
     document.getElementById('power-display').style.display = 'none';
     hideAimLine();
+    // Restore save button (shot was canceled)
+    updateGameButtons(true);
     return;
   }
 
@@ -9248,6 +9257,9 @@ function nextTurn() {
   // Force update button visibility after state changes
   updateReturnButton();
   updateMarkerHint();
+
+  // Show save button (replaces pause button) when it's player's turn
+  updateGameButtons(true);
 
   // Update coach panel for learn mode
   updateCoachPanel();
@@ -12588,10 +12600,10 @@ window.startTournamentMatch = function() {
   gameState.gameMode = '1player';
   gameState.inTournamentMatch = true;
 
-  // Set difficulty based on tournament tier
+  // Use player's selected career difficulty (set during club selection)
+  // The difficulty was already set in gameState.settings.difficulty when career was created
+  // Don't override it based on tier - respect the player's choice
   const tierIndex = CAREER_TIERS.indexOf(seasonState.activeTournament.definition.tier);
-  const difficulties = ['easy', 'easy', 'medium', 'medium', 'hard', 'hard'];
-  gameState.settings.difficulty = difficulties[tierIndex] || 'medium';
 
   // Set game length based on tier (realistic end counts)
   // Club/Regional: 6 ends, Provincial/National: 8 ends, International/Olympic: 10 ends
@@ -13036,11 +13048,8 @@ function startGame() {
     careerDisplay.style.display = gameState.selectedMode === 'online' ? 'none' : 'flex';
   }
 
-  // Show save scenario button (not in practice mode or multiplayer)
-  const saveScenarioBtn = document.getElementById('save-scenario-btn');
-  if (saveScenarioBtn) {
-    saveScenarioBtn.style.display = (gameState.practiceMode?.active || gameState.selectedMode === 'online') ? 'none' : 'block';
-  }
+  // Initialize game buttons (show pause button initially, save button shows after shots stop)
+  updateGameButtons(false);
 
   // Update score display (important for crash recovery)
   updateScoreDisplay();
@@ -14590,6 +14599,26 @@ function pauseGame() {
 
   // Show pause overlay
   showPauseOverlay(hasMovingStone ? 'Shot in progress' : '');
+}
+
+// Toggle between save scenario button and pause button
+// Save button shown when stone stops, pause button shown when shot starts
+function updateGameButtons(showSave = false) {
+  const saveBtn = document.getElementById('save-scenario-btn');
+  const pauseBtn = document.getElementById('pause-btn');
+
+  // Don't show save button in practice mode, multiplayer, or during computer's turn
+  const canShowSave = showSave &&
+    !gameState.practiceMode?.active &&
+    gameState.selectedMode !== 'online' &&
+    !(gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam);
+
+  if (saveBtn) {
+    saveBtn.style.display = canShowSave ? 'block' : 'none';
+  }
+  if (pauseBtn) {
+    pauseBtn.style.display = canShowSave ? 'none' : 'block';
+  }
 }
 
 // Manual pause (user pressed pause button)

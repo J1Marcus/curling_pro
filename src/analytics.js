@@ -21,6 +21,8 @@ let sessionId = null;
 let sessionStartTime = null;
 let lastActivityTime = null;
 let activityUpdateInterval = null;
+let sessionReadyPromise = null;
+let sessionReadyResolve = null;
 
 // Generate unique session ID
 function generateSessionId() {
@@ -63,7 +65,16 @@ function getDeviceInfo() {
 
 // Start a new analytics session
 export async function startSession() {
-  if (!supabase) return;
+  if (!supabase) {
+    // Create resolved promise if no supabase - events will be silently skipped
+    sessionReadyPromise = Promise.resolve();
+    return;
+  }
+
+  // Create promise that resolves when session is ready
+  sessionReadyPromise = new Promise(resolve => {
+    sessionReadyResolve = resolve;
+  });
 
   try {
     sessionId = generateSessionId();
@@ -88,8 +99,12 @@ export async function startSession() {
 
     if (error) {
       console.warn('[Analytics] Failed to start session:', error.message);
+      if (sessionReadyResolve) sessionReadyResolve();  // Resolve anyway so events don't hang
       return;
     }
+
+    // Session is ready - resolve the promise so queued events can proceed
+    if (sessionReadyResolve) sessionReadyResolve();
 
     // Update activity every 30 seconds while active
     activityUpdateInterval = setInterval(updateActivity, 30000);
@@ -103,6 +118,7 @@ export async function startSession() {
     console.log('[Analytics] Session started:', sessionId);
   } catch (e) {
     console.warn('[Analytics] Error starting session:', e);
+    if (sessionReadyResolve) sessionReadyResolve();  // Resolve anyway so events don't hang
   }
 }
 
@@ -158,10 +174,20 @@ export async function endSession() {
 
 // Track a custom event
 export async function trackEvent(eventType, eventName, eventData = null) {
-  if (!supabase || !sessionId) return;
+  if (!supabase) return;
+
+  // Wait for session to be ready before tracking events
+  if (sessionReadyPromise) {
+    await sessionReadyPromise;
+  }
+
+  if (!sessionId) {
+    console.warn('[Analytics] No session ID, skipping event:', eventType, eventName);
+    return;
+  }
 
   try {
-    await supabase
+    const { error } = await supabase
       .from('analytics_events')
       .insert({
         session_id: sessionId,
@@ -169,6 +195,11 @@ export async function trackEvent(eventType, eventName, eventData = null) {
         event_name: eventName,
         event_data: eventData
       });
+
+    if (error) {
+      console.warn('[Analytics] Event insert error:', error.message);
+      return;
+    }
 
     console.log('[Analytics] Event tracked:', eventType, eventName);
   } catch (e) {
