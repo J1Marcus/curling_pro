@@ -27,9 +27,19 @@
       body {
         overflow: hidden;
         background: #1a1a2e;
+        -webkit-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
       }
       canvas {
         display: block;
+        touch-action: none;
+      }
+      /* Prevent accidental keyboard triggers during gameplay */
+      input:not(:focus), textarea:not(:focus) {
+        pointer-events: auto;
       }
       #ui {
         position: fixed;

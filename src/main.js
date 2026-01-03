@@ -11086,10 +11086,21 @@ window.onChatInputBlur = function() {
 
 // Blur any focused input when tapping on the game canvas
 window.blurAllInputs = function() {
-  if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
     document.activeElement.blur();
   }
 };
+
+// Prevent keyboard from appearing during gameplay - blur on any touch outside input areas
+document.addEventListener('touchstart', (e) => {
+  // Don't interfere if touching an actual input
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+  // If an input is focused and we're touching elsewhere, blur it
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+    document.activeElement.blur();
+  }
+}, { passive: true });
 
 function addChatMessage(sender, message, isLocal) {
   const container = document.getElementById('mp-chat-messages');
