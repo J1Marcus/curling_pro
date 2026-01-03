@@ -203,6 +203,7 @@ export async function endSession() {
 export async function trackEvent(eventType, eventName, eventData = null) {
   if (!supabase) {
     console.log('[Analytics] No supabase client, skipping event:', eventType, eventName);
+    if (window.DEBUG_ANALYTICS) alert(`No supabase client - skipping ${eventType}`);
     return;
   }
 
@@ -215,6 +216,7 @@ export async function trackEvent(eventType, eventName, eventData = null) {
 
   if (!sessionId) {
     console.warn('[Analytics] No session ID, skipping event:', eventType, eventName);
+    if (window.DEBUG_ANALYTICS) alert(`No session ID - skipping ${eventType}`);
     return;
   }
 
@@ -267,6 +269,7 @@ export function trackButtonClick(buttonName) {
 // Track game start
 export function trackGameStart(gameMode, difficulty = null) {
   console.log('[Analytics] trackGameStart called:', gameMode, difficulty);
+  if (window.DEBUG_ANALYTICS) alert(`trackGameStart: ${gameMode}, ${difficulty}`);
   return trackEvent('game_start', gameMode, { difficulty });
 }
 
