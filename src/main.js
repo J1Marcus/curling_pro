@@ -7752,12 +7752,14 @@ function updateScoreboardVisibility() {
 
   // Hide in target view (previewHeight > 0.5 and in aiming phase)
   const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
+  // Keep scoreboard hidden during entire aiming phase to avoid overlap with curl slider
+  const inAimingPhase = gameState.phase === 'aiming';
 
-  if (scoreboard) scoreboard.style.display = inTargetView ? 'none' : '';
-  if (turnRow) turnRow.style.display = inTargetView ? 'none' : '';
+  if (scoreboard) scoreboard.style.display = inAimingPhase ? 'none' : '';
+  if (turnRow) turnRow.style.display = inAimingPhase ? 'none' : '';
   if (pauseBtn) pauseBtn.style.display = inTargetView ? 'none' : '';
-  if (stoneCount) stoneCount.style.display = inTargetView ? 'none' : '';
-  if (careerDisplay) careerDisplay.style.display = inTargetView ? 'none' : '';
+  if (stoneCount) stoneCount.style.display = inAimingPhase ? 'none' : '';
+  if (careerDisplay) careerDisplay.style.display = inAimingPhase ? 'none' : '';
 }
 
 // Return to throw view button
