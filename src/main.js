@@ -9252,7 +9252,8 @@ function showScoreOverlay(team, points, endNumber) {
 
 window.continueGame = function() {
   const overlay = document.getElementById('score-overlay');
-  if (overlay) {
+  // Guard against double-firing from touch + click
+  if (overlay && overlay.classList.contains('visible')) {
     overlay.classList.remove('visible');
     setTimeout(() => {
       overlay.style.display = 'none';
@@ -9560,7 +9561,8 @@ window.restartGame = function() {
   if (confettiContainer) confettiContainer.innerHTML = '';
 
   const overlay = document.getElementById('gameover-overlay');
-  if (overlay) {
+  // Guard against double-firing from touch + click
+  if (overlay && overlay.classList.contains('visible')) {
     overlay.classList.remove('visible');
     setTimeout(() => {
       overlay.style.display = 'none';
@@ -13441,6 +13443,11 @@ let rematchState = {
 window.requestRematch = function() {
   if (!multiplayer.multiplayerState.connected) {
     console.log('[Rematch] Not connected, cannot request rematch');
+    return;
+  }
+
+  // Guard against double-firing from touch + click
+  if (rematchState.requested || rematchState.waitingForResponse) {
     return;
   }
 

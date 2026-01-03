@@ -222,6 +222,13 @@ A dedicated training mode for skill development.
 - Experiment with different shot approaches
 - Learn from mistakes without full reset
 
+### Fast Mode
+- Speed setting for casual players who prefer faster-paced games
+- Time scale factor (1.5x-2x) affecting stone physics, transitions, animations
+- Options: toggle (Normal/Fast) or slider (1x, 1.5x, 2x)
+- Keep multiplier reasonable for physics stability
+- Multiplayer: both players need same speed setting
+
 ---
 
 ## Longer-Term Ideas

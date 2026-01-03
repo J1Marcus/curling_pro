@@ -2272,7 +2272,7 @@
             <div class="score-total-value yellow" id="score-total-yellow">0</div>
           </div>
         </div>
-        <button id="score-continue" onclick="window.continueGame()">Continue</button>
+        <button id="score-continue" onclick="window.continueGame()" ontouchend="window.continueGame()">Continue</button>
       </div>
     </div>
     <!-- Game Over Overlay -->
@@ -2298,7 +2298,7 @@
           display: none;
         "></div>
         <div id="gameover-buttons" style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
-          <button id="gameover-rematch" onclick="window.requestRematch()" style="
+          <button id="gameover-rematch" onclick="window.requestRematch()" ontouchend="window.requestRematch()" style="
             display: none;
             padding: 15px 40px;
             font-size: 18px;
@@ -2310,7 +2310,7 @@
             cursor: pointer;
             transition: all 0.2s;
           ">Rematch</button>
-          <button id="gameover-restart" onclick="window.restartGame()">Main Menu</button>
+          <button id="gameover-restart" onclick="window.restartGame()" ontouchend="window.restartGame()">Main Menu</button>
         </div>
       </div>
     </div>
