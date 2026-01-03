@@ -7748,12 +7748,14 @@ function updateScoreboardVisibility() {
   const turnRow = document.getElementById('turn')?.parentElement;
   const stoneCount = document.getElementById('stone-count');
   const careerDisplay = document.getElementById('career-display');
+  const pauseBtn = document.getElementById('pause-btn');
 
   // Hide in target view (previewHeight > 0.5 and in aiming phase)
   const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
 
   if (scoreboard) scoreboard.style.display = inTargetView ? 'none' : '';
   if (turnRow) turnRow.style.display = inTargetView ? 'none' : '';
+  if (pauseBtn) pauseBtn.style.display = inTargetView ? 'none' : '';
   if (stoneCount) stoneCount.style.display = inTargetView ? 'none' : '';
   if (careerDisplay) careerDisplay.style.display = inTargetView ? 'none' : '';
 }
