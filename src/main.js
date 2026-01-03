@@ -8213,7 +8213,7 @@ function updateSweeping() {
     } else if (!canPlayerSweep) {
       // Opponent's stone - player waiting for T-line (defensive sweep)
       indicator.style.display = 'block';
-      indicator.textContent = 'Sweep after T-line...';
+      indicator.textContent = 'After T-line...';
       indicator.style.color = '#888';
     } else if (gameState.isSweeping && !computerIsSweeping) {
       indicator.style.display = 'block';
