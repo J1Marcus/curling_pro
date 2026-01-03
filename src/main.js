@@ -7757,16 +7757,34 @@ function updateScoreboardVisibility() {
   const careerDisplay = document.getElementById('career-display');
   const pauseBtn = document.getElementById('pause-btn');
   const saveBtn = document.getElementById('save-scenario-btn');
+  const settingsBtn = document.getElementById('settings-btn-top');
 
   // Keep scoreboard hidden during aiming and charging phases (until thrower releases)
   const hideScoreboard = gameState.phase === 'aiming' || gameState.phase === 'charging';
 
+  // Sliding phase includes: sliding, throwing, sweeping
+  const isSlidingPhase = gameState.phase === 'sliding' || gameState.phase === 'throwing' || gameState.phase === 'sweeping';
+
+  // Target view: aiming phase with camera looking at house
+  const inTargetView = gameState.phase === 'aiming' && gameState.previewHeight > 0.5;
+
+  // Save button extra conditions: not in practice mode, not multiplayer, not computer's turn
+  const canShowSave = inTargetView &&
+    !gameState.practiceMode?.active &&
+    gameState.selectedMode !== 'online' &&
+    !(gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam);
+
   if (scoreboard) scoreboard.style.display = hideScoreboard ? 'none' : '';
   if (turnRow) turnRow.style.display = hideScoreboard ? 'none' : '';
-  if (pauseBtn) pauseBtn.style.display = hideScoreboard ? 'none' : '';
-  if (saveBtn) saveBtn.style.display = hideScoreboard ? 'none' : '';
   if (stoneCount) stoneCount.style.display = hideScoreboard ? 'none' : '';
   if (careerDisplay) careerDisplay.style.display = hideScoreboard ? 'none' : '';
+
+  // Settings and pause buttons swap - pause shows during sliding, settings otherwise
+  if (settingsBtn) settingsBtn.style.display = isSlidingPhase ? 'none' : '';
+  if (pauseBtn) pauseBtn.style.display = isSlidingPhase ? '' : 'none';
+
+  // Save button only shows in target view (with extra conditions)
+  if (saveBtn) saveBtn.style.display = canShowSave ? '' : 'none';
 }
 
 // Return to throw view button
@@ -14822,24 +14840,9 @@ function pauseGame() {
   showPauseOverlay(hasMovingStone ? 'Shot in progress' : '');
 }
 
-// Toggle between save scenario button and pause button
-// Save button shown when stone stops, pause button shown when shot starts
+// Legacy function - visibility now handled by updateScoreboardVisibility
 function updateGameButtons(showSave = false) {
-  const saveBtn = document.getElementById('save-scenario-btn');
-  const pauseBtn = document.getElementById('pause-btn');
-
-  // Don't show save button in practice mode, multiplayer, or during computer's turn
-  const canShowSave = showSave &&
-    !gameState.practiceMode?.active &&
-    gameState.selectedMode !== 'online' &&
-    !(gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam);
-
-  if (saveBtn) {
-    saveBtn.style.display = canShowSave ? 'block' : 'none';
-  }
-  if (pauseBtn) {
-    pauseBtn.style.display = canShowSave ? 'none' : 'block';
-  }
+  // No-op: button visibility is now managed by updateScoreboardVisibility
 }
 
 // Manual pause (user pressed pause button)

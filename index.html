@@ -2159,27 +2159,6 @@
             text-align: center;
           ">60</div>
         </div>
-        <button id="save-scenario-btn" onclick="window.saveScenarioPrompt()" ontouchend="event.preventDefault(); window.saveScenarioPrompt()" style="
-          background: rgba(100, 116, 139, 0.8);
-          border: none;
-          border-radius: 6px;
-          padding: 4px 10px;
-          font-size: 16px;
-          cursor: pointer;
-          color: white;
-          flex-shrink: 0;
-          display: none;
-        " title="Save Scenario">💾</button>
-        <button id="pause-btn" onclick="window.manualPause()" ontouchend="event.preventDefault(); window.manualPause()" style="
-          background: rgba(100, 116, 139, 0.8);
-          border: none;
-          border-radius: 6px;
-          padding: 4px 10px;
-          font-size: 16px;
-          cursor: pointer;
-          color: white;
-          flex-shrink: 0;
-        " title="Pause Game">⏸</button>
       </div>
       <!-- Stone Count Row -->
       <div id="stone-count" style="
@@ -5399,6 +5378,36 @@
       z-index: 100;
       transition: all 0.2s;
     " title="Settings">&#9881;</button>
+    <!-- Pause button (same location as settings, shown during sliding) -->
+    <button id="pause-btn" onclick="window.manualPause()" ontouchend="event.preventDefault(); window.manualPause()" style="
+      position: fixed;
+      top: max(20px, env(safe-area-inset-top));
+      right: max(20px, env(safe-area-inset-right));
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #666;
+      border-radius: 8px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      display: none;
+    " title="Pause Game">⏸</button>
+    <!-- Save scenario button (below settings, shown in target view) -->
+    <button id="save-scenario-btn" onclick="window.saveScenarioPrompt()" ontouchend="event.preventDefault(); window.saveScenarioPrompt()" style="
+      position: fixed;
+      top: calc(max(20px, env(safe-area-inset-top)) + 50px);
+      right: max(20px, env(safe-area-inset-right));
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 2px solid #666;
+      border-radius: 8px;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 100;
+      display: none;
+    " title="Save Scenario">💾</button>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
