@@ -7874,7 +7874,7 @@ function displaySplitTime(time) {
     category = 'TAKEOUT';
     color = '#f97316';
   } else {
-    category = 'PEEL';
+    category = 'HIT';
     color = '#ef4444';
   }
 
