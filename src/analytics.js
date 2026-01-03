@@ -11,6 +11,9 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 let supabase = null;
 if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
+  console.log('[Analytics] Supabase client initialized');
+} else {
+  console.log('[Analytics] Supabase not configured (missing env vars)');
 }
 
 // ============================================
@@ -174,11 +177,16 @@ export async function endSession() {
 
 // Track a custom event
 export async function trackEvent(eventType, eventName, eventData = null) {
-  if (!supabase) return;
+  if (!supabase) {
+    console.log('[Analytics] No supabase client, skipping event:', eventType, eventName);
+    return;
+  }
 
   // Wait for session to be ready before tracking events
   if (sessionReadyPromise) {
+    console.log('[Analytics] Waiting for session ready...');
     await sessionReadyPromise;
+    console.log('[Analytics] Session ready, sessionId:', sessionId);
   }
 
   if (!sessionId) {
@@ -223,7 +231,8 @@ export function trackButtonClick(buttonName) {
 
 // Track game start
 export function trackGameStart(gameMode, difficulty = null) {
-  trackEvent('game_start', gameMode, { difficulty });
+  console.log('[Analytics] trackGameStart called:', gameMode, difficulty);
+  return trackEvent('game_start', gameMode, { difficulty });
 }
 
 // Track game complete

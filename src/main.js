@@ -9280,7 +9280,7 @@ function nextTurn() {
     turnText = `End ${gameState.end}/${totalEnds} - ${country.flag}\u00A0${country.name}'s\u00A0Turn${isComputer ? ' (CPU)' : ''}`;
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
-    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s\u00A0Turn${isComputer ? ' (Computer)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
@@ -14199,7 +14199,7 @@ function startNewEnd() {
     }
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
-    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s Turn${isComputer ? ' (Computer)' : ''}`;
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s\u00A0Turn${isComputer ? ' (Computer)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
