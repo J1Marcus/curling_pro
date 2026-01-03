@@ -12312,6 +12312,10 @@ window.startTournamentMatch = function() {
   // Set career level for AI
   gameState.careerLevel = seasonState.activeTournament.definition.tier;
 
+  // Check if we're resuming a match in progress (skip coin toss)
+  const savedProgress = loadMatchProgress();
+  const isResuming = savedProgress && savedProgress.end > 1;
+
   // For club/regional tier, skip country selection - just use club representation
   const tier = seasonState.activeTournament.definition.tier;
   if (tier === 'club' || tier === 'regional') {
@@ -12331,11 +12335,29 @@ window.startTournamentMatch = function() {
       flag: opponent?.club?.crest || '🥌'
     };
 
-    // Show coin toss
-    window.startCoinToss();
+    // Skip coin toss if resuming, otherwise show it
+    if (isResuming) {
+      console.log('[Resume] Skipping coin toss, resuming from End', savedProgress.end);
+      startGame();
+    } else {
+      window.startCoinToss();
+    }
   } else {
-    // For national/international tier, show country selection
-    showCountrySelection();
+    // For national/international tier
+    if (isResuming) {
+      // Resuming - restore country info and skip to game
+      console.log('[Resume] Skipping country selection, resuming from End', savedProgress.end);
+      // Countries should already be set from previous session, but set defaults if not
+      if (!gameState.playerCountry) {
+        gameState.playerCountry = CURLING_COUNTRIES[0]; // Default to first country
+      }
+      if (!gameState.opponentCountry) {
+        gameState.opponentCountry = CURLING_COUNTRIES[1]; // Default to second country
+      }
+      startGame();
+    } else {
+      showCountrySelection();
+    }
   }
 };
 
