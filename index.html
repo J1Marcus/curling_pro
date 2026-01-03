@@ -179,6 +179,23 @@
       .curl-slider-container {
         pointer-events: auto;
       }
+      /* Compact curl slider on smaller screens */
+      @media (max-height: 750px) {
+        #curl-display {
+          margin-top: 4px;
+          padding: 4px 8px;
+        }
+        #curl-direction {
+          font-size: 12px;
+          margin-bottom: 2px !important;
+        }
+        .curl-slider-container {
+          padding: 0 !important;
+        }
+        #curl-slider {
+          height: 18px !important;
+        }
+      }
       #curl-slider::-webkit-slider-thumb {
         -webkit-appearance: none;
         appearance: none;
