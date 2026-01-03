@@ -5204,8 +5204,23 @@
           </div>
         </div>
 
+        <!-- Match Resume Summary (shown when continuing a match) -->
+        <div id="match-resume-summary" style="
+          display: none;
+          background: rgba(59, 130, 246, 0.2);
+          border: 1px solid rgba(59, 130, 246, 0.4);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 16px;
+          text-align: center;
+        ">
+          <div style="color: #93c5fd; font-size: 12px; text-transform: uppercase; margin-bottom: 8px;">Match In Progress</div>
+          <div id="match-resume-score" style="color: white; font-size: 16px; font-weight: bold; margin-bottom: 4px;"></div>
+          <div id="match-resume-details" style="color: #9ca3af; font-size: 14px;"></div>
+        </div>
+
         <!-- Start Match Button -->
-        <button onclick="window.startTournamentMatch()" style="
+        <button id="start-match-btn" onclick="window.startTournamentMatch()" style="
           width: 100%;
           padding: 18px;
           background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);

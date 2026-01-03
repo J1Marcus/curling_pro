@@ -12641,6 +12641,48 @@ window.showPreMatch = function() {
     playerTeamEl.textContent = seasonState.playerTeam.club.name;
   }
 
+  // Check for saved match progress (resume scenario)
+  const savedProgress = loadMatchProgress();
+  const resumeSummary = document.getElementById('match-resume-summary');
+  const startBtn = document.getElementById('start-match-btn');
+
+  if (savedProgress && savedProgress.end > 1) {
+    // There's a match to resume
+    const redScore = savedProgress.scores.red;
+    const yellowScore = savedProgress.scores.yellow;
+    const completedEnds = savedProgress.end - 1;
+    const hammerTeam = savedProgress.hammer;
+
+    // Determine who's leading
+    let scoreText;
+    if (redScore > yellowScore) {
+      const playerName = seasonState.playerTeam?.name || 'You';
+      scoreText = `${playerName} leads ${redScore} - ${yellowScore}`;
+    } else if (yellowScore > redScore) {
+      const opponentName = opponent.teamName || opponent.name || 'Opponent';
+      scoreText = `${opponentName} leads ${yellowScore} - ${redScore}`;
+    } else {
+      scoreText = `Tied ${redScore} - ${yellowScore}`;
+    }
+
+    // Determine who has hammer
+    const hammerHolder = hammerTeam === 'red'
+      ? (seasonState.playerTeam?.name || 'You')
+      : (opponent.teamName || opponent.name || 'Opponent');
+
+    // Update UI
+    document.getElementById('match-resume-score').textContent = scoreText;
+    document.getElementById('match-resume-details').textContent =
+      `After ${completedEnds} end${completedEnds > 1 ? 's' : ''}. ${hammerHolder} will have hammer in End ${savedProgress.end}.`;
+
+    resumeSummary.style.display = 'block';
+    startBtn.textContent = 'Continue Match';
+  } else {
+    // Fresh match
+    resumeSummary.style.display = 'none';
+    startBtn.textContent = 'Start Match';
+  }
+
   // Hide bracket, show pre-match
   document.getElementById('bracket-screen').style.display = 'none';
   screen.style.display = 'block';
