@@ -6181,7 +6181,7 @@ function updatePreviewCamera(x, y, isMouseMove = true) {
 
   // Calculate delta from last mouse position and update preview height
   // Skip panning if preview is locked
-  if (isMouseMove && y !== undefined && !gameState.previewLocked) {
+  if (isMouseMove && y !== undefined && !gameState.previewLocked && gameState.lastMousePos) {
     const deltaY = gameState.lastMousePos.y - y;  // Positive = moved up
 
     // Adjust preview height based on mouse movement (sensitivity factor)
