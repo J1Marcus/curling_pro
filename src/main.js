@@ -12498,7 +12498,7 @@ function renderBracket() {
 
   // Calculate vertical offset for bracket alignment
   // Each round should start lower to center matches between previous round's matches
-  const matchHeight = 50;  // Approximate height of match card + base gap
+  const matchHeight = 40;  // Approximate height of match card + base gap
 
   container.innerHTML = bracket.rounds.map((round, roundIndex) => {
     // Offset increases with each round to center between previous round's matches
