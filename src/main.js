@@ -6364,6 +6364,7 @@ function startPull(x, y) {
 // Update aim and power during drag
 function updatePull(x, y) {
   if (gameState.phase !== 'charging') return;
+  if (!gameState.pullStart) return;  // Guard against null pullStart
 
   gameState.pullCurrent = { x, y };
 
