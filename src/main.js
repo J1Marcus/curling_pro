@@ -8684,6 +8684,12 @@ function scheduleComputerShot() {
     clearTimeout(gameState._computerShotTimeout);
   }
 
+  // Prevent scheduling if a computer shot is already in progress
+  if (gameState._computerShotInProgress) {
+    console.log('[COMPUTER] Shot already in progress, skipping schedule');
+    return;
+  }
+
   const attemptComputerShot = (attempts = 0) => {
     if (attempts >= 15) {
       console.error('[COMPUTER] Failed to execute shot after 15 attempts - forcing phase reset');
@@ -8737,6 +8743,9 @@ function executeComputerShot() {
     console.warn('[COMPUTER] Already threw 2+ more stones than player, skipping to prevent double-throw');
     return;
   }
+
+  // Mark that a computer shot is in progress
+  gameState._computerShotInProgress = true;
 
   // Save pre-shot state for potential rollback on interruption
   savePreShotState();
@@ -9240,6 +9249,9 @@ function handleTurnTimeout() {
 // ============================================
 function nextTurn() {
   console.log('[TURN] nextTurn called, stonesThrown:', gameState.stonesThrown);
+
+  // Clear computer shot in progress flag
+  gameState._computerShotInProgress = false;
 
   const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
 
