@@ -14944,6 +14944,24 @@ document.addEventListener('visibilitychange', () => {
   // On visible: don't auto-resume, wait for user tap on overlay
 });
 
+// Settings button in pause overlay - needs special handling to prevent resume
+const pauseSettingsBtn = document.getElementById('pause-settings-btn');
+if (pauseSettingsBtn) {
+  pauseSettingsBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    window.openSettings();
+  });
+  pauseSettingsBtn.addEventListener('touchstart', (e) => {
+    e.stopPropagation();
+  });
+  pauseSettingsBtn.addEventListener('touchend', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    window.openSettings();
+  });
+}
+
 // Page hide/show (additional iOS support)
 window.addEventListener('pagehide', () => {
   pauseGame();
