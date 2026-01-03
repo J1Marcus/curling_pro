@@ -8726,6 +8726,17 @@ function executeComputerShot() {
     return;
   }
 
+  // Prevent double-throws: check if computer already threw more stones than player
+  // In alternating turns, computer can be at most 1 ahead (if they throw first)
+  const computerStones = gameState.stonesThrown[gameState.computerTeam];
+  const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
+  const playerStones = gameState.stonesThrown[playerTeam];
+
+  if (computerStones > playerStones + 1) {
+    console.warn('[COMPUTER] Already threw 2+ more stones than player, skipping to prevent double-throw');
+    return;
+  }
+
   // Save pre-shot state for potential rollback on interruption
   savePreShotState();
 
