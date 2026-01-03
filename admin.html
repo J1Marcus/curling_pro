@@ -287,6 +287,24 @@
         </table>
       </div>
 
+      <!-- Errors -->
+      <div class="section">
+        <h3 style="color: #ef4444;">Errors (Last 24 Hours)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Message</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="error-log">
+            <tr><td colspan="4" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- Recent Events -->
       <div class="section">
         <h3>Recent Events (Last 50)</h3>
@@ -394,13 +412,16 @@
         const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
 
         // Fetch all data in parallel
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+
         const [
           todaySessions,
           todayEvents,
           allSessions,
           recentEvents,
           activeSessions,
-          last14Days
+          last14Days,
+          recentErrors
         ] = await Promise.all([
           // Today's sessions
           supabase
@@ -437,7 +458,16 @@
           supabase
             .from('analytics_sessions')
             .select('started_at')
-            .gte('started_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString())
+            .gte('started_at', new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()),
+
+          // Errors (last 24 hours)
+          supabase
+            .from('analytics_events')
+            .select('*')
+            .eq('event_type', 'error')
+            .gte('created_at', twentyFourHoursAgo)
+            .order('created_at', { ascending: false })
+            .limit(50)
         ]);
 
         // Update stats
@@ -486,6 +516,21 @@
           </tr>`;
         }).join('') || '<tr><td colspan="4">No games today</td></tr>';
         document.getElementById('mode-breakdown').innerHTML = modeRows;
+
+        // Errors table
+        const errorRows = recentErrors.data?.map(e => {
+          const time = new Date(e.created_at).toLocaleString();
+          const data = e.event_data || {};
+          const location = data.source ? `${data.source}:${data.line || '?'}` : '-';
+          const message = (data.message || e.event_name || 'Unknown error').slice(0, 100);
+          return `<tr style="color: #fca5a5;">
+            <td style="font-size: 12px;">${time}</td>
+            <td>${e.event_name}</td>
+            <td style="font-size: 12px;">${message}</td>
+            <td style="font-size: 12px;">${location}</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="4" style="color: #4ade80;">No errors - all good!</td></tr>';
+        document.getElementById('error-log').innerHTML = errorRows;
 
         // Recent events table
         const eventRows = recentEvents.data?.map(e => {

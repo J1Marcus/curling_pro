@@ -212,9 +212,32 @@ export function trackFeatureUsage(featureName) {
 }
 
 // Track error
-export function trackError(errorType, errorMessage) {
-  trackEvent('error', errorType, { message: errorMessage });
+export function trackError(errorType, errorMessage, details = {}) {
+  trackEvent('error', errorType, { message: errorMessage, ...details });
 }
+
+// ============================================
+// AUTOMATIC ERROR TRACKING
+// ============================================
+
+// Catch JavaScript errors
+window.onerror = function(message, source, lineno, colno, error) {
+  trackError('js_error', message, {
+    source: source?.split('/').pop() || 'unknown',  // Just filename
+    line: lineno,
+    column: colno,
+    stack: error?.stack?.slice(0, 500) || null  // Limit stack trace size
+  });
+  return false;  // Don't suppress the error
+};
+
+// Catch unhandled promise rejections
+window.addEventListener('unhandledrejection', function(event) {
+  const reason = event.reason;
+  trackError('promise_rejection', reason?.message || String(reason), {
+    stack: reason?.stack?.slice(0, 500) || null
+  });
+});
 
 // ============================================
 // INITIALIZATION
