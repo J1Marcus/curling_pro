@@ -12496,8 +12496,19 @@ function renderBracket() {
   const bracket = seasonState.activeTournament.bracket;
   if (!bracket || !bracket.rounds) return;
 
-  container.innerHTML = bracket.rounds.map((round, roundIndex) => `
-    <div style="display: flex; flex-direction: column; gap: 16px; min-width: 180px;">
+  // Calculate vertical offset for bracket alignment
+  // Each round should start lower to center matches between previous round's matches
+  // Match card height ~80px + gap 16px = ~96px per match
+  const matchHeight = 96;
+
+  container.innerHTML = bracket.rounds.map((round, roundIndex) => {
+    // Offset increases with each round: 0, 48, 144, 336... (half of cumulative height)
+    const topOffset = roundIndex === 0 ? 0 : (Math.pow(2, roundIndex) - 1) * (matchHeight / 2);
+    // Gap between matches doubles each round
+    const matchGap = 16 + (roundIndex * matchHeight);
+
+    return `
+    <div style="display: flex; flex-direction: column; gap: ${matchGap}px; min-width: 180px; padding-top: ${topOffset}px;">
       <div style="
         color: #64748b;
         font-size: 12px;
@@ -12508,7 +12519,7 @@ function renderBracket() {
       ">${round.name}</div>
       ${round.matchups.map(matchup => renderMatchupCard(matchup, roundIndex)).join('')}
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // Render a single matchup card
