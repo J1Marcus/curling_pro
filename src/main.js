@@ -6441,17 +6441,22 @@ function pushOff() {
   gameState.slideSpeed = initialVelocity;
 
   // Calculate initial aim angle from target position if set
+  // Player's drag adjustment (aimAngle) is added to the base angle to target
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+  const playerAimAdjustment = gameState.aimAngle || 0;  // Save player's drag adjustment
+
   if (isComputer) {
     // Computer already set aimAngle in executeComputerShot - preserve it
     gameState.baseAimAngle = gameState.aimAngle;
   } else if (gameState.targetPosition) {
+    // Base angle points to target, player's drag adjusts from there
     gameState.baseAimAngle = Math.atan2(gameState.targetPosition.x, gameState.targetPosition.z - HACK_Z);
+    gameState.aimAngle = gameState.baseAimAngle + playerAimAdjustment;
   } else {
-    // Fallback for human - use existing aimAngle if set, otherwise straight
-    gameState.baseAimAngle = gameState.aimAngle || 0;
+    // No target - use player's aim directly
+    gameState.baseAimAngle = playerAimAdjustment;
+    gameState.aimAngle = playerAimAdjustment;
   }
-  gameState.aimAngle = gameState.baseAimAngle;
 
   // Set initial velocity toward the aim direction (proper trigonometry)
   const initialVelX = Math.sin(gameState.aimAngle) * initialVelocity;
