@@ -6757,6 +6757,7 @@ function releaseStone() {
   capturePreThrowState();
 
   gameState.phase = 'throwing';
+  updateFastForwardButton();  // Show fast-forward button when stone starts moving
   document.getElementById('hold-warning').style.display = 'none';
   document.getElementById('power-display').style.display = 'none';
   document.getElementById('phase-text').style.color = '#4ade80';
@@ -8958,18 +8959,11 @@ function getComputerShot() {
 // Uses polling to check fast-forward state continuously
 function cpuWait(normalDelay, callback) {
   let elapsed = 0;
-  let lastLog = 0;
 
   const check = () => {
     // Accumulate time faster when fast-forward is held
     const increment = gameState.cpuFastForward ? 100 : 10;  // 10x speed when held
     elapsed += increment;
-
-    // Log occasionally when fast-forwarding
-    if (gameState.cpuFastForward && elapsed - lastLog >= 200) {
-      console.log(`[FFW] cpuWait: elapsed=${elapsed}/${normalDelay}, ffw=${gameState.cpuFastForward}`);
-      lastLog = elapsed;
-    }
 
     if (elapsed >= normalDelay) {
       callback();
@@ -9133,14 +9127,13 @@ function updatePhysics() {
     return;
   }
 
-  // Fast-forward: run physics multiple times per frame during CPU stone movement
-  const isCpuStoneMoving = gameState.cpuFastForward &&
-                           gameState.gameMode === '1player' &&
-                           gameState.currentTeam === gameState.computerTeam &&
-                           (gameState.phase === 'throwing' || gameState.phase === 'sweeping');
+  // Fast-forward: run physics multiple times per frame during stone movement (except online)
+  const canFastForward = gameState.cpuFastForward &&
+                         gameState.selectedMode !== 'online' &&
+                         (gameState.phase === 'throwing' || gameState.phase === 'sweeping');
 
-  // Run physics 5x per frame when fast-forwarding CPU stone
-  const physicsIterations = isCpuStoneMoving ? 5 : 1;
+  // Run physics 5x per frame when fast-forwarding
+  const physicsIterations = canFastForward ? 5 : 1;
 
   for (let i = 0; i < physicsIterations; i++) {
     Matter.Engine.update(engine, 1000 / 60);
@@ -9408,6 +9401,7 @@ function updatePhysics() {
       }
 
       gameState.phase = 'waiting';
+      updateFastForwardButton();  // Hide fast-forward button when stone stops
       gameState.activeStone = null;
       gameState.isSweeping = false;
       gameState.sweepEffectiveness = 0;
@@ -15945,16 +15939,11 @@ window.debugWinMatch = function() {
 // Set up fast-forward button event listeners
 (function setupFastForwardButton() {
   const btn = document.getElementById('cpu-fastforward-btn');
-  if (!btn) {
-    console.warn('[FFW] Button not found in DOM');
-    return;
-  }
-  console.log('[FFW] Button found, setting up handlers');
+  if (!btn) return;
 
   const startFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = true;
-    console.log('[FFW] Fast-forward STARTED');
     btn.style.background = 'rgba(34, 197, 94, 0.9)';
     btn.style.borderColor = '#4ade80';
     btn.style.transform = 'scale(1.1)';
@@ -15963,7 +15952,6 @@ window.debugWinMatch = function() {
   const stopFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = false;
-    console.log('[FFW] Fast-forward STOPPED');
     btn.style.background = 'rgba(59, 130, 246, 0.8)';
     btn.style.borderColor = '#60a5fa';
     btn.style.transform = 'scale(1)';
@@ -15980,20 +15968,20 @@ window.debugWinMatch = function() {
   btn.addEventListener('touchcancel', stopFastForward, { passive: false });
 })();
 
-// Update fast-forward button visibility based on whether it's CPU's turn
+// Update fast-forward button visibility - available for all modes except online
 function updateFastForwardButton() {
   const btn = document.getElementById('cpu-fastforward-btn');
   if (!btn) return;
 
-  const isCpuTurn = gameState.gameMode === '1player' &&
-                    gameState.currentTeam === gameState.computerTeam &&
-                    gameState.setupComplete &&
-                    !gameState.practiceMode?.active;
+  // Show during stone movement phases, except in online mode
+  const isStoneMoving = (gameState.phase === 'throwing' || gameState.phase === 'sweeping') &&
+                        gameState.selectedMode !== 'online' &&
+                        gameState.setupComplete;
 
-  btn.style.display = isCpuTurn ? 'block' : 'none';
+  btn.style.display = isStoneMoving ? 'block' : 'none';
 
   // Reset state when hiding
-  if (!isCpuTurn) {
+  if (!isStoneMoving) {
     gameState.cpuFastForward = false;
   }
 }
