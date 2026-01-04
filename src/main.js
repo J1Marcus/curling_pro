@@ -15746,7 +15746,7 @@ window.debugEndOfEnd = function() {
   console.log('[DEBUG] Skipping to end of current end...');
   gameState.stonesThrown = { red: 8, yellow: 8 };
   gameState.phase = 'scoring';
-  handleEndOfEnd();
+  calculateScore();
 };
 
 // Debug: Simulate winning current match
@@ -15756,7 +15756,7 @@ window.debugWinMatch = function() {
   gameState.scores.yellow = 2;
   gameState.end = gameState.settings.gameLength || 8;
   gameState.stonesThrown = { red: 8, yellow: 8 };
-  handleEndOfEnd();
+  calculateScore();
 };
 
 // Debug: Create floating debug button (TEMP - remove for production)
