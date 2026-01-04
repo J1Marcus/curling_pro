@@ -305,6 +305,24 @@
         </table>
       </div>
 
+      <!-- Feedback -->
+      <div class="section">
+        <h3 style="color: #f59e0b;">📬 Feedback (Last 30 Days)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>From</th>
+              <th>Message</th>
+            </tr>
+          </thead>
+          <tbody id="feedback-log">
+            <tr><td colspan="4" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
       <!-- Recent Events -->
       <div class="section">
         <h3>Recent Events (Last 50)</h3>
@@ -414,6 +432,8 @@
         // Fetch all data in parallel
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
         const [
           todaySessions,
           todayEvents,
@@ -421,7 +441,8 @@
           recentEvents,
           activeSessions,
           last14Days,
-          recentErrors
+          recentErrors,
+          recentFeedback
         ] = await Promise.all([
           // Today's sessions
           supabase
@@ -466,6 +487,14 @@
             .select('*')
             .eq('event_type', 'error')
             .gte('created_at', twentyFourHoursAgo)
+            .order('created_at', { ascending: false })
+            .limit(50),
+
+          // Feedback (last 30 days)
+          supabase
+            .from('feedback')
+            .select('*')
+            .gte('created_at', thirtyDaysAgo)
             .order('created_at', { ascending: false })
             .limit(50)
         ]);
@@ -531,6 +560,29 @@
           </tr>`;
         }).join('') || '<tr><td colspan="4" style="color: #4ade80;">No errors - all good!</td></tr>';
         document.getElementById('error-log').innerHTML = errorRows;
+
+        // Feedback table
+        console.log('Feedback query result:', recentFeedback);
+        let feedbackRows;
+        if (recentFeedback.error) {
+          console.error('Feedback error:', recentFeedback.error);
+          feedbackRows = `<tr><td colspan="4" style="color: #ef4444;">Error: ${recentFeedback.error.message}</td></tr>`;
+        } else {
+          feedbackRows = recentFeedback.data?.map(f => {
+            const time = new Date(f.created_at).toLocaleString();
+            const typeColor = f.type === 'bug' ? '#ef4444' : '#3b82f6';
+            const typeLabel = f.type === 'bug' ? '🐛 Bug' : '✨ Feature';
+            const from = f.name || f.email || 'Anonymous';
+            const message = (f.message || '').slice(0, 150);
+            return `<tr>
+              <td style="font-size: 12px;">${time}</td>
+              <td style="color: ${typeColor};">${typeLabel}</td>
+              <td style="font-size: 12px;">${from}${f.email ? '<br><span style="color:#64748b;">' + f.email + '</span>' : ''}</td>
+              <td style="font-size: 12px; max-width: 300px; word-wrap: break-word;">${message}</td>
+            </tr>`;
+          }).join('') || '<tr><td colspan="4" style="color: #64748b;">No feedback yet</td></tr>';
+        }
+        document.getElementById('feedback-log').innerHTML = feedbackRows;
 
         // Recent events table
         const eventRows = recentEvents.data?.map(e => {

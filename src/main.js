@@ -12823,6 +12823,12 @@ window.playNextMatch = function() {
   showPreMatch();
 };
 
+// Go back from pre-match screen to bracket view
+window.backFromPreMatch = function() {
+  document.getElementById('pre-match-screen').style.display = 'none';
+  document.getElementById('bracket-view').style.display = 'block';
+};
+
 // Show pre-match screen
 window.showPreMatch = function() {
   const screen = document.getElementById('pre-match-screen');
@@ -14530,12 +14536,22 @@ window.sendFeedback = async function(event) {
         window.closeFeedback();
       }, 2000);
     } else {
-      throw new Error(result.error || 'Failed to send');
+      // Supabase failed - offer email fallback
+      throw new Error('service_unavailable');
     }
   } catch (error) {
     console.error('Feedback error:', error);
-    statusEl.textContent = error.message || 'Failed to send. Please try again.';
-    statusEl.style.color = '#f87171';
+
+    // Offer email fallback
+    const subject = encodeURIComponent(`[Curling Pro ${type === 'bug' ? 'Bug Report' : 'Feature Request'}]`);
+    const body = encodeURIComponent(`${message}\n\n---\nFrom: ${name || 'Anonymous'}\nEmail: ${email || 'Not provided'}`);
+    const mailtoLink = `mailto:feedback@curlingpro.app?subject=${subject}&body=${body}`;
+
+    statusEl.innerHTML = `
+      Unable to send automatically.<br>
+      <a href="${mailtoLink}" style="color: #60a5fa; text-decoration: underline;">Tap here to send via email</a>
+    `;
+    statusEl.style.color = '#fcd34d';
     statusEl.style.display = 'block';
   } finally {
     submitBtn.disabled = false;
