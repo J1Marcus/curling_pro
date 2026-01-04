@@ -3540,12 +3540,16 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
       seasonState.rivalryHistory[opponent.rivalId].lastMet = Date.now();
     }
 
-    // Advance winner in bracket
-    advanceWinner(tournament.bracket.rounds, match);
+    // Advance winner in bracket (with defensive check)
+    if (tournament.bracket && tournament.bracket.rounds) {
+      advanceWinner(tournament.bracket.rounds, match);
 
-    // For page playoff, also advance loser if applicable
-    if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
-      advanceLoser(tournament.bracket.rounds, match);
+      // For page playoff, also advance loser if applicable
+      if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
+        advanceLoser(tournament.bracket.rounds, match);
+      }
+    } else {
+      console.warn('[updateBracketWithResult] Missing bracket data, skipping advancement');
     }
 
     // Simulate any AI vs AI matches that are now ready
@@ -3593,6 +3597,12 @@ function checkTournamentStatus(tournament, playerWon) {
     isChampion: false
   };
 
+  // Defensive check for bracket
+  if (!tournament || !tournament.bracket || !tournament.bracket.rounds) {
+    console.warn('[checkTournamentStatus] Missing tournament or bracket data');
+    return result;
+  }
+
   // Check if this was the final
   const finalMatch = tournament.bracket.rounds[tournament.bracket.rounds.length - 1].matchups[0];
   if (tournament.currentMatchup.id === finalMatch.id) {
@@ -3632,6 +3642,11 @@ function checkTournamentStatus(tournament, playerWon) {
 
 // Calculate player's placement in tournament
 function calculatePlacement(tournament) {
+  // Defensive check
+  if (!tournament || !tournament.bracket || !tournament.bracket.rounds) {
+    return 4; // Default placement if data missing
+  }
+
   // Count remaining teams
   let teamsRemaining = 0;
   for (const round of tournament.bracket.rounds) {
@@ -3645,7 +3660,7 @@ function calculatePlacement(tournament) {
 
   // Placement is based on when you were eliminated
   // Lost in final = 2nd, Lost in semis = 3rd-4th, etc.
-  const totalTeams = tournament.teams.length;
+  const totalTeams = tournament.teams?.length || 8;
   return Math.max(2, Math.min(totalTeams, teamsRemaining + 1));
 }
 
