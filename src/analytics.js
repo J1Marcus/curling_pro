@@ -301,6 +301,42 @@ if (typeof window !== 'undefined') {
   }
 }
 
+// ============================================
+// FEEDBACK SUBMISSION
+// ============================================
+
+// Submit user feedback to Supabase
+export async function submitFeedbackToSupabase(type, name, email, message) {
+  if (!supabase) {
+    console.warn('[Analytics] Supabase not configured, cannot submit feedback');
+    return { success: false, error: 'Feedback service not available' };
+  }
+
+  try {
+    const { error } = await supabase
+      .from('feedback')
+      .insert({
+        type: type,
+        name: name || null,
+        email: email || null,
+        message: message,
+        session_id: sessionId,
+        device_info: getDeviceInfo()
+      });
+
+    if (error) {
+      console.error('[Analytics] Feedback submission error:', error.message);
+      return { success: false, error: error.message };
+    }
+
+    console.log('[Analytics] Feedback submitted successfully');
+    return { success: true };
+  } catch (e) {
+    console.error('[Analytics] Failed to submit feedback:', e);
+    return { success: false, error: e.message };
+  }
+}
+
 // Export for use in other modules
 export default {
   startSession,
@@ -311,5 +347,6 @@ export default {
   trackGameStart,
   trackGameComplete,
   trackFeatureUsage,
-  trackError
+  trackError,
+  submitFeedbackToSupabase
 };

@@ -6062,6 +6062,19 @@ function updateSkipSignalArm() {
 function updateSkipFade() {
   if (!gameState.targetMarker || !gameState.targetPosition) return;
 
+  // Don't fade in target view - skip should always be visible from above
+  if (gameState.previewHeight > 0.5) {
+    // Ensure skip is fully visible in target view
+    gameState.targetMarker.traverse((child) => {
+      if (child.isMesh && child.name !== 'beacon' && child.name !== 'curlArrow') {
+        if (child.material) {
+          child.material.opacity = 1;
+        }
+      }
+    });
+    return;
+  }
+
   const skipWorldPos = gameState.targetMarker.position.clone();
   skipWorldPos.z += 0.6;  // Skip stands 0.6m behind the broom pad
 
@@ -13817,6 +13830,88 @@ window.closeFeedback = function() {
   }
 };
 
+// ============================================
+// SUPPORT THE DEVELOPER (Tip Jar)
+// ============================================
+
+// IAP Product IDs (will be configured in App Store Connect)
+const TIP_PRODUCTS = {
+  small: { id: 'com.curlingpro.tip.small', price: '$0.99' },
+  medium: { id: 'com.curlingpro.tip.medium', price: '$2.99' },
+  large: { id: 'com.curlingpro.tip.large', price: '$4.99' }
+};
+
+window.showSupportOptions = function() {
+  const overlay = document.getElementById('support-overlay');
+  const statusEl = document.getElementById('support-status');
+  if (overlay) {
+    if (statusEl) statusEl.style.display = 'none';
+    overlay.style.display = 'flex';
+  }
+};
+
+window.closeSupportOptions = function() {
+  const overlay = document.getElementById('support-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+};
+
+window.purchaseTip = async function(tier) {
+  const statusEl = document.getElementById('support-status');
+  const product = TIP_PRODUCTS[tier];
+
+  if (!product) {
+    console.error('Invalid tip tier:', tier);
+    return;
+  }
+
+  // Check if Capacitor IAP is available
+  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.InAppPurchase) {
+    // Native IAP flow (when Capacitor is set up)
+    try {
+      statusEl.textContent = 'Processing...';
+      statusEl.style.color = '#94a3b8';
+      statusEl.style.display = 'block';
+
+      const iap = window.Capacitor.Plugins.InAppPurchase;
+      await iap.purchase({ productId: product.id });
+
+      // Success
+      statusEl.textContent = '💛 Thank you for your support!';
+      statusEl.style.color = '#4ade80';
+
+      // Track the purchase
+      if (typeof analytics !== 'undefined') {
+        analytics.trackEvent('tip_purchase', tier, { amount: product.price });
+      }
+
+      // Close after delay
+      setTimeout(() => {
+        window.closeSupportOptions();
+      }, 2500);
+
+    } catch (error) {
+      if (error.code === 'USER_CANCELLED') {
+        statusEl.style.display = 'none';
+      } else {
+        statusEl.textContent = 'Purchase failed. Please try again.';
+        statusEl.style.color = '#f87171';
+      }
+    }
+  } else {
+    // Web fallback - show message that IAP requires the app
+    statusEl.textContent = 'In-app purchases available in the App Store version.';
+    statusEl.style.color = '#fcd34d';
+    statusEl.style.display = 'block';
+
+    // Track attempt
+    if (typeof analytics !== 'undefined') {
+      analytics.trackEvent('tip_attempt_web', tier);
+    }
+  }
+};
+
 window.showAbout = function(fromSettings = true) {
   const screen = document.getElementById('about-screen');
   if (screen) {
@@ -14423,15 +14518,9 @@ window.sendFeedback = async function(event) {
   statusEl.style.display = 'none';
 
   try {
-    const response = await fetch('/api/feedback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type, name, email, message })
-    });
+    const result = await analytics.submitFeedbackToSupabase(type, name, email, message);
 
-    const data = await response.json();
-
-    if (response.ok) {
+    if (result.success) {
       statusEl.textContent = 'Thank you! Your feedback has been sent.';
       statusEl.style.color = '#4ade80';
       statusEl.style.display = 'block';
@@ -14441,7 +14530,7 @@ window.sendFeedback = async function(event) {
         window.closeFeedback();
       }, 2000);
     } else {
-      throw new Error(data.error || 'Failed to send');
+      throw new Error(result.error || 'Failed to send');
     }
   } catch (error) {
     console.error('Feedback error:', error);
