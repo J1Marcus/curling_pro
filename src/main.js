@@ -226,7 +226,7 @@ const gameState = {
   // Settings
   settings: {
     difficulty: 'medium',  // easy, medium, hard
-    soundEnabled: false,
+    soundEnabled: true,
     gameLength: 8,  // number of ends
     quickPlayLevel: 4  // Default to National for quick play
   },
