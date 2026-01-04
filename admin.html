@@ -231,33 +231,27 @@
         </div>
       </header>
 
-      <!-- Overview Stats -->
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="label">Today's Sessions</div>
-          <div class="value" id="today-sessions">-</div>
-          <div class="sub" id="today-sessions-change"></div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Games Started Today</div>
-          <div class="value" id="today-games">-</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Games Completed</div>
-          <div class="value" id="today-completed">-</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Avg Session Duration</div>
-          <div class="value" id="avg-duration">-</div>
-          <div class="sub">minutes</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Mobile Users</div>
-          <div class="value" id="mobile-pct">-</div>
-        </div>
-        <div class="stat-card">
-          <div class="label">Total All-Time Sessions</div>
-          <div class="value" id="total-sessions">-</div>
+      <!-- Session Stats -->
+      <div class="section">
+        <h3>Sessions (Today)</h3>
+        <div class="stats-grid" style="margin-bottom: 0;">
+          <div class="stat-card">
+            <div class="label">Today's Sessions</div>
+            <div class="value" id="today-sessions">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Avg Duration</div>
+            <div class="value" id="avg-duration">-</div>
+            <div class="sub">minutes</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Mobile Users</div>
+            <div class="value" id="mobile-pct">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Total All-Time</div>
+            <div class="value" id="total-sessions">-</div>
+          </div>
         </div>
       </div>
 
@@ -269,22 +263,54 @@
         </div>
       </div>
 
-      <!-- Game Mode Breakdown -->
+      <!-- Local Games Stats -->
       <div class="section">
-        <h3>Game Mode Breakdown (Today)</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Mode</th>
-              <th>Games Started</th>
-              <th>Games Completed</th>
-              <th>Completion Rate</th>
-            </tr>
-          </thead>
-          <tbody id="mode-breakdown">
-            <tr><td colspan="4" class="loading">Loading...</td></tr>
-          </tbody>
-        </table>
+        <h3 style="color: #4ade80;">Local Games (Today)</h3>
+        <div class="stats-grid" style="margin-bottom: 0;">
+          <div class="stat-card">
+            <div class="label">Career Started</div>
+            <div class="value" id="local-career-started" style="color: #4ade80;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Career Completed</div>
+            <div class="value" id="local-career-completed" style="color: #4ade80;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Quick Play Started</div>
+            <div class="value" id="local-quickplay-started" style="color: #4ade80;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Quick Play Completed</div>
+            <div class="value" id="local-quickplay-completed" style="color: #4ade80;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">2-Player Started</div>
+            <div class="value" id="local-2player-started" style="color: #4ade80;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">2-Player Completed</div>
+            <div class="value" id="local-2player-completed" style="color: #4ade80;">-</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Online Games Stats -->
+      <div class="section">
+        <h3 style="color: #38bdf8;">Online Games (Today)</h3>
+        <div class="stats-grid" style="margin-bottom: 0;">
+          <div class="stat-card">
+            <div class="label">Games Started</div>
+            <div class="value" id="online-started" style="color: #38bdf8;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Games Completed</div>
+            <div class="value" id="online-completed" style="color: #38bdf8;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Completion Rate</div>
+            <div class="value" id="online-completion-rate" style="color: #38bdf8;">-</div>
+          </div>
+        </div>
       </div>
 
       <!-- Practice Mode Stats -->
@@ -571,35 +597,33 @@
         const mobilePct = todaySessionCount > 0 ? Math.round(mobileCount / todaySessionCount * 100) : 0;
         document.getElementById('mobile-pct').textContent = mobilePct + '%';
 
-        // Game counts from events
+        // Game counts from events - separate local vs online
         const gameStarts = todayEvents.data?.filter(e => e.event_type === 'game_start') || [];
         const gameCompletes = todayEvents.data?.filter(e => e.event_type === 'game_complete') || [];
-        document.getElementById('today-games').textContent = gameStarts.length;
-        document.getElementById('today-completed').textContent = gameCompletes.length;
 
-        // Mode breakdown
-        const modeBreakdown = {};
-        gameStarts.forEach(e => {
-          const mode = e.event_name || 'unknown';
-          if (!modeBreakdown[mode]) modeBreakdown[mode] = { started: 0, completed: 0 };
-          modeBreakdown[mode].started++;
-        });
-        gameCompletes.forEach(e => {
-          const mode = e.event_name || 'unknown';
-          if (!modeBreakdown[mode]) modeBreakdown[mode] = { started: 0, completed: 0 };
-          modeBreakdown[mode].completed++;
-        });
+        // Local games by mode
+        const careerStarts = gameStarts.filter(e => e.event_name === 'career').length;
+        const careerCompletes = gameCompletes.filter(e => e.event_name === 'career').length;
+        const quickplayStarts = gameStarts.filter(e => e.event_name === 'quickplay').length;
+        const quickplayCompletes = gameCompletes.filter(e => e.event_name === 'quickplay').length;
+        const twoPlayerStarts = gameStarts.filter(e => e.event_name === '2player').length;
+        const twoPlayerCompletes = gameCompletes.filter(e => e.event_name === '2player').length;
 
-        const modeRows = Object.entries(modeBreakdown).map(([mode, data]) => {
-          const rate = data.started > 0 ? Math.round(data.completed / data.started * 100) : 0;
-          return `<tr>
-            <td>${mode}</td>
-            <td>${data.started}</td>
-            <td>${data.completed}</td>
-            <td>${rate}%</td>
-          </tr>`;
-        }).join('') || '<tr><td colspan="4">No games today</td></tr>';
-        document.getElementById('mode-breakdown').innerHTML = modeRows;
+        document.getElementById('local-career-started').textContent = careerStarts;
+        document.getElementById('local-career-completed').textContent = careerCompletes;
+        document.getElementById('local-quickplay-started').textContent = quickplayStarts;
+        document.getElementById('local-quickplay-completed').textContent = quickplayCompletes;
+        document.getElementById('local-2player-started').textContent = twoPlayerStarts;
+        document.getElementById('local-2player-completed').textContent = twoPlayerCompletes;
+
+        // Online games
+        const onlineStarts = gameStarts.filter(e => e.event_name === 'online').length;
+        const onlineCompletes = gameCompletes.filter(e => e.event_name === 'online').length;
+        const onlineRate = onlineStarts > 0 ? Math.round(onlineCompletes / onlineStarts * 100) : 0;
+
+        document.getElementById('online-started').textContent = onlineStarts;
+        document.getElementById('online-completed').textContent = onlineCompletes;
+        document.getElementById('online-completion-rate').textContent = onlineRate + '%';
 
         // Practice Mode Stats
         const practicePageViews = todayEvents.data?.filter(e =>

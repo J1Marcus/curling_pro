@@ -15677,23 +15677,36 @@ window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
   // Set scores
   gameState.scores = { red: playerScore, yellow: opponentScore };
 
-  // Set up end scores history
-  gameState.endScores = [];
-  for (let i = 1; i < totalEnds; i++) {
-    // Distribute scores across previous ends
-    if (i % 2 === 1) {
-      gameState.endScores.push({ red: 1, yellow: 0 });
-    } else {
-      gameState.endScores.push({ red: 0, yellow: 1 });
-    }
+  // Set up end scores history - format is { red: [...], yellow: [...] }
+  gameState.endScores = { red: [], yellow: [] };
+  for (let i = 0; i < totalEnds; i++) {
+    gameState.endScores.red.push(null);
+    gameState.endScores.yellow.push(null);
   }
 
-  // Adjust to match target scores
-  const currentRedTotal = gameState.endScores.reduce((sum, e) => sum + e.red, 0);
-  const currentYellowTotal = gameState.endScores.reduce((sum, e) => sum + e.yellow, 0);
-  if (gameState.endScores.length > 0) {
-    gameState.endScores[0].red += (playerScore - currentRedTotal);
-    gameState.endScores[0].yellow += (opponentScore - currentYellowTotal);
+  // Fill in previous ends with scores that add up correctly
+  let redRemaining = playerScore;
+  let yellowRemaining = opponentScore;
+  for (let i = 0; i < totalEnds - 1; i++) {
+    if (i % 2 === 0 && redRemaining > 0) {
+      const pts = Math.min(2, redRemaining);
+      gameState.endScores.red[i] = pts;
+      gameState.endScores.yellow[i] = 0;
+      redRemaining -= pts;
+    } else if (yellowRemaining > 0) {
+      const pts = Math.min(2, yellowRemaining);
+      gameState.endScores.red[i] = 0;
+      gameState.endScores.yellow[i] = pts;
+      yellowRemaining -= pts;
+    } else if (redRemaining > 0) {
+      const pts = Math.min(2, redRemaining);
+      gameState.endScores.red[i] = pts;
+      gameState.endScores.yellow[i] = 0;
+      redRemaining -= pts;
+    } else {
+      gameState.endScores.red[i] = 0;
+      gameState.endScores.yellow[i] = 0;
+    }
   }
 
   // Reset stones for this end
