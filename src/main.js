@@ -385,12 +385,34 @@ const FAQ_DATA = [
         a: 'Tap to aim, hold for power, release to throw. Use the left/right curl buttons to add spin. Tap the broom icon to toggle sweeping while the stone is moving.'
       },
       {
+        q: 'How do I switch between camera views?',
+        a: 'Double-tap anywhere on the screen to toggle between the overhead view and the throwing view. You can also use the camera button in the corner.'
+      }
+    ]
+  },
+  {
+    category: 'Sweeping',
+    icon: '🧹',
+    questions: [
+      {
         q: 'What does sweeping do?',
         a: 'Sweeping heats the ice, reducing friction and making the stone travel farther and straighter. Use it to help a stone reach its target or to reduce curl.'
       },
       {
-        q: 'How do I switch between camera views?',
-        a: 'Double-tap anywhere on the screen to toggle between the overhead view and the throwing view. You can also use the camera button in the corner.'
+        q: 'How do I sweep in the game?',
+        a: 'While your stone is moving, swipe back and forth on the screen. The faster and more consistently you swipe, the more effective your sweeping. You\'ll see a percentage indicator showing your sweep intensity.'
+      },
+      {
+        q: 'How does sweep direction affect the stone?',
+        a: 'Your sweep angle matters! Sweeping parallel to the stone\'s path (▲ indicator) gives maximum effect - the stone travels farther and straighter. Sweeping at a diagonal (◢) is moderately effective. Sweeping perpendicular to the path (►) wastes energy and has minimal effect. The percentage shown while sweeping indicates your effectiveness based on speed and angle. For best results, swipe back and forth in line with where the stone is heading.'
+      },
+      {
+        q: 'When should I sweep vs let it curl?',
+        a: 'Sweep when: the stone needs more distance to reach its target, you want it to travel straighter (less curl), or you\'re trying to push through guards. Don\'t sweep when: the stone has enough weight, you need maximum curl to get around a guard, or the stone is already past your target.'
+      },
+      {
+        q: 'What is defensive sweeping?',
+        a: 'Once your opponent\'s stone crosses the T-line (the center line of the house), you can sweep it! This is called defensive sweeping. Use it to push their stone through the house and out of play, or to move it to a less favorable position. The "Sweep past T-Line" message tells you when defensive sweeping becomes available.'
       }
     ]
   },
@@ -508,7 +530,11 @@ const FAQ_DATA = [
     questions: [
       {
         q: 'What do the difficulty levels affect?',
-        a: 'Difficulty affects AI accuracy, strategic decision-making, and consistency. Beginner AI makes more mistakes, while Expert AI plays near-perfect shots and uses advanced strategy.'
+        a: 'Difficulty affects both player aids and CPU skill. Player aids: Easy gives you a longer aiming arrow (12m) to help visualize your shot, while Medium/Hard have a shorter arrow (5m). CPU changes: Easy AI is 30% less accurate, plays guards only 25% of the time, and makes strategic mistakes 15% of shots. Hard AI is 25% more accurate, plays guards 70% of the time, never makes strategic mistakes, and hits 5% harder on takeouts.'
+      },
+      {
+        q: 'What\'s the difference between Easy, Medium, and Hard?',
+        a: 'Easy: Long aiming arrow, CPU misses more often, plays simpler strategy. Medium: Standard arrow, balanced CPU accuracy and strategy. Hard: Standard arrow, CPU rarely misses, plays aggressive takeouts and smart guards, makes no strategic errors. The CPU also gets progressively better at precision shots (draws, guards) on higher difficulties.'
       },
       {
         q: 'Why do some opponents play aggressively?',
@@ -6906,6 +6932,13 @@ window.setCurl = setCurlDirection;
 
 // Game mode toggle
 window.setGameMode = function(mode) {
+  // Handle online mode - close settings and show multiplayer lobby
+  if (mode === 'online') {
+    window.closeSettings();
+    showMultiplayerLobby();
+    return;
+  }
+
   // Handle learn mode specially - it's a modifier on 1player mode
   if (mode === 'learn') {
     gameState.gameMode = '1player';
@@ -8009,15 +8042,16 @@ function displaySplitTime(time) {
   if (!splitDisplay) return;
 
   // Color based on timing (green=slow/guard, red=fast/hit)
+  // Based on actual game physics: draws ~2s, guards ~2.5s, takeouts ~1.5s
   let color;
-  if (time >= 4.3) {
+  if (time >= 2.3) {
     color = '#34d399';  // Green - guard weight
-  } else if (time >= 3.6) {
+  } else if (time >= 1.8) {
     color = '#fbbf24';  // Yellow - draw weight
-  } else if (time >= 2.9) {
+  } else if (time >= 1.3) {
     color = '#f97316';  // Orange - takeout weight
   } else {
-    color = '#ef4444';  // Red - hit weight
+    color = '#ef4444';  // Red - hit/peel weight
   }
 
   splitDisplay.innerHTML = `<span style="color:${color}">${time.toFixed(1)}s</span> <span style="color:#9ca3af;">T-Time</span>`;
@@ -10079,7 +10113,71 @@ window.openSettings = function() {
         btn1p.style.background = '#333';
       }
     }
+
+    // Show/hide Exit to Menu button based on game mode
+    const exitSection = document.getElementById('exit-to-menu-section');
+    if (exitSection) {
+      // Show for quickplay, practice, learn modes - hide for career and online
+      const showExit = gameState.selectedMode === 'quickplay' ||
+                       gameState.selectedMode === 'practice' ||
+                       gameState.learnMode?.enabled;
+      exitSection.style.display = showExit ? 'block' : 'none';
+    }
+
+    // Update country settings button state
+    updateCountrySettingsButton();
   }
+};
+
+// Update country settings button based on player's progress
+function updateCountrySettingsButton() {
+  const btn = document.getElementById('country-settings-btn');
+  const display = document.getElementById('country-settings-display');
+  const badge = document.getElementById('country-settings-badge');
+
+  if (!btn || !display || !badge) return;
+
+  // Check if player has unlocked country selection
+  const hasUnlocked = seasonState.playerTeam?.countryLocked && seasonState.playerTeam?.country;
+
+  if (hasUnlocked) {
+    // Player has a country - show it
+    const country = seasonState.playerTeam.country;
+    display.innerHTML = `
+      <span style="font-size: 24px;">${country.flag}</span>
+      <span style="font-weight: bold;">${country.name}</span>
+    `;
+    badge.textContent = 'CHANGE';
+    badge.style.background = '#4ade80';
+    badge.style.color = '#000';
+    btn.disabled = false;
+    btn.style.cursor = 'pointer';
+    btn.style.opacity = '1';
+    btn.style.borderColor = '#4ade80';
+    btn.style.color = 'white';
+  } else {
+    // Not yet unlocked
+    display.innerHTML = `
+      <span style="font-size: 24px;">🏳️</span>
+      <span style="font-weight: bold;">Select Country</span>
+    `;
+    badge.textContent = 'REACH NATIONAL';
+    badge.style.background = '#4a5568';
+    badge.style.color = '#a0aec0';
+    btn.disabled = true;
+    btn.style.cursor = 'not-allowed';
+    btn.style.opacity = '0.7';
+    btn.style.borderColor = '#444';
+    btn.style.color = '#666';
+  }
+}
+
+// Open country selection from settings
+window.openCountrySelection = function() {
+  if (!seasonState.playerTeam?.countryLocked) return;
+
+  window.closeSettings();
+  showCountryUnlockScreen();
 };
 
 window.closeSettings = function() {
@@ -10089,6 +10187,50 @@ window.closeSettings = function() {
   }
   // Trigger coach panel/tutorials now that menu is closed
   updateCoachPanel();
+};
+
+// Exit current game and return to mode selection
+window.exitToMenu = function() {
+  // Close settings overlay
+  window.closeSettings();
+
+  // Close pause overlay if open
+  const pauseOverlay = document.getElementById('pause-overlay');
+  if (pauseOverlay) pauseOverlay.style.display = 'none';
+
+  // Hide game canvas
+  const canvas = document.getElementById('game-canvas');
+  if (canvas) canvas.style.display = 'none';
+
+  // Hide game UI
+  const gameUI = document.getElementById('game-ui');
+  if (gameUI) gameUI.style.display = 'none';
+
+  // Hide any game-over overlays
+  const gameOver = document.getElementById('game-over-overlay');
+  if (gameOver) gameOver.style.display = 'none';
+
+  // Hide practice screens
+  const practiceScreen = document.getElementById('practice-drill-screen');
+  if (practiceScreen) practiceScreen.style.display = 'none';
+  const practiceScenario = document.getElementById('practice-scenario-screen');
+  if (practiceScenario) practiceScenario.style.display = 'none';
+
+  // Reset game state
+  gameState.phase = 'setup';
+  gameState.selectedMode = null;
+  gameState.learnMode.enabled = false;
+  gameState.practiceMode = { active: false };
+
+  // Clear any active stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Show mode selection screen
+  showModeSelection();
 };
 
 // ============================================

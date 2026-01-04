@@ -2490,22 +2490,19 @@
               <div style="font-weight: bold;">🎮 Quick Play</div>
               <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Jump into a game at any difficulty level</div>
             </button>
-            <button class="mode-btn" id="mode-online" disabled style="
+            <button class="mode-btn" id="mode-online" onclick="window.setGameMode('online')" style="
               padding: 12px;
-              border: 2px solid #444;
-              background: #252525;
-              color: #666;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
               border-radius: 6px;
-              cursor: not-allowed;
+              cursor: pointer;
               font-size: 14px;
               text-align: left;
-              opacity: 0.7;
+              transition: all 0.2s;
             ">
-              <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: bold;">🌐 Online Multiplayer</span>
-                <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
-              </div>
-              <div style="font-size: 11px; color: #555; margin-top: 4px;">Challenge players worldwide</div>
+              <div style="font-weight: bold;">🌐 Online Multiplayer</div>
+              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Challenge players worldwide</div>
             </button>
           </div>
         </div>
@@ -2831,12 +2828,12 @@
           </div>
         </div>
 
-        <!-- Country Selection (Coming Soon) -->
-        <div style="margin-bottom: 25px;">
+        <!-- Country Selection -->
+        <div id="country-settings-section" style="margin-bottom: 25px;">
           <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
             Your Country
           </label>
-          <button disabled style="
+          <button id="country-settings-btn" onclick="window.openCountrySelection()" style="
             width: 100%;
             padding: 12px;
             border: 2px solid #444;
@@ -2847,13 +2844,13 @@
             font-size: 14px;
             text-align: left;
             opacity: 0.7;
-          ">
+          " disabled>
             <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 10px;">
+              <div id="country-settings-display" style="display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 24px;">🏳️</span>
                 <span style="font-weight: bold;">Select Country</span>
               </div>
-              <span style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">COMING SOON</span>
+              <span id="country-settings-badge" style="font-size: 10px; background: #4a5568; color: #a0aec0; padding: 2px 8px; border-radius: 10px;">REACH NATIONAL</span>
             </div>
             <div style="font-size: 11px; color: #555; margin-top: 4px;">Represent your nation at International level and above</div>
           </button>
@@ -2881,13 +2878,7 @@
             3. Move LEFT/RIGHT to aim<br>
             4. Release to push off from hack<br>
             5. Click to release the stone<br>
-            6. Swipe back and forth to sweep<br>
-            <br>
-            <strong style="color: #fbbf24;">Split Times (T-line to Hog):</strong><br>
-            <span style="color:#34d399">4.3-4.8s Guard</span> |
-            <span style="color:#fbbf24">3.6-4.2s Draw</span><br>
-            <span style="color:#f97316">2.9-3.5s Takeout</span> |
-            <span style="color:#ef4444">2.2-2.8s Peel</span>
+            6. Swipe back and forth to sweep
           </div>
         </div>
 
@@ -3042,6 +3033,25 @@
           </button>
           <p style="margin: 8px 0 0 0; font-size: 11px; color: #718096; text-align: center;">
             Voluntary contribution — no features or gameplay changes
+          </p>
+        </div>
+
+        <!-- Exit to Menu Button (only shown during Quick Play, Practice, Learn modes) -->
+        <div id="exit-to-menu-section" style="margin-bottom: 15px; display: none;">
+          <button id="exit-to-menu-btn" onclick="window.exitToMenu()" style="
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+          ">🚪 Exit to Menu</button>
+          <p style="margin: 6px 0 0 0; font-size: 11px; color: #94a3b8; text-align: center;">
+            Return to mode selection (game will not be saved)
           </p>
         </div>
 
