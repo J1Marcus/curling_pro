@@ -6118,7 +6118,8 @@ function updateSkipSignalArm() {
 
 // Fade skip when stones are nearby to avoid visual overlap
 function updateSkipFade() {
-  if (!gameState.targetMarker || !gameState.targetPosition) return;
+  // Need a target marker to fade
+  if (!gameState.targetMarker) return;
 
   // Don't fade in target view - skip should always be visible from above
   if (gameState.previewHeight > 0.5) {
@@ -6133,8 +6134,18 @@ function updateSkipFade() {
     return;
   }
 
-  const skipWorldPos = gameState.targetMarker.position.clone();
-  skipWorldPos.z += 0.6;  // Skip stands 0.6m behind the broom pad
+  // Get skip position - use targetMarker position or CPU target if available
+  let skipWorldPos;
+  if (gameState.targetPosition) {
+    skipWorldPos = gameState.targetMarker.position.clone();
+    skipWorldPos.z += 0.6;  // Skip stands 0.6m behind the broom pad
+  } else if (gameState.computerShotTarget) {
+    // CPU turn - use computer's target position
+    skipWorldPos = { x: gameState.computerShotTarget.x, z: gameState.computerShotTarget.z + 0.6 };
+  } else {
+    // Default to tee line center
+    skipWorldPos = { x: 0, z: TEE_LINE_FAR + 0.6 };
+  }
 
   // Check distance to all moving stones
   let minDistance = Infinity;
@@ -8707,7 +8718,7 @@ function getComputerShot() {
       shotType = 'draw';
       targetX = 0;
       targetZ = TEE_LINE_FAR;
-      effort = 46 + Math.random() * 6;  // Lighter draw weight
+      effort = 48 + Math.random() * 5;  // Draw weight to tee line
     }
   } else if (playerHasShot && playerPoints >= 2) {
     // Player scoring multiple - aggressive takeout
@@ -8730,7 +8741,7 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 1.5;  // Keep guards more centered
       targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
+      effort = 62 + Math.random() * 5;  // ~62-67% for guard weight
     } else {
       // Standard takeout
       shotType = 'takeout';
@@ -8745,13 +8756,13 @@ function getComputerShot() {
       // Place guard in front of scoring stones
       targetX = houseStonesComputer[0].x * 0.5;
       targetZ = HOG_LINE_FAR + 1.5 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
+      effort = 62 + Math.random() * 5;  // ~62-67% for guard weight
     } else {
       // Draw for more points
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 0.8;
       targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.5;
-      effort = 46 + Math.random() * 6;  // Lighter draw weight
+      effort = 48 + Math.random() * 5;  // Draw weight
     }
   } else if (computerHasShot) {
     // We have shot - protect or add
@@ -8760,7 +8771,7 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = houseStonesComputer[0].x * 0.3 + (Math.random() - 0.5) * 0.8;
       targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
+      effort = 62 + Math.random() * 5;  // ~62-67% for guard weight
     } else {
       // Freeze to our stone
       shotType = 'freeze';
@@ -8775,19 +8786,19 @@ function getComputerShot() {
       shotType = 'guard';
       targetX = (Math.random() - 0.5) * 1.2;  // Keep more centered
       targetZ = HOG_LINE_FAR + 2 + Math.random() * 2;  // Guards go AFTER far hog line
-      effort = 60 + Math.random() * 6;  // ~60-66% for guard weight (more consistent)
+      effort = 62 + Math.random() * 5;  // ~62-67% for guard weight
     } else if (earlyEnd && !hasHammer) {
       // Early without hammer - draw to top of house
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 1;
       targetZ = TEE_LINE_FAR - 1;
-      effort = 50 + Math.random() * 5;  // Lighter draw to top of house
+      effort = 50 + Math.random() * 4;  // Draw to top of house
     } else {
       // Draw to button
       shotType = 'draw';
       targetX = (Math.random() - 0.5) * 0.3;
       targetZ = TEE_LINE_FAR;
-      effort = 46 + Math.random() * 6;  // Lighter draw weight
+      effort = 48 + Math.random() * 5;  // Draw weight to button
     }
   } else if (guardsPlayer.length > 0 && !computerHasShot) {
     // Player has guards blocking - try to peel or come around
@@ -8805,7 +8816,7 @@ function getComputerShot() {
       shotType = 'come-around';
       targetX = targetGuard.x > 0 ? -0.8 : 0.8;
       targetZ = TEE_LINE_FAR;
-      effort = 46 + Math.random() * 5;  // Light come-around weight
+      effort = 48 + Math.random() * 4;  // Come-around weight
     } else if (Math.random() > 0.4) {
       // Peel the guard (FGZ not active or guard not in FGZ)
       shotType = 'peel';
@@ -8817,14 +8828,14 @@ function getComputerShot() {
       shotType = 'come-around';
       targetX = guardsPlayer[0].x > 0 ? -0.8 : 0.8;
       targetZ = TEE_LINE_FAR;
-      effort = 46 + Math.random() * 5;  // Light come-around weight
+      effort = 48 + Math.random() * 4;  // Come-around weight
     }
   } else {
     // Default - draw to button area
     shotType = 'draw';
     targetX = (Math.random() - 0.5) * 0.6;
     targetZ = TEE_LINE_FAR + (Math.random() - 0.5) * 0.8;
-    effort = 46 + Math.random() * 6;  // Lighter draw weight
+    effort = 48 + Math.random() * 5;  // Draw weight
   }
 
   // Easy mode: occasionally make a strategic mistake
@@ -8904,10 +8915,16 @@ function getComputerShot() {
 
   // Guards and draws (low effort) require more precision
   // Skilled AI is more accurate on finesse shots; takeouts are forgiving due to speed
-  if (effort < 65) {
-    const skillFactor = 1 - level.difficulty; // 0.90 for Regional, 0.98 for Olympics
-    // Reduce variance by 30-50% for precision shots based on skill
-    variance = variance * (0.5 + 0.5 * (1 - skillFactor));
+  if (effort < 70) {
+    // For precision shots (draws, guards, freezes), significantly reduce variance
+    // The lower the effort, the more precision is needed
+    const effortFactor = effort / 70;  // 0.65-1.0 range
+    const skillFactor = 1 - level.difficulty; // 0.88 for Club, 0.98 for Olympics
+
+    // Draws and guards need 50-70% less variance than takeouts
+    // Lower effort shots get more variance reduction (draws harder than guards)
+    const precisionBonus = 0.3 + 0.4 * effortFactor;  // 0.3-0.7 multiplier
+    variance = variance * precisionBonus * (0.7 + 0.3 * (1 - skillFactor));
   }
 
   // Apply opponent-specific skill variance (if in tournament with personality)
@@ -8931,7 +8948,15 @@ function getComputerShot() {
 
   // Apply variance
   const accuracyVariance = (Math.random() - 0.5) * variance;
-  const effortVariance = (Math.random() - 0.5) * variance * 15;
+
+  // Effort variance is proportional to base variance but scaled for weight control
+  // Precision shots (draws, guards) should have tighter weight control
+  let effortVarianceMultiplier = 15;
+  if (effort < 70) {
+    // Reduce effort variance for precision shots - CPU throws more consistent weight
+    effortVarianceMultiplier = 8;
+  }
+  const effortVariance = (Math.random() - 0.5) * variance * effortVarianceMultiplier;
 
   const finalEffort = Math.min(100, Math.max(30, effort + effortVariance));  // Min 30% effort
   const finalAimAngle = aimAngle + accuracyVariance;
