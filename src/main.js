@@ -3926,12 +3926,14 @@ scene.background = new THREE.Color(0x0d1117);
 // Add fog for depth
 scene.fog = new THREE.Fog(0x0d1117, 30, 60);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+// Use visualViewport for more reliable aspect ratio on iOS
+const initVP = window.visualViewport || { width: window.innerWidth, height: window.innerHeight };
+const camera = new THREE.PerspectiveCamera(60, initVP.width / initVP.height, 0.1, 100);
 camera.position.set(THROWER_CAM.x, THROWER_CAM.y, THROWER_CAM.z);
 camera.lookAt(THROWER_CAM.lookAt.x, THROWER_CAM.lookAt.y, THROWER_CAM.lookAt.z);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(initVP.width, initVP.height);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
@@ -11925,6 +11927,19 @@ function showClubSelection() {
   populateEmojiCrestGrid();
   updateCrestPreview();
 
+  // Reset team name input
+  const teamNameInput = document.getElementById('team-name-input');
+  if (teamNameInput) {
+    teamNameInput.value = '';
+    teamNameInput.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+    teamNameInput.placeholder = 'Team [Your Name]';
+    // Clear error state on input
+    teamNameInput.oninput = function() {
+      this.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      this.placeholder = 'Team [Your Name]';
+    };
+  }
+
   screen.style.display = 'block';
 }
 
@@ -12088,9 +12103,19 @@ window.startNewCareer = function() {
   const club = CLUB_OPTIONS.find(c => c.id === selectedClubId);
   if (!club) return;
 
-  // Get team name
+  // Get team name (required)
   const teamNameInput = document.getElementById('team-name-input');
-  const teamName = teamNameInput?.value?.trim() || 'Team Player';
+  const teamName = teamNameInput?.value?.trim();
+
+  if (!teamName) {
+    // Highlight the input field and show error
+    if (teamNameInput) {
+      teamNameInput.style.borderColor = '#ef4444';
+      teamNameInput.focus();
+      teamNameInput.placeholder = 'Team name is required';
+    }
+    return;
+  }
 
   // Get custom club name and crest if applicable
   let clubName = club.name;
@@ -14809,12 +14834,36 @@ renderer.domElement.addEventListener('touchend', (e) => {
   }
 });
 
-// Window resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+// Get correct viewport dimensions (handles iOS keyboard bug)
+function getViewportSize() {
+  // Use visualViewport if available (more reliable on iOS)
+  if (window.visualViewport) {
+    return {
+      width: window.visualViewport.width,
+      height: window.visualViewport.height
+    };
+  }
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight
+  };
+}
+
+// Update renderer size
+function updateRendererSize() {
+  const { width, height } = getViewportSize();
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(width, height);
+}
+
+// Window resize
+window.addEventListener('resize', updateRendererSize);
+
+// Visual viewport resize (iOS keyboard handling)
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', updateRendererSize);
+}
 
 // ============================================
 // APP BACKGROUNDING (iOS Lifecycle)
