@@ -848,8 +848,20 @@
         font-family: 'Segoe UI', system-ui, sans-serif;
       ">
         <!-- Header -->
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-          <button onclick="window.showModeSelect()" style="
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button onclick="window.showModeSelect()" style="
+              background: rgba(255, 255, 255, 0.1);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-size: 20px;
+              padding: 8px 12px;
+              cursor: pointer;
+            ">←</button>
+            <h1 style="color: white; font-size: 28px; margin: 0;">Practice Mode</h1>
+          </div>
+          <button onclick="window.openSettings()" style="
             background: rgba(255, 255, 255, 0.1);
             border: none;
             border-radius: 8px;
@@ -857,8 +869,7 @@
             font-size: 20px;
             padding: 8px 12px;
             cursor: pointer;
-          ">←</button>
-          <h1 style="color: white; font-size: 28px; margin: 0;">Practice Mode</h1>
+          ">⚙️</button>
         </div>
 
         <p style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">
@@ -895,8 +906,23 @@
         font-family: 'Segoe UI', system-ui, sans-serif;
       ">
         <!-- Header -->
-        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-          <button onclick="window.showPracticeDrills()" style="
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button onclick="window.showPracticeDrills()" style="
+              background: rgba(255, 255, 255, 0.1);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-size: 20px;
+              padding: 8px 12px;
+              cursor: pointer;
+            ">←</button>
+            <div>
+              <h1 id="scenario-drill-title" style="color: white; font-size: 24px; margin: 0;">Takeouts</h1>
+              <p id="scenario-drill-desc" style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">Remove opponent stones</p>
+            </div>
+          </div>
+          <button onclick="window.openSettings()" style="
             background: rgba(255, 255, 255, 0.1);
             border: none;
             border-radius: 8px;
@@ -904,11 +930,7 @@
             font-size: 20px;
             padding: 8px 12px;
             cursor: pointer;
-          ">←</button>
-          <div>
-            <h1 id="scenario-drill-title" style="color: white; font-size: 24px; margin: 0;">Takeouts</h1>
-            <p id="scenario-drill-desc" style="color: #94a3b8; font-size: 13px; margin: 4px 0 0 0;">Remove opponent stones</p>
-          </div>
+          ">⚙️</button>
         </div>
 
         <!-- Drill Stats -->
