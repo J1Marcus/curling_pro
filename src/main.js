@@ -8954,9 +8954,25 @@ function getComputerShot() {
 }
 
 // Schedule computer shot with retry mechanism to ensure it executes
-// Get CPU delay - reduced when fast forward is held
-function getCpuDelay(normalDelay) {
-  return gameState.cpuFastForward ? Math.floor(normalDelay / 5) : normalDelay;
+// Adaptive delay that responds to fast-forward button in real-time
+// Uses polling to check fast-forward state continuously
+function cpuWait(normalDelay, callback) {
+  const startTime = Date.now();
+  let elapsed = 0;
+
+  const check = () => {
+    // Accumulate time faster when fast-forward is held
+    const increment = gameState.cpuFastForward ? 50 : 10;  // 5x speed when held
+    elapsed += increment;
+
+    if (elapsed >= normalDelay) {
+      callback();
+    } else {
+      setTimeout(check, 10);  // Check every 10ms
+    }
+  };
+
+  setTimeout(check, 10);
 }
 
 function scheduleComputerShot() {
@@ -8993,12 +9009,12 @@ function scheduleComputerShot() {
       console.log('[COMPUTER] Conditions met, executing shot');
       executeComputerShot();
     } else {
-      gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(attempts + 1), getCpuDelay(400));
+      cpuWait(400, () => attemptComputerShot(attempts + 1));
     }
   };
 
   // Initial delay before first attempt
-  gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(), getCpuDelay(800));
+  cpuWait(800, () => attemptComputerShot());
 }
 
 function executeComputerShot() {
@@ -9066,8 +9082,8 @@ function executeComputerShot() {
 
   updateCurlDisplay();
 
-  // Simulate the throw sequence with delays (use getCpuDelay for fast-forward support)
-  setTimeout(() => {
+  // Simulate the throw sequence with adaptive delays (responds to fast-forward in real-time)
+  cpuWait(1500, () => {
     // Start charging phase
     gameState.phase = 'charging';
     gameState.maxPower = shot.effort;
@@ -9087,21 +9103,19 @@ function executeComputerShot() {
 
     updateAimLine(shot.aimAngle);
 
-    setTimeout(() => {
+    cpuWait(1000, () => {
       // Push off
       hideAimLine();
       pushOff();
 
-      setTimeout(() => {
+      cpuWait(800, () => {
         // Release stone
         if (gameState.phase === 'sliding') {
           releaseStone();
         }
-      }, getCpuDelay(800));  // Release timing
-
-    }, getCpuDelay(1000));  // Time before push off
-
-  }, getCpuDelay(1500));  // Initial delay before computer starts
+      });
+    });
+  });
 }
 
 // ============================================
