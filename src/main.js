@@ -10606,13 +10606,21 @@ function loadPracticeScenario(scenario) {
 
   // Reset throwing state
   gameState.stonesThrown = { red: 0, yellow: 0 };
-  gameState.curlDirection = null;
-  gameState.handleAmount = 0;
+  // Use player's remembered curl preference, or default to 1 (curl right)
+  gameState.curlDirection = gameState.playerCurlDirection || 1;
+  gameState.handleAmount = gameState.playerHandleAmount ?? 0;
 
   // Reset camera to target view and lock it so READY button shows
   gameState.previewHeight = 1;
   gameState.previewLocked = true;
   updateReturnButton();
+
+  // Update curl slider to reflect current state
+  const slider = document.getElementById('curl-slider');
+  if (slider) {
+    slider.value = gameState.curlDirection * gameState.handleAmount;
+    updateCurlDisplay();
+  }
 }
 
 // Show practice overlay UI
