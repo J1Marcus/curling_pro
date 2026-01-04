@@ -10769,9 +10769,34 @@ function showPracticeOverlay(scenario) {
   overlay.style.display = 'block';
 }
 
+// Update practice reset button state (grey out in target view before throwing)
+function updatePracticeResetButton() {
+  const btn = document.getElementById('practice-reset-btn');
+  if (!btn || !gameState.practiceMode?.active) return;
+
+  // Disable reset when in target view and no throw has started
+  const inTargetView = gameState.previewHeight > 0.5;
+  const inAiming = gameState.phase === 'aiming';
+  const shouldDisable = inTargetView && inAiming;
+
+  if (shouldDisable) {
+    btn.style.opacity = '0.4';
+    btn.style.cursor = 'not-allowed';
+    btn.disabled = true;
+  } else {
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+    btn.disabled = false;
+  }
+}
+
 // Quick reset practice scenario
 window.practiceQuickReset = function() {
   if (!gameState.practiceMode.active) return;
+
+  // Don't reset if in target view during aiming
+  const btn = document.getElementById('practice-reset-btn');
+  if (btn && btn.disabled) return;
 
   const drillId = gameState.practiceMode.currentDrill;
   const scenarioId = gameState.practiceMode.currentScenario;
@@ -15505,6 +15530,7 @@ function animate() {
     updatePreviewCamera(undefined, undefined, false);  // Continue smooth camera interpolation
     updateReturnButton();  // Update button visibility as camera moves
     updateMarkerHint();    // Update hint visibility as camera moves
+    updatePracticeResetButton();  // Update reset button state in practice mode
     // Update coach target marker animation (learn mode)
     if (gameState.learnMode.enabled && gameState.coachTargetMarker) {
       updateCoachTargetMarker();
