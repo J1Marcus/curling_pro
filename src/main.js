@@ -14364,16 +14364,25 @@ function startNewEnd() {
   }
 
   gameState.phase = 'aiming';
-  gameState.previewHeight = 1;  // Start in target view (like nextTurn)
-  gameState.previewLocked = true;  // Locked in target view
+
+  // Check if it's computer's turn first (for camera view)
+  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+
+  // Set camera view - target view for player, thrower view for computer
+  if (isComputer) {
+    gameState.previewHeight = 0;  // Thrower view for computer
+    gameState.previewLocked = false;
+  } else {
+    gameState.previewHeight = 1;  // Target view for player
+    gameState.previewLocked = true;
+  }
+
   clearTargetMarker();  // Remove target marker
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
   updatePreviewStoneForTeam();  // Update preview stone for current team
 
   // Save progress at start of new end (so resume works correctly)
   saveMatchProgress();
-
-  const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
   let turnText;
   const totalEnds = gameState.settings.gameLength;
 
