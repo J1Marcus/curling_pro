@@ -9133,7 +9133,18 @@ function updatePhysics() {
     return;
   }
 
-  Matter.Engine.update(engine, 1000 / 60);
+  // Fast-forward: run physics multiple times per frame during CPU stone movement
+  const isCpuStoneMoving = gameState.cpuFastForward &&
+                           gameState.gameMode === '1player' &&
+                           gameState.currentTeam === gameState.computerTeam &&
+                           (gameState.phase === 'throwing' || gameState.phase === 'sweeping');
+
+  // Run physics 5x per frame when fast-forwarding CPU stone
+  const physicsIterations = isCpuStoneMoving ? 5 : 1;
+
+  for (let i = 0; i < physicsIterations; i++) {
+    Matter.Engine.update(engine, 1000 / 60);
+  }
 
   // Update sliding phase
   updateSliding();
