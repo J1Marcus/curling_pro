@@ -7880,8 +7880,12 @@ function updateScoreboardVisibility() {
   const saveBtn = document.getElementById('save-scenario-btn');
   const settingsBtn = document.getElementById('settings-btn-top');
 
+  // In practice mode, always hide scoreboard-related elements
+  const inPracticeMode = gameState.practiceMode?.active;
+
   // Keep scoreboard hidden during aiming and charging phases (until thrower releases)
-  const hideScoreboard = gameState.phase === 'aiming' || gameState.phase === 'charging';
+  // Also hide in practice mode entirely
+  const hideScoreboard = inPracticeMode || gameState.phase === 'aiming' || gameState.phase === 'charging';
 
   // Sliding phase includes: sliding, throwing, sweeping
   const isSlidingPhase = gameState.phase === 'sliding' || gameState.phase === 'throwing' || gameState.phase === 'sweeping';
@@ -7894,7 +7898,7 @@ function updateScoreboardVisibility() {
 
   // Save button extra conditions: not in practice mode, not multiplayer, not computer's turn
   const canShowSave = inTargetView &&
-    !gameState.practiceMode?.active &&
+    !inPracticeMode &&
     gameState.selectedMode !== 'online' &&
     !isCpuTurn;
 
@@ -10449,7 +10453,7 @@ window.startPracticeScenario = function(drillId, scenarioId) {
 
   // Start the game
   gameState.phase = 'aiming';
-  updatePreviewStone();
+  updatePreviewStoneForTeam();
 };
 
 // Show custom scenarios list
@@ -10563,7 +10567,7 @@ window.startCustomScenario = function(scenarioId) {
 
   // Start the game
   gameState.phase = 'aiming';
-  updatePreviewStone();
+  updatePreviewStoneForTeam();
 };
 
 // Confirm delete custom scenario
@@ -10635,20 +10639,34 @@ function showPracticeOverlay(scenario) {
         z-index: 150;
         pointer-events: none;
       ">
-        <button id="practice-reset-btn" onclick="window.practiceQuickReset()" style="
-          background: rgba(139, 92, 246, 0.9);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: 600;
-          padding: 10px 16px;
-          cursor: pointer;
-          pointer-events: auto;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        ">↺ RESET</button>
+        <div style="display: flex; gap: 8px; pointer-events: auto;">
+          <button id="practice-reset-btn" onclick="window.practiceQuickReset()" style="
+            background: rgba(139, 92, 246, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          ">↺ RESET</button>
+          <button onclick="window.openSettings()" style="
+            background: rgba(100, 116, 139, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          ">⚙️</button>
+        </div>
 
         <div style="
           background: rgba(0, 0, 0, 0.7);
@@ -10769,7 +10787,7 @@ window.practiceQuickReset = function() {
 
   // Reset game phase
   gameState.phase = 'aiming';
-  updatePreviewStone();
+  updatePreviewStoneForTeam();
 };
 
 // Exit practice mode
