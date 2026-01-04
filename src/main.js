@@ -10630,7 +10630,7 @@ function showPracticeOverlay(scenario) {
         pointer-events: none;
       ">
         <div style="display: flex; gap: 8px; pointer-events: auto;">
-          <button onclick="window.exitPractice()" style="
+          <button onclick="window.backFromPractice()" style="
             background: rgba(100, 116, 139, 0.9);
             border: none;
             border-radius: 8px;
@@ -10639,7 +10639,7 @@ function showPracticeOverlay(scenario) {
             font-weight: 600;
             padding: 10px 12px;
             cursor: pointer;
-          ">🏠</button>
+          ">←</button>
           <button id="practice-reset-btn" onclick="window.practiceQuickReset()" style="
             background: rgba(139, 92, 246, 0.9);
             border: none;
@@ -10793,7 +10793,42 @@ window.practiceQuickReset = function() {
   updatePreviewStoneForTeam();
 };
 
-// Exit practice mode
+// Go back one level from practice gameplay to scenario selection
+window.backFromPractice = function() {
+  gameState.practiceMode.active = false;
+
+  // Hide overlay
+  const overlay = document.getElementById('practice-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Reset curl slider position
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) {
+    curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
+  }
+
+  // Hide game canvas
+  const canvas = document.getElementById('game-canvas');
+  if (canvas) canvas.style.display = 'none';
+
+  // Clear stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(engine.world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Go back to scenario selection for current drill type
+  const drillType = gameState.practiceMode?.currentDrill;
+  if (drillType && drillType !== 'custom') {
+    showPracticeScenarios(drillType);
+  } else {
+    // Fallback to drill selection if custom or no drill type
+    showPracticeDrills();
+  }
+};
+
+// Exit practice mode completely
 window.exitPractice = function() {
   gameState.practiceMode.active = false;
 
