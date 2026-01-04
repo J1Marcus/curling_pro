@@ -378,6 +378,7 @@
               <th>Type</th>
               <th>Message</th>
               <th>Location</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="error-log">
@@ -396,6 +397,7 @@
               <th>Type</th>
               <th>From</th>
               <th>Message</th>
+              <th></th>
             </tr>
           </thead>
           <tbody id="feedback-log">
@@ -696,13 +698,15 @@
           const data = e.event_data || {};
           const location = data.source ? `${data.source}:${data.line || '?'}` : '-';
           const message = (data.message || e.event_name || 'Unknown error').slice(0, 100);
+          const copyText = `${time}    ${e.event_name}    ${message}    ${location}`;
           return `<tr style="color: #fca5a5;">
             <td style="font-size: 12px;">${time}</td>
             <td>${e.event_name}</td>
             <td style="font-size: 12px;">${message}</td>
             <td style="font-size: 12px;">${location}</td>
+            <td><button onclick="navigator.clipboard.writeText('${copyText.replace(/'/g, "\\'")}'); this.textContent='✓'; setTimeout(() => this.textContent='📋', 1000)" style="background: none; border: 1px solid #64748b; border-radius: 4px; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 12px;">📋</button></td>
           </tr>`;
-        }).join('') || '<tr><td colspan="4" style="color: #4ade80;">No errors - all good!</td></tr>';
+        }).join('') || '<tr><td colspan="5" style="color: #4ade80;">No errors - all good!</td></tr>';
         document.getElementById('error-log').innerHTML = errorRows;
 
         // Feedback table
@@ -718,13 +722,15 @@
             const typeLabel = f.type === 'bug' ? '🐛 Bug' : '✨ Feature';
             const from = f.name || f.email || 'Anonymous';
             const message = (f.message || '').slice(0, 150);
+            const copyText = `${time}    ${f.type}    ${from}    ${f.message || ''}`;
             return `<tr>
               <td style="font-size: 12px;">${time}</td>
               <td style="color: ${typeColor};">${typeLabel}</td>
               <td style="font-size: 12px;">${from}${f.email ? '<br><span style="color:#64748b;">' + f.email + '</span>' : ''}</td>
               <td style="font-size: 12px; max-width: 300px; word-wrap: break-word;">${message}</td>
+              <td><button onclick="navigator.clipboard.writeText(\`${copyText.replace(/`/g, '\\`').replace(/\\/g, '\\\\')}\`); this.textContent='✓'; setTimeout(() => this.textContent='📋', 1000)" style="background: none; border: 1px solid #64748b; border-radius: 4px; color: #94a3b8; cursor: pointer; padding: 4px 8px; font-size: 12px;">📋</button></td>
             </tr>`;
-          }).join('') || '<tr><td colspan="4" style="color: #64748b;">No feedback yet</td></tr>';
+          }).join('') || '<tr><td colspan="5" style="color: #64748b;">No feedback yet</td></tr>';
         }
         document.getElementById('feedback-log').innerHTML = feedbackRows;
 
