@@ -10756,6 +10756,12 @@ function showPracticeOverlay(scenario) {
   document.getElementById('practice-successes').textContent = '0';
   document.getElementById('practice-result').style.display = 'none';
 
+  // Move curl slider down to avoid overlapping with practice buttons
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) {
+    curlDisplay.style.top = 'max(70px, calc(env(safe-area-inset-top) + 50px))';
+  }
+
   overlay.style.display = 'block';
 }
 
@@ -10797,6 +10803,12 @@ window.exitPractice = function() {
   // Hide overlay
   const overlay = document.getElementById('practice-overlay');
   if (overlay) overlay.style.display = 'none';
+
+  // Reset curl slider position
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) {
+    curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
+  }
 
   // Clear stones
   for (const stone of gameState.stones) {
