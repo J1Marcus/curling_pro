@@ -5592,6 +5592,24 @@
       z-index: 100;
       display: none;
     " title="Save Scenario">💾</button>
+    <!-- Fast forward button (hold to speed up CPU turn) -->
+    <button id="cpu-fastforward-btn" style="
+      position: fixed;
+      bottom: max(100px, calc(env(safe-area-inset-bottom) + 80px));
+      right: max(20px, env(safe-area-inset-right));
+      padding: 14px 18px;
+      background: rgba(59, 130, 246, 0.8);
+      border: 2px solid #60a5fa;
+      border-radius: 12px;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 100;
+      display: none;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    " title="Hold to Fast Forward">⏩</button>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

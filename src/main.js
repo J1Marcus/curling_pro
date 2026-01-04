@@ -231,6 +231,9 @@ const gameState = {
     quickPlayLevel: 4  // Default to National for quick play
   },
 
+  // CPU fast forward (hold to speed up CPU turn)
+  cpuFastForward: false,
+
   // Career mode
   career: {
     level: 1,  // 1-8
@@ -8951,6 +8954,11 @@ function getComputerShot() {
 }
 
 // Schedule computer shot with retry mechanism to ensure it executes
+// Get CPU delay - reduced when fast forward is held
+function getCpuDelay(normalDelay) {
+  return gameState.cpuFastForward ? Math.floor(normalDelay / 5) : normalDelay;
+}
+
 function scheduleComputerShot() {
   // Cancel any existing scheduled shot
   if (gameState._computerShotTimeout) {
@@ -8985,12 +8993,12 @@ function scheduleComputerShot() {
       console.log('[COMPUTER] Conditions met, executing shot');
       executeComputerShot();
     } else {
-      gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(attempts + 1), 400);
+      gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(attempts + 1), getCpuDelay(400));
     }
   };
 
   // Initial delay before first attempt
-  gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(), 800);
+  gameState._computerShotTimeout = setTimeout(() => attemptComputerShot(), getCpuDelay(800));
 }
 
 function executeComputerShot() {
@@ -9058,7 +9066,7 @@ function executeComputerShot() {
 
   updateCurlDisplay();
 
-  // Simulate the throw sequence with delays
+  // Simulate the throw sequence with delays (use getCpuDelay for fast-forward support)
   setTimeout(() => {
     // Start charging phase
     gameState.phase = 'charging';
@@ -9089,11 +9097,11 @@ function executeComputerShot() {
         if (gameState.phase === 'sliding') {
           releaseStone();
         }
-      }, 800);  // Release timing
+      }, getCpuDelay(800));  // Release timing
 
-    }, 1000);  // Time before push off
+    }, getCpuDelay(1000));  // Time before push off
 
-  }, 1500);  // Initial delay before computer starts
+  }, getCpuDelay(1500));  // Initial delay before computer starts
 }
 
 // ============================================
@@ -9622,6 +9630,9 @@ function nextTurn() {
 
   // Update coach panel for learn mode
   updateCoachPanel();
+
+  // Update fast-forward button visibility
+  updateFastForwardButton();
 }
 
 function calculateScore() {
@@ -13823,6 +13834,9 @@ function startGame() {
 
   // Trigger coach panel/tutorials
   updateCoachPanel();
+
+  // Update fast-forward button visibility
+  updateFastForwardButton();
 }
 
 // Update scoreboard to show flags instead of RED/YELLOW
@@ -15837,6 +15851,60 @@ window.debugWinMatch = function() {
   document.body.appendChild(menu);
   document.body.appendChild(btn);
 })();
+
+// ============================================
+// CPU FAST FORWARD BUTTON
+// ============================================
+
+// Set up fast-forward button event listeners
+(function setupFastForwardButton() {
+  const btn = document.getElementById('cpu-fastforward-btn');
+  if (!btn) return;
+
+  const startFastForward = (e) => {
+    e.preventDefault();
+    gameState.cpuFastForward = true;
+    btn.style.background = 'rgba(34, 197, 94, 0.9)';
+    btn.style.borderColor = '#4ade80';
+    btn.style.transform = 'scale(1.1)';
+  };
+
+  const stopFastForward = (e) => {
+    e.preventDefault();
+    gameState.cpuFastForward = false;
+    btn.style.background = 'rgba(59, 130, 246, 0.8)';
+    btn.style.borderColor = '#60a5fa';
+    btn.style.transform = 'scale(1)';
+  };
+
+  // Mouse events
+  btn.addEventListener('mousedown', startFastForward);
+  btn.addEventListener('mouseup', stopFastForward);
+  btn.addEventListener('mouseleave', stopFastForward);
+
+  // Touch events
+  btn.addEventListener('touchstart', startFastForward, { passive: false });
+  btn.addEventListener('touchend', stopFastForward, { passive: false });
+  btn.addEventListener('touchcancel', stopFastForward, { passive: false });
+})();
+
+// Update fast-forward button visibility based on whether it's CPU's turn
+function updateFastForwardButton() {
+  const btn = document.getElementById('cpu-fastforward-btn');
+  if (!btn) return;
+
+  const isCpuTurn = gameState.gameMode === '1player' &&
+                    gameState.currentTeam === gameState.computerTeam &&
+                    gameState.setupComplete &&
+                    !gameState.practiceMode?.active;
+
+  btn.style.display = isCpuTurn ? 'block' : 'none';
+
+  // Reset state when hiding
+  if (!isCpuTurn) {
+    gameState.cpuFastForward = false;
+  }
+}
 
 // ============================================
 // INITIALIZE
