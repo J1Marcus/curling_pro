@@ -6020,6 +6020,43 @@ function updateSkipSignalArm() {
   }
 }
 
+// Fade skip when stones are nearby to avoid visual overlap
+function updateSkipFade() {
+  if (!gameState.targetMarker || !gameState.targetPosition) return;
+
+  const skipWorldPos = gameState.targetMarker.position.clone();
+  skipWorldPos.z += 0.6;  // Skip stands 0.6m behind the broom pad
+
+  // Check distance to all moving stones
+  let minDistance = Infinity;
+  for (const stone of gameState.stones) {
+    if (stone.outOfPlay) continue;
+    const stonePos = stone.mesh.position;
+    const dx = stonePos.x - skipWorldPos.x;
+    const dz = stonePos.z - skipWorldPos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+    minDistance = Math.min(minDistance, distance);
+  }
+
+  // Fade skip when stone is within 1.5m, fully transparent at 0.3m
+  const fadeStart = 1.5;
+  const fadeEnd = 0.3;
+  let opacity = 1;
+  if (minDistance < fadeStart) {
+    opacity = Math.max(0, (minDistance - fadeEnd) / (fadeStart - fadeEnd));
+  }
+
+  // Apply opacity to skip body parts (not beacon)
+  gameState.targetMarker.traverse((child) => {
+    if (child.isMesh && child.name !== 'beacon' && child.name !== 'curlArrow') {
+      if (child.material) {
+        child.material.transparent = true;
+        child.material.opacity = opacity;
+      }
+    }
+  });
+}
+
 function placeTargetMarker(screenX, screenY) {
   // Prevent player from placing marker during computer's turn
   if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
@@ -15046,6 +15083,9 @@ function animate() {
 
   // Update preview stone visibility based on phase and camera height
   updatePreviewStoneVisibility();
+
+  // Fade skip when stones pass nearby
+  updateSkipFade();
 
   renderer.render(scene, camera);
 }
