@@ -287,6 +287,61 @@
         </table>
       </div>
 
+      <!-- Practice Mode Stats -->
+      <div class="section">
+        <h3 style="color: #a78bfa;">🎯 Practice Mode (Today)</h3>
+        <div class="stats-grid" style="margin-bottom: 0;">
+          <div class="stat-card">
+            <div class="label">Sessions</div>
+            <div class="value" id="practice-sessions" style="color: #a78bfa;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Drills Started</div>
+            <div class="value" id="practice-drills" style="color: #a78bfa;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Drills Completed</div>
+            <div class="value" id="practice-completed" style="color: #a78bfa;">-</div>
+          </div>
+        </div>
+        <table style="margin-top: 15px;">
+          <thead>
+            <tr>
+              <th>Drill Type</th>
+              <th>Attempts</th>
+              <th>Successes</th>
+              <th>Success Rate</th>
+            </tr>
+          </thead>
+          <tbody id="practice-breakdown">
+            <tr><td colspan="4" class="loading">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Learn Mode Stats -->
+      <div class="section">
+        <h3 style="color: #60a5fa;">📚 Learn Mode (Today)</h3>
+        <div class="stats-grid" style="margin-bottom: 0;">
+          <div class="stat-card">
+            <div class="label">Sessions</div>
+            <div class="value" id="learn-sessions" style="color: #60a5fa;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Games Started</div>
+            <div class="value" id="learn-games" style="color: #60a5fa;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Games Completed</div>
+            <div class="value" id="learn-completed" style="color: #60a5fa;">-</div>
+          </div>
+          <div class="stat-card">
+            <div class="label">Tutorials Shown</div>
+            <div class="value" id="learn-tutorials" style="color: #60a5fa;">-</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Errors -->
       <div class="section">
         <h3 style="color: #ef4444;">Errors (Last 24 Hours)</h3>
@@ -545,6 +600,71 @@
           </tr>`;
         }).join('') || '<tr><td colspan="4">No games today</td></tr>';
         document.getElementById('mode-breakdown').innerHTML = modeRows;
+
+        // Practice Mode Stats
+        const practicePageViews = todayEvents.data?.filter(e =>
+          e.event_type === 'page_view' && e.event_name === 'practice_mode'
+        ) || [];
+        const practiceDrillStarts = todayEvents.data?.filter(e =>
+          e.event_type === 'practice_start' ||
+          (e.event_type === 'page_view' && e.event_name?.includes('practice_drill'))
+        ) || [];
+        const practiceDrillCompletes = todayEvents.data?.filter(e =>
+          e.event_type === 'practice_complete'
+        ) || [];
+        const practiceAttempts = todayEvents.data?.filter(e =>
+          e.event_type === 'practice_attempt'
+        ) || [];
+        const practiceSuccesses = todayEvents.data?.filter(e =>
+          e.event_type === 'practice_success'
+        ) || [];
+
+        document.getElementById('practice-sessions').textContent = practicePageViews.length;
+        document.getElementById('practice-drills').textContent = practiceDrillStarts.length || practiceAttempts.length;
+        document.getElementById('practice-completed').textContent = practiceDrillCompletes.length || practiceSuccesses.length;
+
+        // Practice drill breakdown
+        const drillBreakdown = {};
+        practiceAttempts.forEach(e => {
+          const drill = e.event_name || e.event_data?.drill || 'unknown';
+          if (!drillBreakdown[drill]) drillBreakdown[drill] = { attempts: 0, successes: 0 };
+          drillBreakdown[drill].attempts++;
+        });
+        practiceSuccesses.forEach(e => {
+          const drill = e.event_name || e.event_data?.drill || 'unknown';
+          if (!drillBreakdown[drill]) drillBreakdown[drill] = { attempts: 0, successes: 0 };
+          drillBreakdown[drill].successes++;
+        });
+
+        const drillRows = Object.entries(drillBreakdown).map(([drill, data]) => {
+          const rate = data.attempts > 0 ? Math.round(data.successes / data.attempts * 100) : 0;
+          return `<tr>
+            <td style="text-transform: capitalize;">${drill}</td>
+            <td>${data.attempts}</td>
+            <td>${data.successes}</td>
+            <td>${rate}%</td>
+          </tr>`;
+        }).join('') || '<tr><td colspan="4" style="color: #64748b;">No practice data yet</td></tr>';
+        document.getElementById('practice-breakdown').innerHTML = drillRows;
+
+        // Learn Mode Stats
+        const learnPageViews = todayEvents.data?.filter(e =>
+          e.event_type === 'page_view' && e.event_name === 'learn_mode'
+        ) || [];
+        const learnGameStarts = todayEvents.data?.filter(e =>
+          e.event_type === 'game_start' && e.event_data?.learnMode === true
+        ) || [];
+        const learnGameCompletes = todayEvents.data?.filter(e =>
+          e.event_type === 'game_complete' && e.event_data?.learnMode === true
+        ) || [];
+        const tutorialEvents = todayEvents.data?.filter(e =>
+          e.event_type === 'tutorial' || e.event_name?.includes('tutorial')
+        ) || [];
+
+        document.getElementById('learn-sessions').textContent = learnPageViews.length;
+        document.getElementById('learn-games').textContent = learnGameStarts.length;
+        document.getElementById('learn-completed').textContent = learnGameCompletes.length;
+        document.getElementById('learn-tutorials').textContent = tutorialEvents.length;
 
         // Errors table
         const errorRows = recentErrors.data?.map(e => {

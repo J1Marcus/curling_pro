@@ -2610,6 +2610,9 @@ function processPracticeOutcome() {
     practiceStats[drillId].successes++;
     practiceStats[drillId].scenarios[scenarioId].successes++;
 
+    // Track success
+    analytics.trackEvent('practice_success', drillId, { scenario: scenarioId, streak: gameState.practiceMode.currentStreak });
+
     // Check for unlock progression
     checkPracticeUnlocks(drillId);
 
@@ -2618,6 +2621,9 @@ function processPracticeOutcome() {
     soundManager.playCrowdCheer(0.6 + streakBonus);
   } else {
     gameState.practiceMode.currentStreak = 0;
+
+    // Track attempt (failure)
+    analytics.trackEvent('practice_attempt', drillId, { scenario: scenarioId, success: false });
 
     // Sympathetic crowd reaction for miss
     soundManager.playCrowdOoh();
@@ -10603,9 +10609,10 @@ function loadPracticeScenario(scenario) {
   gameState.curlDirection = null;
   gameState.handleAmount = 0;
 
-  // Reset camera to target view
+  // Reset camera to target view and lock it so READY button shows
   gameState.previewHeight = 1;
-  gameState.previewLocked = false;
+  gameState.previewLocked = true;
+  updateReturnButton();
 }
 
 // Show practice overlay UI
