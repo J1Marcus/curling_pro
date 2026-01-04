@@ -8957,13 +8957,19 @@ function getComputerShot() {
 // Adaptive delay that responds to fast-forward button in real-time
 // Uses polling to check fast-forward state continuously
 function cpuWait(normalDelay, callback) {
-  const startTime = Date.now();
   let elapsed = 0;
+  let lastLog = 0;
 
   const check = () => {
     // Accumulate time faster when fast-forward is held
     const increment = gameState.cpuFastForward ? 100 : 10;  // 10x speed when held
     elapsed += increment;
+
+    // Log occasionally when fast-forwarding
+    if (gameState.cpuFastForward && elapsed - lastLog >= 200) {
+      console.log(`[FFW] cpuWait: elapsed=${elapsed}/${normalDelay}, ffw=${gameState.cpuFastForward}`);
+      lastLog = elapsed;
+    }
 
     if (elapsed >= normalDelay) {
       callback();
@@ -9342,6 +9348,9 @@ function updatePhysics() {
         break;
       }
     }
+
+    // Re-check activeStone - it could have been nulled by a collision event during this frame
+    if (!gameState.activeStone) return;
 
     const activeVel = gameState.activeStone.body.velocity;
     const activeSpeed = Math.sqrt(activeVel.x * activeVel.x + activeVel.y * activeVel.y);
@@ -15873,11 +15882,16 @@ window.debugWinMatch = function() {
 // Set up fast-forward button event listeners
 (function setupFastForwardButton() {
   const btn = document.getElementById('cpu-fastforward-btn');
-  if (!btn) return;
+  if (!btn) {
+    console.warn('[FFW] Button not found in DOM');
+    return;
+  }
+  console.log('[FFW] Button found, setting up handlers');
 
   const startFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = true;
+    console.log('[FFW] Fast-forward STARTED');
     btn.style.background = 'rgba(34, 197, 94, 0.9)';
     btn.style.borderColor = '#4ade80';
     btn.style.transform = 'scale(1.1)';
@@ -15886,6 +15900,7 @@ window.debugWinMatch = function() {
   const stopFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = false;
+    console.log('[FFW] Fast-forward STOPPED');
     btn.style.background = 'rgba(59, 130, 246, 0.8)';
     btn.style.borderColor = '#60a5fa';
     btn.style.transform = 'scale(1)';
