@@ -9457,6 +9457,15 @@ function updatePhysics() {
         return;  // Don't proceed to next turn in practice mode
       }
 
+      // Check for mathematical elimination mid-end (mercy rule)
+      if (checkMathematicalElimination()) {
+        console.log(`[MERCY] Triggering mid-end concession`);
+        setTimeout(() => {
+          showGameOverOverlay();
+        }, 1500);
+        return;
+      }
+
       // Show post-shot feedback in learn mode (player's shots only)
       const wasPlayerShot = gameState.gameMode === '1player' &&
         gameState.currentTeam !== gameState.computerTeam;
@@ -14948,6 +14957,42 @@ window.sendFeedback = async function(event) {
   }
 };
 
+// Check if the losing team is mathematically eliminated
+// This considers stones out of play - if the deficit > max possible score, game over
+function checkMathematicalElimination() {
+  // Only check in the last end
+  if (gameState.end !== gameState.settings.gameLength) {
+    return false;
+  }
+
+  // Determine the losing team
+  const redScore = gameState.scores.red;
+  const yellowScore = gameState.scores.yellow;
+
+  if (redScore === yellowScore) {
+    return false;  // Tied, no elimination
+  }
+
+  const losingTeam = redScore < yellowScore ? 'red' : 'yellow';
+  const deficit = Math.abs(redScore - yellowScore);
+
+  // Count losing team's stones that are out of play
+  const losingTeamStonesOut = gameState.stones.filter(
+    s => s.team === losingTeam && s.outOfPlay
+  ).length;
+
+  // Maximum possible score = 8 minus stones out of play
+  const maxPossibleScore = 8 - losingTeamStonesOut;
+
+  // If deficit > max possible score, losing team cannot win
+  if (deficit > maxPossibleScore) {
+    console.log(`[MERCY] ${losingTeam} team eliminated: deficit=${deficit}, stonesOut=${losingTeamStonesOut}, maxScore=${maxPossibleScore}`);
+    return true;
+  }
+
+  return false;
+}
+
 function startNewEnd() {
   // Safety: ensure score overlay is fully hidden
   const scoreOverlay = document.getElementById('score-overlay');
@@ -14985,6 +15030,13 @@ function startNewEnd() {
   if (scoreDifference > maxPossiblePoints) {
     // Game over - impossible to catch up
     console.log(`[MERCY] Game ending early - score difference ${scoreDifference} > max possible ${maxPossiblePoints}`);
+    showGameOverOverlay();
+    return;
+  }
+
+  // Additional mercy check for last end - account for stones out of play
+  if (checkMathematicalElimination()) {
+    console.log(`[MERCY] Losing team mathematically eliminated in last end`);
     showGameOverOverlay();
     return;
   }
