@@ -3507,6 +3507,7 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
   match.status = 'complete';
 
   // Record game in series (for best-of)
+  if (!match.games) match.games = [];
   match.games.push({
     team1Score: match.scores.team1,
     team2Score: match.scores.team2,
