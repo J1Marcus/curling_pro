@@ -3487,77 +3487,97 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
   if (!tournament || !tournament.currentMatchup) return null;
 
   const match = tournament.currentMatchup;
+  let result = { playerWon, tournamentComplete: false, playerEliminated: false };
 
-  // Determine which team the player is
-  const playerIsTeam1 = match.team1 && match.team1.isPlayer;
+  try {
+    // Determine which team the player is
+    const playerIsTeam1 = match.team1 && match.team1.isPlayer;
 
-  // Set scores
-  match.scores = {
-    team1: playerIsTeam1 ? playerScore : opponentScore,
-    team2: playerIsTeam1 ? opponentScore : playerScore
-  };
+    // Set scores
+    match.scores = {
+      team1: playerIsTeam1 ? playerScore : opponentScore,
+      team2: playerIsTeam1 ? opponentScore : playerScore
+    };
 
-  // Set winner
-  if (playerWon) {
-    match.winner = playerIsTeam1 ? 'team1' : 'team2';
-  } else {
-    match.winner = playerIsTeam1 ? 'team2' : 'team1';
-  }
-
-  match.status = 'complete';
-
-  // Record game in series (for best-of)
-  if (!match.games) match.games = [];
-  match.games.push({
-    team1Score: match.scores.team1,
-    team2Score: match.scores.team2,
-    winner: match.winner
-  });
-
-  // Update stats
-  if (playerWon) {
-    seasonState.stats.totalWins++;
-  } else {
-    seasonState.stats.totalLosses++;
-  }
-
-  // Update rivalry history if opponent is a rival
-  const opponent = getCurrentMatchOpponent(tournament);
-  if (opponent && opponent.isRival && opponent.rivalId) {
-    if (!seasonState.rivalryHistory[opponent.rivalId]) {
-      seasonState.rivalryHistory[opponent.rivalId] = { wins: 0, losses: 0, lastMet: null };
-    }
+    // Set winner
     if (playerWon) {
-      seasonState.rivalryHistory[opponent.rivalId].wins++;
+      match.winner = playerIsTeam1 ? 'team1' : 'team2';
     } else {
-      seasonState.rivalryHistory[opponent.rivalId].losses++;
+      match.winner = playerIsTeam1 ? 'team2' : 'team1';
     }
-    seasonState.rivalryHistory[opponent.rivalId].lastMet = Date.now();
+
+    match.status = 'complete';
+
+    // Record game in series (for best-of)
+    if (!match.games) match.games = [];
+    match.games.push({
+      team1Score: match.scores.team1,
+      team2Score: match.scores.team2,
+      winner: match.winner
+    });
+
+    // Save immediately after recording basic match result
+    saveSeasonState();
+
+    // Update stats
+    if (playerWon) {
+      seasonState.stats.totalWins++;
+    } else {
+      seasonState.stats.totalLosses++;
+    }
+
+    // Update rivalry history if opponent is a rival
+    const opponent = getCurrentMatchOpponent(tournament);
+    if (opponent && opponent.isRival && opponent.rivalId) {
+      if (!seasonState.rivalryHistory[opponent.rivalId]) {
+        seasonState.rivalryHistory[opponent.rivalId] = { wins: 0, losses: 0, lastMet: null };
+      }
+      if (playerWon) {
+        seasonState.rivalryHistory[opponent.rivalId].wins++;
+      } else {
+        seasonState.rivalryHistory[opponent.rivalId].losses++;
+      }
+      seasonState.rivalryHistory[opponent.rivalId].lastMet = Date.now();
+    }
+
+    // Advance winner in bracket
+    advanceWinner(tournament.bracket.rounds, match);
+
+    // For page playoff, also advance loser if applicable
+    if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
+      advanceLoser(tournament.bracket.rounds, match);
+    }
+
+    // Simulate any AI vs AI matches that are now ready
+    // This ensures the player's next opponent is determined
+    simulateAIMatches(tournament);
+
+    // Check if player is eliminated or tournament is complete
+    result = checkTournamentStatus(tournament, playerWon);
+
+    if (result.tournamentComplete || result.playerEliminated) {
+      completeTournament(tournament, result);
+    } else {
+      // Find next match for player
+      tournament.currentMatchup = getNextPlayerMatch(tournament);
+    }
+
+    // Final save with all updates
+    saveSeasonState();
+
+  } catch (error) {
+    console.error('[updateBracketWithResult] Error updating bracket:', error);
+    // Try to save whatever state we have
+    try {
+      saveSeasonState();
+    } catch (saveError) {
+      console.error('[updateBracketWithResult] Failed to save state:', saveError);
+    }
+    // Track the error
+    if (typeof trackError === 'function') {
+      trackError('bracket_update_error', error.message, { playerWon, playerScore, opponentScore });
+    }
   }
-
-  // Advance winner in bracket
-  advanceWinner(tournament.bracket.rounds, match);
-
-  // For page playoff, also advance loser if applicable
-  if (tournament.bracket.type === 'page_playoff' && match.loserNextMatchId) {
-    advanceLoser(tournament.bracket.rounds, match);
-  }
-
-  // Simulate any AI vs AI matches that are now ready
-  // This ensures the player's next opponent is determined
-  simulateAIMatches(tournament);
-
-  // Check if player is eliminated or tournament is complete
-  const result = checkTournamentStatus(tournament, playerWon);
-
-  if (result.tournamentComplete || result.playerEliminated) {
-    completeTournament(tournament, result);
-  } else {
-    // Find next match for player
-    tournament.currentMatchup = getNextPlayerMatch(tournament);
-  }
-
-  saveSeasonState();
 
   return result;
 }
