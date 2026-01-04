@@ -15978,10 +15978,18 @@ function updateFastForwardButton() {
                         gameState.selectedMode !== 'online' &&
                         gameState.setupComplete;
 
-  btn.style.display = isStoneMoving ? 'block' : 'none';
+  // Also show during CPU turn phases (aiming, charging, sliding)
+  const isCpuTurnPhase = gameState.gameMode === '1player' &&
+                         gameState.currentTeam === gameState.computerTeam &&
+                         gameState.selectedMode !== 'online' &&
+                         gameState.setupComplete &&
+                         (gameState.phase === 'aiming' || gameState.phase === 'charging' || gameState.phase === 'sliding');
+
+  const shouldShow = isStoneMoving || isCpuTurnPhase;
+  btn.style.display = shouldShow ? 'block' : 'none';
 
   // Reset state when hiding
-  if (!isStoneMoving) {
+  if (!shouldShow) {
     gameState.cpuFastForward = false;
   }
 }
