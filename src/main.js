@@ -15732,7 +15732,6 @@ window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
   updatePreviewStoneForTeam();
 
   // Update turn display
-  const totalEnds = gameState.settings.gameLength || 8;
   document.getElementById('turn').textContent = `End ${totalEnds}/${totalEnds} - Your Turn`;
 
   // Hide mode selection, show game
