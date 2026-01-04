@@ -8572,14 +8572,23 @@ function getComputerShot() {
 
   let shotType, targetX, targetZ, effort, curl;
 
-  // On easy mode, computer plays simpler shots (fewer guards, more draws)
-  const isEasyMode = gameState.settings.difficulty === 'easy';
-  // Use personality-based guard probability if available, otherwise use difficulty-based
-  const guardProbability = personalityMods.guardProbability || (isEasyMode ? 0.3 : 0.6);
+  // Difficulty affects CPU strategic decisions
+  const difficulty = gameState.settings.difficulty;
+  const isEasyMode = difficulty === 'easy';
+  const isHardMode = difficulty === 'hard';
+
+  // Guard probability: Easy plays fewer guards, Hard plays more strategic guards
+  const baseGuardProb = isEasyMode ? 0.25 : (isHardMode ? 0.7 : 0.5);
+  const guardProbability = personalityMods.guardProbability || baseGuardProb;
   const shouldPlayGuard = Math.random() < guardProbability;
 
   // Takeout aggression modifier: scales base effort (1.0 = normal, 1.1 = harder hits)
-  const takeoutAggressionMod = personalityMods.takeoutAggression || 1.0;
+  // Hard mode AI hits harder and more precisely
+  const baseAggression = isHardMode ? 1.05 : 1.0;
+  const takeoutAggressionMod = personalityMods.takeoutAggression || baseAggression;
+
+  // Strategic mistake chance: Easy AI sometimes makes poor shot choices
+  const mistakeChance = isEasyMode ? 0.15 : (isHardMode ? 0 : 0.05);
 
   // Strategic decision making
   if (isLastStone && hasHammer) {
@@ -8715,6 +8724,22 @@ function getComputerShot() {
     effort = 46 + Math.random() * 6;  // Lighter draw weight
   }
 
+  // Easy mode: occasionally make a strategic mistake
+  if (Math.random() < mistakeChance) {
+    console.log('[CPU] Making strategic mistake (easy mode)');
+    // Convert optimal shot to suboptimal
+    if (shotType === 'takeout' && houseStonesPlayer.length > 0) {
+      // Miss the optimal target slightly
+      targetX += (Math.random() - 0.5) * 1.5;
+    } else if (shotType === 'draw') {
+      // Draw too heavy or too light
+      effort += (Math.random() > 0.5 ? 12 : -8);
+    } else if (shotType === 'guard') {
+      // Place guard in less optimal position
+      targetX += (Math.random() - 0.5) * 1.0;
+    }
+  }
+
   // Determine curl direction based on target position and shot type
   if (shotType === 'takeout' || shotType === 'peel') {
     // For takeouts, curl toward the target (stone curves INTO target)
@@ -8758,11 +8783,20 @@ function getComputerShot() {
     hard: 0.006    // ~0.3 degrees aim variance (very precise)
   };
 
-  // Career mode: scale level.difficulty to variance range
+  // Difficulty modifier for CPU accuracy
+  // Easy: CPU is 30% less accurate, Hard: CPU is 25% more accurate
+  const cpuDifficultyMod = {
+    easy: 1.3,    // CPU makes more mistakes
+    medium: 1.0,  // Normal
+    hard: 0.75    // CPU is more precise
+  };
+  const diffMod = cpuDifficultyMod[gameState.settings.difficulty] || 1.0;
+
+  // Career mode: scale level.difficulty to variance range, then apply difficulty modifier
   // Club (0.12) -> 0.025, Olympics (0.02) -> 0.005
   // Quick play: use settings-based variance
   let variance = gameState.gameMode === '1player'
-    ? 0.005 + (level.difficulty / 0.12) * 0.020  // Scale 0.02-0.12 to 0.005-0.025
+    ? (0.005 + (level.difficulty / 0.12) * 0.020) * diffMod  // Apply difficulty modifier
     : (difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium);
 
   // Guards and draws (low effort) require more precision
