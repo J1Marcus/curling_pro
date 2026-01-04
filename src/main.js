@@ -8962,7 +8962,7 @@ function cpuWait(normalDelay, callback) {
 
   const check = () => {
     // Accumulate time faster when fast-forward is held
-    const increment = gameState.cpuFastForward ? 50 : 10;  // 5x speed when held
+    const increment = gameState.cpuFastForward ? 100 : 10;  // 10x speed when held
     elapsed += increment;
 
     if (elapsed >= normalDelay) {
