@@ -10763,7 +10763,7 @@ function showPracticeOverlay(scenario) {
   // Move curl slider down to avoid overlapping with practice buttons
   const curlDisplay = document.getElementById('curl-display');
   if (curlDisplay) {
-    curlDisplay.style.top = 'max(70px, calc(env(safe-area-inset-top) + 50px))';
+    curlDisplay.style.top = 'max(100px, calc(env(safe-area-inset-top) + 80px))';
   }
 
   overlay.style.display = 'block';
