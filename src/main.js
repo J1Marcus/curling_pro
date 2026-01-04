@@ -1849,6 +1849,9 @@ function showTutorial(tutorialId) {
     gameState.learnMode.tutorialPaused = true;
   }
 
+  // Track tutorial shown for analytics
+  analytics.trackEvent('tutorial', tutorialId, { step: tutorial.step, level: gameState.learnMode.level });
+
   return true;
 }
 
@@ -2867,6 +2870,26 @@ function showPracticeResult(success, customMessage = null) {
     iconEl.style.color = '#f87171';
     textEl.textContent = customMessage || 'Try Again';
     textEl.style.color = '#f87171';
+  }
+
+  // Update "Next Shot" button text based on position in category
+  const nextBtn = document.getElementById('practice-next-btn');
+  if (nextBtn) {
+    const drillId = gameState.practiceMode.currentDrill;
+    const scenarioId = gameState.practiceMode.currentScenario;
+
+    if (drillId === 'custom') {
+      // Custom scenarios - hide next button
+      nextBtn.style.display = 'none';
+    } else {
+      nextBtn.style.display = 'inline-block';
+      const scenarios = PRACTICE_SCENARIOS[drillId];
+      if (scenarios && scenarios.length > 0) {
+        const currentIndex = scenarios.findIndex(s => s.id === scenarioId);
+        const isLastShot = currentIndex === scenarios.length - 1;
+        nextBtn.textContent = isLastShot ? 'Choose Drill' : 'Next Shot';
+      }
+    }
   }
 
   resultEl.style.display = 'block';
@@ -6736,10 +6759,10 @@ function releaseStone() {
   document.getElementById('phase-text').style.color = '#4ade80';
   document.getElementById('phase-text').textContent = 'Released!';
 
-  // Hide green beacon parts but keep the skip visible
+  // Hide green beacon and curl arrow but keep the skip visible
   if (gameState.targetMarker) {
     gameState.targetMarker.traverse((child) => {
-      if (child.name === 'beacon') {
+      if (child.name === 'beacon' || child.name === 'curlArrow') {
         child.visible = false;
       }
     });
@@ -6949,6 +6972,8 @@ window.setGameMode = function(mode) {
   if (mode === 'learn') {
     gameState.gameMode = '1player';
     gameState.learnMode.enabled = true;
+    // Track learn mode page view for analytics
+    analytics.trackPageView('learn_mode');
   } else {
     gameState.gameMode = mode;
     gameState.learnMode.enabled = false;
@@ -9857,7 +9882,7 @@ function showGameOverOverlay() {
   const playerScore = userTeam ? gameState.scores[userTeam] : gameState.scores.red;
   const opponentScore = userTeam ? gameState.scores[userTeam === 'red' ? 'yellow' : 'red'] : gameState.scores.yellow;
   const won = userTeam ? (playerScore > opponentScore) : null;
-  analytics.trackGameComplete(gameMode, won, playerScore, opponentScore, gameState.end);
+  analytics.trackGameComplete(gameMode, won, playerScore, opponentScore, gameState.end, gameState.learnMode?.enabled || false);
 
   if (winnerClass !== 'tie') {
     if (gameState.gameMode === '2player') {
@@ -10293,6 +10318,9 @@ window.showPracticeDrills = function() {
   const grid = document.getElementById('practice-drill-grid');
 
   if (!screen || !grid) return;
+
+  // Track practice mode page view for analytics
+  analytics.trackPageView('practice_mode');
 
   // Hide other screens
   document.getElementById('mode-select-screen').style.display = 'none';
@@ -10735,7 +10763,7 @@ function showPracticeOverlay(scenario) {
       ">
         <div id="practice-result-icon" style="font-size: 48px; margin-bottom: 12px;"></div>
         <div id="practice-result-text" style="color: white; font-size: 20px; font-weight: bold; margin-bottom: 16px;"></div>
-        <div style="display: flex; gap: 12px; justify-content: center;">
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
           <button onclick="window.practiceQuickReset()" style="
             background: rgba(139, 92, 246, 0.8);
             border: none;
@@ -10746,6 +10774,16 @@ function showPracticeOverlay(scenario) {
             padding: 10px 20px;
             cursor: pointer;
           ">Try Again</button>
+          <button id="practice-next-btn" onclick="window.nextPracticeShot()" style="
+            background: rgba(74, 222, 128, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+          ">Next Shot</button>
           <button onclick="window.exitPractice()" style="
             background: rgba(100, 116, 139, 0.8);
             border: none;
@@ -10827,6 +10865,62 @@ window.practiceQuickReset = function() {
 
   // Reload scenario
   loadPracticeScenario(scenario);
+
+  // Reset game phase
+  gameState.phase = 'aiming';
+  updatePreviewStoneForTeam();
+};
+
+// Load next shot in the current drill category, or go to drill selection if on last shot
+window.nextPracticeShot = function() {
+  if (!gameState.practiceMode.active) return;
+
+  const drillId = gameState.practiceMode.currentDrill;
+  const scenarioId = gameState.practiceMode.currentScenario;
+
+  // Custom scenarios don't have a "next" - just reset
+  if (drillId === 'custom') {
+    window.practiceQuickReset();
+    return;
+  }
+
+  const scenarios = PRACTICE_SCENARIOS[drillId];
+  if (!scenarios || scenarios.length === 0) return;
+
+  // Find current scenario index
+  const currentIndex = scenarios.findIndex(s => s.id === scenarioId);
+  if (currentIndex === -1) return;
+
+  // Check if on last shot - go to drill selection
+  if (currentIndex === scenarios.length - 1) {
+    window.exitPractice();
+    showPracticeDrills();
+    return;
+  }
+
+  // Get next scenario
+  const nextIndex = currentIndex + 1;
+  const nextScenario = scenarios[nextIndex];
+
+  // Update current scenario tracking
+  gameState.practiceMode.currentScenario = nextScenario.id;
+
+  // Reset attempts and successes for this new scenario
+  gameState.practiceMode.attempts = 0;
+  gameState.practiceMode.successes = 0;
+  gameState.practiceMode.currentStreak = 0;
+
+  // Hide result popup
+  document.getElementById('practice-result').style.display = 'none';
+
+  // Load new scenario
+  loadPracticeScenario(nextScenario);
+
+  // Update overlay UI with new scenario info
+  document.getElementById('practice-scenario-name').textContent = nextScenario.name;
+  document.getElementById('practice-hint-text').textContent = nextScenario.hint;
+  document.getElementById('practice-attempts').textContent = '0';
+  document.getElementById('practice-successes').textContent = '0';
 
   // Reset game phase
   gameState.phase = 'aiming';
@@ -13647,7 +13741,7 @@ function startGame() {
 
   // Track game start
   const gameMode = gameState.selectedMode || 'quickplay';
-  analytics.trackGameStart(gameMode, gameState.settings.difficulty);
+  analytics.trackGameStart(gameMode, gameState.settings.difficulty, gameState.learnMode?.enabled || false);
 
   // Check for saved match progress (crash recovery)
   const savedProgress = loadMatchProgress();
@@ -13923,6 +14017,9 @@ function showFirstRunTutorial(tutorialId) {
   }
 
   overlay.style.display = 'block';
+
+  // Track first-run tutorial shown for analytics
+  analytics.trackEvent('tutorial', tutorialId, { step: tutorial.step, firstRun: true });
 
   return true;
 }
@@ -15558,6 +15655,173 @@ function animate() {
 
   renderer.render(scene, camera);
 }
+
+// ============================================
+// DEBUG/TESTING FUNCTIONS
+// ============================================
+
+// Debug: Set up a match in the last end for testing end-of-match scenarios
+// Usage: In browser console, call: debugLastEnd() or debugLastEnd(5, 4) for custom scores
+window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
+  console.log('[DEBUG] Setting up last end scenario...');
+
+  // Set up career mode
+  gameState.selectedMode = 'career';
+  gameState.gameMode = '1player';
+  gameState.computerTeam = 'yellow';
+
+  // Set to last end
+  const totalEnds = gameState.settings.gameLength || 8;
+  gameState.end = totalEnds;
+
+  // Set scores
+  gameState.scores = { red: playerScore, yellow: opponentScore };
+
+  // Set up end scores history
+  gameState.endScores = [];
+  for (let i = 1; i < totalEnds; i++) {
+    // Distribute scores across previous ends
+    if (i % 2 === 1) {
+      gameState.endScores.push({ red: 1, yellow: 0 });
+    } else {
+      gameState.endScores.push({ red: 0, yellow: 1 });
+    }
+  }
+
+  // Adjust to match target scores
+  const currentRedTotal = gameState.endScores.reduce((sum, e) => sum + e.red, 0);
+  const currentYellowTotal = gameState.endScores.reduce((sum, e) => sum + e.yellow, 0);
+  if (gameState.endScores.length > 0) {
+    gameState.endScores[0].red += (playerScore - currentRedTotal);
+    gameState.endScores[0].yellow += (opponentScore - currentYellowTotal);
+  }
+
+  // Reset stones for this end
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.currentTeam = 'red';
+  gameState.hammer = playerScore <= opponentScore ? 'red' : 'yellow';
+
+  // Clear any existing stones
+  gameState.stones.forEach(stone => {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.World.remove(engine.world, stone.body);
+  });
+  gameState.stones = [];
+
+  // Start the game
+  gameState.setupComplete = true;
+  gameState.phase = 'aiming';
+
+  // Update UI
+  updateScoreDisplay();
+  updateScoreboardFlags();
+  updateTurnDisplay();
+  updateStoneCountDisplay();
+  updatePreviewStoneForTeam();
+
+  // Hide mode selection, show game
+  document.getElementById('mode-select-screen').style.display = 'none';
+  const canvas = document.getElementById('game-canvas');
+  if (canvas) canvas.style.display = 'block';
+
+  console.log(`[DEBUG] Match set up: End ${totalEnds}/${totalEnds}, Score: ${playerScore}-${opponentScore}`);
+  console.log('[DEBUG] Play this end to trigger end-of-match logic');
+};
+
+// Debug: Skip to end of current end (all stones thrown)
+window.debugEndOfEnd = function() {
+  console.log('[DEBUG] Skipping to end of current end...');
+  gameState.stonesThrown = { red: 8, yellow: 8 };
+  gameState.phase = 'scoring';
+  handleEndOfEnd();
+};
+
+// Debug: Simulate winning current match
+window.debugWinMatch = function() {
+  console.log('[DEBUG] Simulating match win...');
+  gameState.scores.red = 10;
+  gameState.scores.yellow = 2;
+  gameState.end = gameState.settings.gameLength || 8;
+  gameState.stonesThrown = { red: 8, yellow: 8 };
+  handleEndOfEnd();
+};
+
+// Debug: Create floating debug button (TEMP - remove for production)
+(function createDebugButton() {
+  const btn = document.createElement('button');
+  btn.id = 'debug-btn';
+  btn.textContent = 'DEBUG';
+  btn.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 99999;
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  `;
+
+  const menu = document.createElement('div');
+  menu.id = 'debug-menu';
+  menu.style.cssText = `
+    position: fixed;
+    bottom: 70px;
+    right: 20px;
+    z-index: 99999;
+    background: #1a1a2e;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    padding: 8px;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  `;
+
+  const options = [
+    { label: 'Last End (5-4)', action: () => window.debugLastEnd(5, 4) },
+    { label: 'Last End (Tied 4-4)', action: () => window.debugLastEnd(4, 4) },
+    { label: 'Last End (Losing 3-5)', action: () => window.debugLastEnd(3, 5) },
+    { label: 'End Current End', action: () => window.debugEndOfEnd() },
+    { label: 'Win Match Now', action: () => window.debugWinMatch() },
+  ];
+
+  options.forEach(opt => {
+    const optBtn = document.createElement('button');
+    optBtn.textContent = opt.label;
+    optBtn.style.cssText = `
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: left;
+      white-space: nowrap;
+    `;
+    optBtn.onmouseover = () => optBtn.style.background = '#444';
+    optBtn.onmouseout = () => optBtn.style.background = '#333';
+    optBtn.onclick = () => {
+      opt.action();
+      menu.style.display = 'none';
+    };
+    menu.appendChild(optBtn);
+  });
+
+  btn.onclick = () => {
+    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+  };
+
+  document.body.appendChild(menu);
+  document.body.appendChild(btn);
+})();
 
 // ============================================
 // INITIALIZE

@@ -239,18 +239,19 @@ export function trackButtonClick(buttonName) {
 }
 
 // Track game start
-export function trackGameStart(gameMode, difficulty = null) {
-  return trackEvent('game_start', gameMode, { difficulty });
+export function trackGameStart(gameMode, difficulty = null, learnMode = false) {
+  return trackEvent('game_start', gameMode, { difficulty, learnMode });
 }
 
 // Track game complete
-export function trackGameComplete(gameMode, won, playerScore, opponentScore, endsPlayed) {
+export function trackGameComplete(gameMode, won, playerScore, opponentScore, endsPlayed, learnMode = false) {
   trackEvent('game_complete', gameMode, {
     won,
     playerScore,
     opponentScore,
     endsPlayed,
-    scoreDiff: playerScore - opponentScore
+    scoreDiff: playerScore - opponentScore,
+    learnMode
   });
 }
 
