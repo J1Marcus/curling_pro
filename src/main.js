@@ -10118,16 +10118,6 @@ window.openSettings = function() {
       }
     }
 
-    // Show/hide Exit to Menu button based on game mode
-    const exitSection = document.getElementById('exit-to-menu-section');
-    if (exitSection) {
-      // Show for quickplay, practice, learn modes - hide for career and online
-      const showExit = gameState.selectedMode === 'quickplay' ||
-                       gameState.selectedMode === 'practice' ||
-                       gameState.learnMode?.enabled;
-      exitSection.style.display = showExit ? 'block' : 'none';
-    }
-
     // Update country settings button state
     updateCountrySettingsButton();
   }
@@ -10640,6 +10630,16 @@ function showPracticeOverlay(scenario) {
         pointer-events: none;
       ">
         <div style="display: flex; gap: 8px; pointer-events: auto;">
+          <button onclick="window.exitPractice()" style="
+            background: rgba(100, 116, 139, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 12px;
+            cursor: pointer;
+          ">🏠</button>
           <button id="practice-reset-btn" onclick="window.practiceQuickReset()" style="
             background: rgba(139, 92, 246, 0.9);
             border: none;
@@ -10660,11 +10660,8 @@ function showPracticeOverlay(scenario) {
             color: white;
             font-size: 14px;
             font-weight: 600;
-            padding: 10px 16px;
+            padding: 10px 12px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 6px;
           ">⚙️</button>
         </div>
 
