@@ -10341,11 +10341,25 @@ function showModeSelection() {
   if (screen) {
     screen.style.display = 'block';
   }
+  // Show fixed footer
+  const footer = document.getElementById('mode-select-footer');
+  if (footer) {
+    footer.style.display = 'flex';
+  }
+}
+
+// Hide mode selection footer (call when leaving mode select screen)
+function hideModeSelectFooter() {
+  const footer = document.getElementById('mode-select-footer');
+  if (footer) {
+    footer.style.display = 'none';
+  }
 }
 
 // Handle mode selection
 window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
+  hideModeSelectFooter();
   gameState.gameMode = '1player';
   gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice vs online)
 
@@ -11066,6 +11080,7 @@ window.exitPractice = function() {
 
 async function showMultiplayerLobby() {
   document.getElementById('mode-select-screen').style.display = 'none';
+  hideModeSelectFooter();
   document.getElementById('multiplayer-lobby-screen').style.display = 'block';
 
   // Clear any previous error
@@ -12193,6 +12208,8 @@ window.showModeSelect = function() {
 
   // Show mode select
   document.getElementById('mode-select-screen').style.display = 'block';
+  const footer = document.getElementById('mode-select-footer');
+  if (footer) footer.style.display = 'flex';
 };
 
 // Show difficulty selection screen
@@ -12205,7 +12222,17 @@ function showDifficultySelection() {
 
 // Handle difficulty selection
 window.selectDifficulty = function(difficulty) {
-  gameState.settings.difficulty = difficulty;
+  // Handle Learn mode as a special difficulty
+  if (difficulty === 'learn') {
+    gameState.learnMode.enabled = true;
+    gameState.learnMode.level = 1;  // Start at beginner level
+    gameState.settings.difficulty = 'easy';  // Base difficulty is easy
+    analytics.trackPageView('learn_mode');
+  } else {
+    gameState.learnMode.enabled = false;
+    gameState.settings.difficulty = difficulty;
+  }
+
   document.getElementById('difficulty-select-screen').style.display = 'none';
 
   // Quick Play: show level selection (Club, Nationals, etc.)
@@ -12728,6 +12755,7 @@ window.showSeasonOverview = function() {
 
   // Hide all other screens
   document.getElementById('mode-select-screen').style.display = 'none';
+  hideModeSelectFooter();
   document.getElementById('tournament-entry-screen').style.display = 'none';
   document.getElementById('bracket-screen').style.display = 'none';
   document.getElementById('pre-match-screen').style.display = 'none';
@@ -15855,6 +15883,7 @@ window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
 
   // Hide mode selection, show game
   document.getElementById('mode-select-screen').style.display = 'none';
+  hideModeSelectFooter();
   const canvas = document.getElementById('game-canvas');
   if (canvas) canvas.style.display = 'block';
 
@@ -16050,6 +16079,14 @@ setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
+
+  // Inject version info
+  const versionEl = document.getElementById('app-version-text');
+  if (versionEl && typeof __APP_VERSION__ !== 'undefined') {
+    const version = __APP_VERSION__;
+    const buildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '';
+    versionEl.textContent = `Curling Pro v${version}${buildDate ? ` (${buildDate})` : ''} | Made with ❤️ for curlers everywhere`;
+  }
 
   // Go to mode selection
   showModeSelection();
