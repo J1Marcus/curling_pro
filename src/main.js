@@ -5826,13 +5826,13 @@ function createTargetMarker() {
   // TALL BEACON for visibility from throwing view
   const group = new THREE.Group();
 
-  // Materials
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });  // Dark jacket
-  const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8 });  // Dark pants
-  const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xe0b090, roughness: 0.6 });  // Skin tone
-  const broomMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5 });  // Dark gray handle
-  const padMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green broom pad (unlit for visibility)
-  const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green beacon (unlit)
+  // Materials (transparent: true enables opacity fading when stones pass nearby)
+  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, transparent: true });  // Dark jacket
+  const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, transparent: true });  // Dark pants
+  const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xe0b090, roughness: 0.6, transparent: true });  // Skin tone
+  const broomMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, transparent: true });  // Dark gray handle
+  const padMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true });  // Bright green broom pad (unlit for visibility)
+  const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green beacon (unlit) - not faded
 
   // Skip body offset behind the target point (broom pad is at 0,0)
   const skipZ = 0.6;  // Skip stands behind the broom pad
