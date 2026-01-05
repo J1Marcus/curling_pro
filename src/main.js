@@ -191,6 +191,8 @@ const gameState = {
   splitTime: null,
 
   // Physics timing instrumentation (for tuning)
+  // gameTime tracks simulated time (unaffected by fast-forward)
+  gameTime: 0,
   nearHogCrossTime: null,
   farHogCrossTime: null,
   stoneStopTime: null,
@@ -9162,6 +9164,8 @@ function updatePhysics() {
 
   for (let i = 0; i < physicsIterations; i++) {
     Matter.Engine.update(engine, 1000 / 60);
+    // Track simulated game time (unaffected by fast-forward for accurate timing display)
+    gameState.gameTime += 1000 / 60;
   }
 
   // Update sliding phase
@@ -9223,15 +9227,15 @@ function updatePhysics() {
   if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
 
-    // Track near hog line crossing
+    // Track near hog line crossing (use gameTime for accurate display during fast-forward)
     if (!gameState.nearHogCrossTime && stoneZ >= HOG_LINE_NEAR) {
-      gameState.nearHogCrossTime = Date.now();
+      gameState.nearHogCrossTime = gameState.gameTime;
       console.log(`[TIMING] Near hog crossed at ${stoneZ.toFixed(2)}m`);
     }
 
     // Track far hog line crossing
     if (gameState.nearHogCrossTime && !gameState.farHogCrossTime && stoneZ >= HOG_LINE_FAR) {
-      gameState.farHogCrossTime = Date.now();
+      gameState.farHogCrossTime = gameState.gameTime;
       const hogToHog = (gameState.farHogCrossTime - gameState.nearHogCrossTime) / 1000;
       const vel = gameState.activeStone.body.velocity;
       const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -9387,9 +9391,9 @@ function updatePhysics() {
 
     // Only end turn when ALL stones have stopped
     if (activeSpeed < 0.1 && !anyStoneMoving) {
-      // Log physics timing when stone stops
+      // Log physics timing when stone stops (use gameTime for accurate display during fast-forward)
       if (gameState.farHogCrossTime && !gameState.stoneStopTime) {
-        gameState.stoneStopTime = Date.now();
+        gameState.stoneStopTime = gameState.gameTime;
         const hogToHog = (gameState.farHogCrossTime - gameState.nearHogCrossTime) / 1000;
         const hogToRest = (gameState.stoneStopTime - gameState.farHogCrossTime) / 1000;
         const totalTime = (gameState.stoneStopTime - gameState.nearHogCrossTime) / 1000;
