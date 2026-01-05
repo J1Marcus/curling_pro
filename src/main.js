@@ -16074,6 +16074,25 @@ updatePreviewStoneRotation();
 
 // Hide splash screen and start game after minimum display time
 updateLoadingProgress(100, 'Ready!');
+
+// Inject version info immediately (before splash hides)
+if (typeof __APP_VERSION__ !== 'undefined') {
+  const version = __APP_VERSION__;
+  const buildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '';
+
+  // Update splash screen version
+  const splashVersionEl = document.getElementById('splash-version');
+  if (splashVersionEl) {
+    splashVersionEl.textContent = `v${version}`;
+  }
+
+  // Update about screen version
+  const aboutVersionEl = document.getElementById('app-version-text');
+  if (aboutVersionEl) {
+    aboutVersionEl.textContent = `Curling Pro v${version}${buildDate ? ` (${buildDate})` : ''} | Made with ❤️ for curlers everywhere`;
+  }
+}
+
 const splashMinTime = 2000;  // Minimum 2 seconds splash display
 const loadEndTime = Date.now();
 const elapsed = loadEndTime - (window.splashStartTime || loadEndTime);
@@ -16083,14 +16102,6 @@ setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
-
-  // Inject version info
-  const versionEl = document.getElementById('app-version-text');
-  if (versionEl && typeof __APP_VERSION__ !== 'undefined') {
-    const version = __APP_VERSION__;
-    const buildDate = typeof __BUILD_DATE__ !== 'undefined' ? __BUILD_DATE__ : '';
-    versionEl.textContent = `Curling Pro v${version}${buildDate ? ` (${buildDate})` : ''} | Made with ❤️ for curlers everywhere`;
-  }
 
   // Go to mode selection
   showModeSelection();
