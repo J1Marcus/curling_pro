@@ -6739,6 +6739,15 @@ function hogViolation() {
 
   // Show violation message briefly then handle next action
   setTimeout(() => {
+    // Interactive tutorial: let user try again
+    if (gameState.interactiveTutorialMode) {
+      document.getElementById('phase-text').textContent = 'Try again!';
+      gameState.phase = 'aiming';
+      gameState.stonesThrown[gameState.currentTeam]--;  // Don't count this attempt
+      updateStoneCountDisplay();
+      return;
+    }
+
     // Practice mode: show result and allow retry
     if (gameState.practiceMode.active) {
       showPracticeResult(false, 'Hog Line Violation!');
