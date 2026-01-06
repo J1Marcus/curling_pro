@@ -1858,12 +1858,12 @@ function showTutorial(tutorialId) {
 window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
-  const nextBtn = document.getElementById('tutorial-next-btn');
+  const continueBtn = document.getElementById('tutorial-continue-btn');
 
   // Check if this is the interactive tutorial mode
   if (gameState.interactiveTutorialMode) {
-    // Check if this is the "Continue" button after completing an action
-    if (nextBtn && nextBtn.textContent === 'Continue') {
+    // Check if the standalone continue button is visible
+    if (continueBtn && continueBtn.style.display !== 'none') {
       continueTutorial();
     } else {
       dismissInteractiveTutorialStep();
@@ -14548,44 +14548,45 @@ function onTutorialActionComplete(action) {
 
 // Show a continue button after user completes an action
 function showTutorialContinueButton() {
-  const overlay = document.getElementById('tutorial-overlay');
-  const popup = document.getElementById('tutorial-popup');
-  const icon = document.getElementById('tutorial-icon');
-  const title = document.getElementById('tutorial-title');
-  const stepEl = document.getElementById('tutorial-step');
-  const text = document.getElementById('tutorial-text');
-  const hintDiv = document.getElementById('tutorial-hint');
-  const nextBtn = document.getElementById('tutorial-next-btn');
+  // Create or get the standalone continue button
+  let continueBtn = document.getElementById('tutorial-continue-btn');
+  if (!continueBtn) {
+    continueBtn = document.createElement('button');
+    continueBtn.id = 'tutorial-continue-btn';
+    continueBtn.textContent = 'Continue';
+    continueBtn.onclick = () => window.dismissTutorial();
+    continueBtn.style.cssText = `
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 12px 32px;
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1001;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    `;
+    document.body.appendChild(continueBtn);
+  }
+  continueBtn.style.display = 'block';
+}
 
-  if (!overlay) return;
-
-  // Show success message
-  icon.textContent = '✓';
-  title.textContent = 'Great!';
-  stepEl.textContent = '';
-  text.textContent = '';
-  hintDiv.style.display = 'none';
-
-  // Show continue button
-  nextBtn.style.display = 'block';
-  nextBtn.textContent = 'Continue';
-
-  // Position at bottom so user can still see and adjust marker
-  popup.style.top = 'auto';
-  popup.style.bottom = '20px';
-  popup.style.transform = 'translateX(-50%)';
-  overlay.style.background = 'transparent';
-  overlay.style.pointerEvents = 'none';
-  popup.style.pointerEvents = 'auto';
-
-  overlay.style.display = 'block';
+// Hide the standalone continue button
+function hideTutorialContinueButton() {
+  const continueBtn = document.getElementById('tutorial-continue-btn');
+  if (continueBtn) {
+    continueBtn.style.display = 'none';
+  }
 }
 
 // Called when user clicks Continue after completing an action
 function continueTutorial() {
-  const overlay = document.getElementById('tutorial-overlay');
-  if (overlay) overlay.style.display = 'none';
-
+  hideTutorialContinueButton();
   showInteractiveTutorialStep();
 }
 
@@ -14618,6 +14619,8 @@ function dismissInteractiveTutorialStep() {
 
 // Finish interactive tutorial
 function finishInteractiveTutorial() {
+  hideTutorialContinueButton();
+
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
 
