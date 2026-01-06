@@ -10353,12 +10353,19 @@ window.exitToMenu = function() {
 function showModeSelection() {
   // Force hide tutorial overlay
   const tutorialOverlay = document.getElementById('tutorial-overlay');
-  if (tutorialOverlay) tutorialOverlay.style.display = 'none';
+  if (tutorialOverlay) {
+    tutorialOverlay.style.display = 'none';
+    tutorialOverlay.style.visibility = 'hidden';
+    tutorialOverlay.style.opacity = '0';
+    tutorialOverlay.style.pointerEvents = 'none';
+  }
 
   const screen = document.getElementById('mode-select-screen');
-  alert('screen found: ' + !!screen + ', tutorialOverlay hidden: ' + (tutorialOverlay ? tutorialOverlay.style.display : 'not found'));
   if (screen) {
     screen.style.display = 'block';
+    screen.style.visibility = 'visible';
+    screen.style.opacity = '1';
+    screen.style.zIndex = '9999';
   }
   // Show fixed footer
   const footer = document.getElementById('mode-select-footer');
