@@ -14372,8 +14372,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     id: 'throw',
     icon: '💪',
     title: 'Throw the Stone',
-    text: `Double-tap to return to the throwing view. Then TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
-    hint: 'Double-tap, then drag down and release to throw.',
+    text: `Tap READY to go to the throwing view. Then TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
+    hint: 'Tap READY, then drag down and release to throw.',
     action: 'throw',  // Wait for user to throw
     step: 4,
     total: 5
