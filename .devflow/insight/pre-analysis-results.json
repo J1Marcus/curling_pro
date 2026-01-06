@@ -1,0 +1,3649 @@
+{
+  "projectPath": "/Users/Jonathan/Desktop/Curling Pro",
+  "manifest": {
+    "totalFiles": 104,
+    "skipList": [
+      "/Users/Jonathan/Desktop/Curling Pro/.env",
+      "/Users/Jonathan/Desktop/Curling Pro/.env.example",
+      "/Users/Jonathan/Desktop/Curling Pro/admin.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_2025_email.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_wound_care_email.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/appointment_confirmation.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/index.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/.DS_Store",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj/LaunchScreen.storyboard",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj/Main.storyboard",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Info.plist",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/config.xml",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/admin.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/curlingpro.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/icon-192.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/icon-512.png",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/index.html",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/vite.svg",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.pbxproj",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/Jonathan.xcuserdatad/UserInterfaceState.xcuserstate",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/xcuserdata/Jonathan.xcuserdatad/xcschemes/xcschememanagement.plist",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/CordovaPluginsResources.podspec",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/resources/.gitkeep",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/sources/.gitkeep",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/debug.xcconfig",
+      "/Users/Jonathan/Desktop/Curling Pro/package-lock.json",
+      "/Users/Jonathan/Desktop/Curling Pro/public/curlingpro.png",
+      "/Users/Jonathan/Desktop/Curling Pro/public/icon-192.png",
+      "/Users/Jonathan/Desktop/Curling Pro/public/icon-512.png",
+      "/Users/Jonathan/Desktop/Curling Pro/public/vite.svg",
+      "/Users/Jonathan/Desktop/Curling Pro/src/javascript.svg",
+      "/Users/Jonathan/Desktop/Curling Pro/src/style.css",
+      "/Users/Jonathan/Desktop/Curling Pro/supabase_schema.sql"
+    ],
+    "priorityList": [
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/main-DKjfIAjm.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift",
+      "/Users/Jonathan/Desktop/Curling Pro/public/sw.js",
+      "/Users/Jonathan/Desktop/Curling Pro/server.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/counter.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js"
+    ],
+    "lowPriorityList": [
+      "/Users/Jonathan/Desktop/Curling Pro/.gitignore",
+      "/Users/Jonathan/Desktop/Curling Pro/BACKEND_REQUIREMENTS.md",
+      "/Users/Jonathan/Desktop/Curling Pro/FUTURE_IDEAS.md",
+      "/Users/Jonathan/Desktop/Curling Pro/MULTIPLAYER_PLAN.md",
+      "/Users/Jonathan/Desktop/Curling Pro/README.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/add.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/design_blueprint.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/prd.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/project_charter.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/wbs.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/source_docs/source_doc.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows/feature_workflow.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows/user_workflow.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_2025_fact_sheet.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_fact_sheet.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_level1.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_wound_care_level1.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/GENAI_LAUNCHPAD_GUIDE.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/hetzner_setup.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/tasks/task_list.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/SCOPE.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/branch_subagent_instructions.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/discovery_template.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/phase_subagent_Instructions.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/prompt_template.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/quick_tasks.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/quick_tasks_outcome.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/specs_template.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/task_subagent_instructions.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/workflow_template.md",
+      "/Users/Jonathan/Desktop/Curling Pro/capacitor.config.json",
+      "/Users/Jonathan/Desktop/Curling Pro/curling-game-planning.md",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/.gitignore",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Contents.json",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/Contents.json",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/capacitor.config.json",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/manifest.json",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/.gitignore",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/README.md",
+      "/Users/Jonathan/Desktop/Curling Pro/package.json",
+      "/Users/Jonathan/Desktop/Curling Pro/public/manifest.json",
+      "/Users/Jonathan/Desktop/Curling Pro/vercel.json",
+      "/Users/Jonathan/Desktop/Curling Pro/vite.config.js"
+    ],
+    "files": [
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/.env",
+        "extension": "",
+        "size": 463,
+        "mtime": "2026-01-01T23:22:31.187Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/.env.example",
+        "extension": ".example",
+        "size": 265,
+        "mtime": "2026-01-01T23:22:17.272Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/.gitignore",
+        "extension": "",
+        "size": 314,
+        "mtime": "2026-01-05T03:30:06.231Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^\\..*ignore$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/BACKEND_REQUIREMENTS.md",
+        "extension": ".md",
+        "size": 16884,
+        "mtime": "2025-12-28T21:53:35.741Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/FUTURE_IDEAS.md",
+        "extension": ".md",
+        "size": 7352,
+        "mtime": "2026-01-03T14:57:09.239Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/MULTIPLAYER_PLAN.md",
+        "extension": ".md",
+        "size": 6784,
+        "mtime": "2026-01-01T23:12:18.100Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/README.md",
+        "extension": ".md",
+        "size": 2629,
+        "mtime": "2025-12-26T13:41:51.614Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^README"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/admin.html",
+        "extension": ".html",
+        "size": 29419,
+        "mtime": "2026-01-04T17:02:13.218Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2025-12-30T15:01:47.022Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2025-12-30T15:01:47.022Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/add.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/design_blueprint.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/prd.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/project_charter.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs/wbs.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/project_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/source_docs/source_doc.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/source_docs",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows/feature_workflow.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows/user_workflow.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:46.998Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/context/workflows",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2025-12-30T15:01:47.024Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_2025_email.html",
+        "extension": ".html",
+        "size": 29786,
+        "mtime": "2025-12-30T15:01:47.024Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_2025_fact_sheet.md",
+        "extension": ".md",
+        "size": 6666,
+        "mtime": "2025-12-30T15:01:47.024Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_fact_sheet.md",
+        "extension": ".md",
+        "size": 6678,
+        "mtime": "2025-12-30T15:01:47.024Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_real_estate_level1.md",
+        "extension": ".md",
+        "size": 12280,
+        "mtime": "2025-12-30T15:01:47.024Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_wound_care_email.html",
+        "extension": ".html",
+        "size": 17667,
+        "mtime": "2025-12-30T15:01:47.025Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/ai_use_cases_wound_care_level1.md",
+        "extension": ".md",
+        "size": 15731,
+        "mtime": "2025-12-30T15:01:47.025Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples/appointment_confirmation.html",
+        "extension": ".html",
+        "size": 12900,
+        "mtime": "2025-12-30T15:01:47.025Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/examples",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2025-12-30T15:01:47.025Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/GENAI_LAUNCHPAD_GUIDE.md",
+        "extension": ".md",
+        "size": 53177,
+        "mtime": "2025-12-30T15:01:47.025Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides/hetzner_setup.md",
+        "extension": ".md",
+        "size": 9207,
+        "mtime": "2025-12-30T15:01:47.026Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/guides",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/tasks/task_list.md",
+        "extension": ".md",
+        "size": 0,
+        "mtime": "2025-12-30T15:01:47.001Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/tasks",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2025-12-30T15:01:47.026Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/SCOPE.md",
+        "extension": ".md",
+        "size": 6759,
+        "mtime": "2025-12-30T15:01:47.026Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/branch_subagent_instructions.md",
+        "extension": ".md",
+        "size": 7428,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/discovery_template.md",
+        "extension": ".md",
+        "size": 4262,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/phase_subagent_Instructions.md",
+        "extension": ".md",
+        "size": 4055,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/prompt_template.md",
+        "extension": ".md",
+        "size": 9397,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/quick_tasks.md",
+        "extension": ".md",
+        "size": 46107,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/quick_tasks_outcome.md",
+        "extension": ".md",
+        "size": 1169,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/specs_template.md",
+        "extension": ".md",
+        "size": 3917,
+        "mtime": "2025-12-30T15:01:47.027Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/task_subagent_instructions.md",
+        "extension": ".md",
+        "size": 3418,
+        "mtime": "2025-12-30T15:01:47.028Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates/workflow_template.md",
+        "extension": ".md",
+        "size": 7048,
+        "mtime": "2025-12-30T15:01:47.028Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ai_docs/templates",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/capacitor.config.json",
+        "extension": ".json",
+        "size": 84,
+        "mtime": "2026-01-04T14:22:48.215Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/curling-game-planning.md",
+        "extension": ".md",
+        "size": 7730,
+        "mtime": "2025-12-25T22:19:29.957Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: \\.md$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/index.html",
+        "extension": ".html",
+        "size": 207074,
+        "mtime": "2026-01-05T03:40:55.989Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/.gitignore",
+        "extension": "",
+        "size": 206,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^\\..*ignore$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/.DS_Store",
+        "extension": "",
+        "size": 6148,
+        "mtime": "2026-01-04T20:54:05.595Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift",
+        "extension": ".swift",
+        "size": 3031,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+        "extension": ".png",
+        "size": 110522,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset/Contents.json",
+        "extension": ".json",
+        "size": 218,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/AppIcon.appiconset",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Contents.json",
+        "extension": ".json",
+        "size": 62,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/Contents.json",
+        "extension": ".json",
+        "size": 403,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-1.png",
+        "extension": ".png",
+        "size": 41273,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732-2.png",
+        "extension": ".png",
+        "size": 41273,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+        "extension": ".png",
+        "size": 41273,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Assets.xcassets/Splash.imageset",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj/LaunchScreen.storyboard",
+        "extension": ".storyboard",
+        "size": 1994,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj/Main.storyboard",
+        "extension": ".storyboard",
+        "size": 1019,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Base.lproj",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/Info.plist",
+        "extension": ".plist",
+        "size": 1683,
+        "mtime": "2026-01-04T14:23:30.679Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/capacitor.config.json",
+        "extension": ".json",
+        "size": 106,
+        "mtime": "2026-01-04T20:53:31.872Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/config.xml",
+        "extension": ".xml",
+        "size": 185,
+        "mtime": "2026-01-04T20:53:31.862Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/admin.html",
+        "extension": ".html",
+        "size": 13282,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js",
+        "extension": ".js",
+        "size": 9771,
+        "mtime": "2026-01-04T20:53:31.849Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/main-DKjfIAjm.js",
+        "extension": ".js",
+        "size": 1086588,
+        "mtime": "2026-01-04T20:53:31.850Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js",
+        "extension": ".js",
+        "size": 711,
+        "mtime": "2026-01-04T20:53:31.849Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js",
+        "extension": ".js",
+        "size": 0,
+        "mtime": "2026-01-04T20:53:31.862Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js",
+        "extension": ".js",
+        "size": 0,
+        "mtime": "2026-01-04T20:53:31.862Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/curlingpro.png",
+        "extension": ".png",
+        "size": 1341782,
+        "mtime": "2026-01-04T20:53:31.849Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/icon-192.png",
+        "extension": ".png",
+        "size": 49737,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/icon-512.png",
+        "extension": ".png",
+        "size": 319164,
+        "mtime": "2026-01-04T20:53:31.849Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/index.html",
+        "extension": ".html",
+        "size": 207171,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/manifest.json",
+        "extension": ".json",
+        "size": 622,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js",
+        "extension": ".js",
+        "size": 2144,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/vite.svg",
+        "extension": ".svg",
+        "size": 1497,
+        "mtime": "2026-01-04T20:53:31.848Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.pbxproj",
+        "extension": ".pbxproj",
+        "size": 14557,
+        "mtime": "2026-01-04T21:29:13.282Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+        "extension": ".plist",
+        "size": 238,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+        "extension": ".resolved",
+        "size": 408,
+        "mtime": "2026-01-04T21:26:25.374Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcshareddata/swiftpm",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/Jonathan.xcuserdatad/UserInterfaceState.xcuserstate",
+        "extension": ".xcuserstate",
+        "size": 10217,
+        "mtime": "2026-01-04T21:29:27.394Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/Jonathan.xcuserdatad",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/xcuserdata/Jonathan.xcuserdatad/xcschemes/xcschememanagement.plist",
+        "extension": ".plist",
+        "size": 338,
+        "mtime": "2026-01-04T21:26:20.158Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App.xcodeproj/xcuserdata/Jonathan.xcuserdatad/xcschemes",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/.gitignore",
+        "extension": "",
+        "size": 165,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^\\..*ignore$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift",
+        "extension": ".swift",
+        "size": 698,
+        "mtime": "2026-01-04T20:53:31.864Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/README.md",
+        "extension": ".md",
+        "size": 157,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^README"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift",
+        "extension": ".swift",
+        "size": 33,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/CordovaPluginsResources.podspec",
+        "extension": ".podspec",
+        "size": 379,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/resources/.gitkeep",
+        "extension": "",
+        "size": 1,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/resources",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/sources/.gitkeep",
+        "extension": "",
+        "size": 1,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios/capacitor-cordova-ios-plugins/sources",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/ios/debug.xcconfig",
+        "extension": ".xcconfig",
+        "size": 23,
+        "mtime": "2025-12-08T18:02:47.000Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/ios",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/package-lock.json",
+        "extension": ".json",
+        "size": 119373,
+        "mtime": "2026-01-05T03:42:16.296Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: ^package-lock\\.json$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/package.json",
+        "extension": ".json",
+        "size": 590,
+        "mtime": "2026-01-05T03:42:16.294Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/curlingpro.png",
+        "extension": ".png",
+        "size": 1341782,
+        "mtime": "2025-12-26T02:57:21.694Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/icon-192.png",
+        "extension": ".png",
+        "size": 49737,
+        "mtime": "2025-12-29T04:03:01.082Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/icon-512.png",
+        "extension": ".png",
+        "size": 319164,
+        "mtime": "2025-12-29T04:03:01.122Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/manifest.json",
+        "extension": ".json",
+        "size": 622,
+        "mtime": "2025-12-29T04:03:30.323Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/sw.js",
+        "extension": ".js",
+        "size": 2144,
+        "mtime": "2026-01-04T20:48:43.925Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/public/vite.svg",
+        "extension": ".svg",
+        "size": 1497,
+        "mtime": "2025-12-25T22:15:23.536Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/public",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/server.js",
+        "extension": ".js",
+        "size": 2308,
+        "mtime": "2025-12-26T03:26:09.317Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "high",
+        "priorityReason": "Matches high-value pattern: \\.(ts|tsx|js|jsx|py|go|rs|rb|java|kt|swift)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+        "extension": ".js",
+        "size": 10091,
+        "mtime": "2026-01-04T15:34:24.285Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "high",
+        "priorityReason": "Source file in high-value directory"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/counter.js",
+        "extension": ".js",
+        "size": 247,
+        "mtime": "2025-12-25T22:15:23.537Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "high",
+        "priorityReason": "Source file in high-value directory"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/javascript.svg",
+        "extension": ".svg",
+        "size": 995,
+        "mtime": "2025-12-25T22:15:23.538Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "skip",
+        "priorityReason": "Matches skip pattern: \\.(png|jpg|jpeg|gif|ico|svg|webp|bmp|tiff)$"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+        "extension": ".js",
+        "size": 580725,
+        "mtime": "2026-01-05T03:41:17.470Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "high",
+        "priorityReason": "Source file in high-value directory"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+        "extension": ".js",
+        "size": 31151,
+        "mtime": "2026-01-02T16:18:27.612Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "high",
+        "priorityReason": "Source file in high-value directory"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+        "extension": ".js",
+        "size": 23121,
+        "mtime": "2026-01-01T22:51:59.079Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "high",
+        "priorityReason": "Source file in high-value directory"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/src/style.css",
+        "extension": ".css",
+        "size": 1523,
+        "mtime": "2025-12-25T22:15:23.540Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro/src",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/supabase_schema.sql",
+        "extension": ".sql",
+        "size": 10730,
+        "mtime": "2026-01-03T13:30:56.856Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "skip",
+        "priorityReason": "Non-source file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/vercel.json",
+        "extension": ".json",
+        "size": 90,
+        "mtime": "2025-12-29T04:11:38.443Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Config file"
+      },
+      {
+        "path": "/Users/Jonathan/Desktop/Curling Pro/vite.config.js",
+        "extension": ".js",
+        "size": 585,
+        "mtime": "2026-01-04T20:39:45.042Z",
+        "directory": "/Users/Jonathan/Desktop/Curling Pro",
+        "priority": "low",
+        "priorityReason": "Matches low-value pattern: ^vite\\.config"
+      }
+    ],
+    "languages": [
+      "javascript"
+    ],
+    "frameworks": [
+      "express"
+    ],
+    "surveyDurationMs": 12
+  },
+  "fingerprints": [
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift",
+      "extension": ".swift",
+      "language": "swift",
+      "linesAnalyzed": 50,
+      "totalLines": 50,
+      "imports": [
+        {
+          "type": "import",
+          "source": "UIKit",
+          "names": [
+            "UIKit"
+          ],
+          "line": 1
+        },
+        {
+          "type": "import",
+          "source": "Capacitor",
+          "names": [
+            "Capacitor"
+          ],
+          "line": 2
+        }
+      ],
+      "exports": [
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "AppDelegate",
+            "applicationWillResignActive",
+            "applicationDidEnterBackground",
+            "applicationWillEnterForeground",
+            "applicationDidBecomeActive",
+            "applicationWillTerminate"
+          ],
+          "line": 1
+        }
+      ],
+      "symbols": [
+        {
+          "type": "class",
+          "name": "AppDelegate",
+          "line": 5,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillResignActive",
+          "line": 14,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationDidEnterBackground",
+          "line": 19,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillEnterForeground",
+          "line": 24,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationDidBecomeActive",
+          "line": 28,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillTerminate",
+          "line": 32,
+          "exported": true
+        }
+      ],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 8
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 32,
+      "totalLines": 32,
+      "imports": [],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 12
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 2,
+      "totalLines": 2,
+      "imports": [],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [
+        "integration"
+      ],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 6
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 1,
+      "totalLines": 1,
+      "imports": [],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 4
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 1,
+      "totalLines": 1,
+      "imports": [],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 5
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 80,
+      "totalLines": 80,
+      "imports": [],
+      "exports": [],
+      "symbols": [
+        {
+          "type": "const",
+          "name": "CACHE_NAME",
+          "line": 2,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ASSETS_TO_CACHE",
+          "line": 3,
+          "exported": false
+        }
+      ],
+      "stubs": [],
+      "docstring": "Curling Pro Service Worker",
+      "completenessScore": 100,
+      "categoryHints": [
+        "integration"
+      ],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 10
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift",
+      "extension": ".swift",
+      "language": "swift",
+      "linesAnalyzed": 26,
+      "totalLines": 26,
+      "imports": [
+        {
+          "type": "import",
+          "source": "PackageDescription",
+          "names": [
+            "PackageDescription"
+          ],
+          "line": 2
+        }
+      ],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "docstring": "swift-tools-version: 5.9",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 9
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift",
+      "extension": ".swift",
+      "language": "swift",
+      "linesAnalyzed": 2,
+      "totalLines": 2,
+      "imports": [],
+      "exports": [],
+      "symbols": [],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 12
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/public/sw.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 80,
+      "totalLines": 80,
+      "imports": [],
+      "exports": [],
+      "symbols": [
+        {
+          "type": "const",
+          "name": "CACHE_NAME",
+          "line": 2,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ASSETS_TO_CACHE",
+          "line": 3,
+          "exported": false
+        }
+      ],
+      "stubs": [],
+      "docstring": "Curling Pro Service Worker",
+      "completenessScore": 100,
+      "categoryHints": [
+        "integration"
+      ],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 11
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/server.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 86,
+      "totalLines": 86,
+      "imports": [
+        {
+          "type": "import",
+          "source": "express",
+          "names": [],
+          "defaultName": "express",
+          "line": 1
+        },
+        {
+          "type": "import",
+          "source": "node-mailjet",
+          "names": [],
+          "defaultName": "Mailjet",
+          "line": 2
+        },
+        {
+          "type": "import",
+          "source": "vite",
+          "names": [
+            "createViteServer"
+          ],
+          "line": 3
+        },
+        {
+          "type": "import",
+          "source": "dotenv",
+          "names": [],
+          "defaultName": "dotenv",
+          "line": 4
+        }
+      ],
+      "exports": [],
+      "symbols": [
+        {
+          "type": "const",
+          "name": "app",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "mailjet",
+          "line": 12,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "startServer",
+          "line": 71,
+          "exported": false
+        }
+      ],
+      "stubs": [],
+      "docstring": "Mailjet client - will use env vars",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 14
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 100,
+      "totalLines": 354,
+      "imports": [
+        {
+          "type": "import",
+          "source": "@supabase/supabase-js",
+          "names": [
+            "createClient"
+          ],
+          "line": 5
+        }
+      ],
+      "exports": [
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "startSession"
+          ],
+          "line": 71
+        }
+      ],
+      "symbols": [
+        {
+          "type": "const",
+          "name": "supabaseUrl",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabaseAnonKey",
+          "line": 9,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabase",
+          "line": 11,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionId",
+          "line": 24,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionStartTime",
+          "line": 25,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "lastActivityTime",
+          "line": 26,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "activityUpdateInterval",
+          "line": 27,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionReadyPromise",
+          "line": 28,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionReadyResolve",
+          "line": 29,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "generateSessionId",
+          "line": 32,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "getDeviceInfo",
+          "line": 37,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "startSession",
+          "line": 71,
+          "exported": true
+        }
+      ],
+      "stubs": [],
+      "docstring": "============================================",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 13
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/src/counter.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 10,
+      "totalLines": 10,
+      "imports": [],
+      "exports": [
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "setupCounter"
+          ],
+          "line": 1
+        }
+      ],
+      "symbols": [
+        {
+          "type": "function",
+          "name": "setupCounter",
+          "line": 1,
+          "exported": true
+        }
+      ],
+      "stubs": [],
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 13
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 100,
+      "totalLines": 16109,
+      "imports": [
+        {
+          "type": "import",
+          "source": "three",
+          "names": [],
+          "defaultName": "THREE",
+          "line": 1
+        },
+        {
+          "type": "import",
+          "source": "matter-js",
+          "names": [],
+          "defaultName": "Matter",
+          "line": 2
+        },
+        {
+          "type": "import",
+          "source": "./sounds.js",
+          "names": [
+            "soundManager"
+          ],
+          "line": 3
+        },
+        {
+          "type": "import",
+          "source": "./multiplayer.js",
+          "names": [],
+          "defaultName": "multiplayer",
+          "line": 4
+        },
+        {
+          "type": "import",
+          "source": "./analytics.js",
+          "names": [],
+          "defaultName": "analytics",
+          "line": 5
+        }
+      ],
+      "exports": [],
+      "symbols": [
+        {
+          "type": "function",
+          "name": "updateLoadingProgress",
+          "line": 12,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "hideSplashScreen",
+          "line": 19,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHEET_LENGTH",
+          "line": 35,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHEET_WIDTH",
+          "line": 36,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_12FT",
+          "line": 39,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_8FT",
+          "line": 40,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_4FT",
+          "line": 41,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BUTTON_RADIUS",
+          "line": 42,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HACK_Z",
+          "line": 45,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BACK_LINE_NEAR",
+          "line": 46,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "TEE_LINE_NEAR",
+          "line": 47,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_NEAR",
+          "line": 48,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_FAR",
+          "line": 49,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "TEE_LINE_FAR",
+          "line": 50,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BACK_LINE_FAR",
+          "line": 51,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "OUT_OF_PLAY_Z",
+          "line": 52,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "STONE_RADIUS",
+          "line": 55,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "STONE_MASS",
+          "line": 56,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "PHYSICS_SCALE",
+          "line": 59,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ICE_FRICTION",
+          "line": 64,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SWEEP_FRICTION",
+          "line": 65,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MIN_SLIDE_SPEED",
+          "line": 69,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MAX_SLIDE_SPEED",
+          "line": 70,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "THROWER_CAM",
+          "line": 73,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "OVERHEAD_CAM",
+          "line": 74,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_Y",
+          "line": 77,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "FAR_HOG_LINE_Y",
+          "line": 78,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOUSE_CENTER_Y",
+          "line": 79,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "PHYSICS_TIMESTEP",
+          "line": 82,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MAX_PHYSICS_STEPS",
+          "line": 83,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "physicsAccumulator",
+          "line": 84,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "lastPhysicsTime",
+          "line": 85,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHOT_TYPES",
+          "line": 88,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "CURL_PHYSICS",
+          "line": 99,
+          "exported": false
+        }
+      ],
+      "stubs": [],
+      "docstring": "============================================",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [
+        "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js"
+      ],
+      "fingerprintDurationMs": 15
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 100,
+      "totalLines": 1137,
+      "imports": [
+        {
+          "type": "import",
+          "source": "@supabase/supabase-js",
+          "names": [
+            "createClient"
+          ],
+          "line": 5
+        }
+      ],
+      "exports": [
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "multiplayerState"
+          ],
+          "line": 20
+        },
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "isMultiplayerAvailable"
+          ],
+          "line": 80
+        },
+        {
+          "type": "export",
+          "source": "",
+          "names": [
+            "createGame"
+          ],
+          "line": 88
+        }
+      ],
+      "symbols": [
+        {
+          "type": "const",
+          "name": "supabaseUrl",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabaseAnonKey",
+          "line": 9,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabase",
+          "line": 11,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "multiplayerState",
+          "line": 20,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "generateRoomCode",
+          "line": 66,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "isMultiplayerAvailable",
+          "line": 80,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "createGame",
+          "line": 88,
+          "exported": true
+        }
+      ],
+      "stubs": [],
+      "docstring": "============================================",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 14
+    },
+    {
+      "path": "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+      "extension": ".js",
+      "language": "javascript",
+      "linesAnalyzed": 100,
+      "totalLines": 764,
+      "imports": [],
+      "exports": [],
+      "symbols": [
+        {
+          "type": "class",
+          "name": "SoundManager",
+          "line": 5,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "constructor",
+          "line": 6,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "init",
+          "line": 19,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "setEnabled",
+          "line": 28,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "stopAllSounds",
+          "line": 41,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "playThrow",
+          "line": 50,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "playRelease",
+          "line": 73,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "startSliding",
+          "line": 99,
+          "exported": false
+        }
+      ],
+      "stubs": [],
+      "docstring": "============================================",
+      "completenessScore": 100,
+      "categoryHints": [],
+      "relatedFiles": [],
+      "fingerprintDurationMs": 14
+    }
+  ],
+  "clusters": [
+    {
+      "id": "cluster-0-1767645283297",
+      "name": "Multiplayer",
+      "slug": "multiplayer",
+      "description": "Infrastructure utility with 5 files and 62 symbols",
+      "category": "infrastructure",
+      "domain": "curling-pro",
+      "primaryDirectory": "src",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+        "/Users/Jonathan/Desktop/Curling Pro/src/counter.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 100,
+          "totalLines": 354,
+          "imports": [
+            {
+              "type": "import",
+              "source": "@supabase/supabase-js",
+              "names": [
+                "createClient"
+              ],
+              "line": 5
+            }
+          ],
+          "exports": [
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "startSession"
+              ],
+              "line": 71
+            }
+          ],
+          "symbols": [
+            {
+              "type": "const",
+              "name": "supabaseUrl",
+              "line": 8,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "supabaseAnonKey",
+              "line": 9,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "supabase",
+              "line": 11,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "sessionId",
+              "line": 24,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "sessionStartTime",
+              "line": 25,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "lastActivityTime",
+              "line": 26,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "activityUpdateInterval",
+              "line": 27,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "sessionReadyPromise",
+              "line": 28,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "sessionReadyResolve",
+              "line": 29,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "generateSessionId",
+              "line": 32,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "getDeviceInfo",
+              "line": 37,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "startSession",
+              "line": 71,
+              "exported": true
+            }
+          ],
+          "stubs": [],
+          "docstring": "============================================",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 13
+        },
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 100,
+          "totalLines": 16109,
+          "imports": [
+            {
+              "type": "import",
+              "source": "three",
+              "names": [],
+              "defaultName": "THREE",
+              "line": 1
+            },
+            {
+              "type": "import",
+              "source": "matter-js",
+              "names": [],
+              "defaultName": "Matter",
+              "line": 2
+            },
+            {
+              "type": "import",
+              "source": "./sounds.js",
+              "names": [
+                "soundManager"
+              ],
+              "line": 3
+            },
+            {
+              "type": "import",
+              "source": "./multiplayer.js",
+              "names": [],
+              "defaultName": "multiplayer",
+              "line": 4
+            },
+            {
+              "type": "import",
+              "source": "./analytics.js",
+              "names": [],
+              "defaultName": "analytics",
+              "line": 5
+            }
+          ],
+          "exports": [],
+          "symbols": [
+            {
+              "type": "function",
+              "name": "updateLoadingProgress",
+              "line": 12,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "hideSplashScreen",
+              "line": 19,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "SHEET_LENGTH",
+              "line": 35,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "SHEET_WIDTH",
+              "line": 36,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "RING_12FT",
+              "line": 39,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "RING_8FT",
+              "line": 40,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "RING_4FT",
+              "line": 41,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "BUTTON_RADIUS",
+              "line": 42,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "HACK_Z",
+              "line": 45,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "BACK_LINE_NEAR",
+              "line": 46,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "TEE_LINE_NEAR",
+              "line": 47,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "HOG_LINE_NEAR",
+              "line": 48,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "HOG_LINE_FAR",
+              "line": 49,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "TEE_LINE_FAR",
+              "line": 50,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "BACK_LINE_FAR",
+              "line": 51,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "OUT_OF_PLAY_Z",
+              "line": 52,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "STONE_RADIUS",
+              "line": 55,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "STONE_MASS",
+              "line": 56,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "PHYSICS_SCALE",
+              "line": 59,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "ICE_FRICTION",
+              "line": 64,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "SWEEP_FRICTION",
+              "line": 65,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "MIN_SLIDE_SPEED",
+              "line": 69,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "MAX_SLIDE_SPEED",
+              "line": 70,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "THROWER_CAM",
+              "line": 73,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "OVERHEAD_CAM",
+              "line": 74,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "HOG_LINE_Y",
+              "line": 77,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "FAR_HOG_LINE_Y",
+              "line": 78,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "HOUSE_CENTER_Y",
+              "line": 79,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "PHYSICS_TIMESTEP",
+              "line": 82,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "MAX_PHYSICS_STEPS",
+              "line": 83,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "physicsAccumulator",
+              "line": 84,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "lastPhysicsTime",
+              "line": 85,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "SHOT_TYPES",
+              "line": 88,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "CURL_PHYSICS",
+              "line": 99,
+              "exported": false
+            }
+          ],
+          "stubs": [],
+          "docstring": "============================================",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [
+            "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+            "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+            "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js"
+          ],
+          "fingerprintDurationMs": 15
+        },
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 100,
+          "totalLines": 1137,
+          "imports": [
+            {
+              "type": "import",
+              "source": "@supabase/supabase-js",
+              "names": [
+                "createClient"
+              ],
+              "line": 5
+            }
+          ],
+          "exports": [
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "multiplayerState"
+              ],
+              "line": 20
+            },
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "isMultiplayerAvailable"
+              ],
+              "line": 80
+            },
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "createGame"
+              ],
+              "line": 88
+            }
+          ],
+          "symbols": [
+            {
+              "type": "const",
+              "name": "supabaseUrl",
+              "line": 8,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "supabaseAnonKey",
+              "line": 9,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "supabase",
+              "line": 11,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "multiplayerState",
+              "line": 20,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "generateRoomCode",
+              "line": 66,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "isMultiplayerAvailable",
+              "line": 80,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "createGame",
+              "line": 88,
+              "exported": true
+            }
+          ],
+          "stubs": [],
+          "docstring": "============================================",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 14
+        },
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 100,
+          "totalLines": 764,
+          "imports": [],
+          "exports": [],
+          "symbols": [
+            {
+              "type": "class",
+              "name": "SoundManager",
+              "line": 5,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "constructor",
+              "line": 6,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "init",
+              "line": 19,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "setEnabled",
+              "line": 28,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "stopAllSounds",
+              "line": 41,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "playThrow",
+              "line": 50,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "playRelease",
+              "line": 73,
+              "exported": false
+            },
+            {
+              "type": "method",
+              "name": "startSliding",
+              "line": 99,
+              "exported": false
+            }
+          ],
+          "stubs": [],
+          "docstring": "============================================",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 14
+        },
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/src/counter.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 10,
+          "totalLines": 10,
+          "imports": [],
+          "exports": [
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "setupCounter"
+              ],
+              "line": 1
+            }
+          ],
+          "symbols": [
+            {
+              "type": "function",
+              "name": "setupCounter",
+              "line": 1,
+              "exported": true
+            }
+          ],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 13
+        }
+      ],
+      "clusteringMethod": "merged",
+      "confidence": "high",
+      "confidenceScore": 89,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [
+        {
+          "type": "const",
+          "name": "supabaseUrl",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabaseAnonKey",
+          "line": 9,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabase",
+          "line": 11,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionId",
+          "line": 24,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionStartTime",
+          "line": 25,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "lastActivityTime",
+          "line": 26,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "activityUpdateInterval",
+          "line": 27,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionReadyPromise",
+          "line": 28,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "sessionReadyResolve",
+          "line": 29,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "generateSessionId",
+          "line": 32,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "getDeviceInfo",
+          "line": 37,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "startSession",
+          "line": 71,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "updateLoadingProgress",
+          "line": 12,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "hideSplashScreen",
+          "line": 19,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHEET_LENGTH",
+          "line": 35,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHEET_WIDTH",
+          "line": 36,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_12FT",
+          "line": 39,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_8FT",
+          "line": 40,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "RING_4FT",
+          "line": 41,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BUTTON_RADIUS",
+          "line": 42,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HACK_Z",
+          "line": 45,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BACK_LINE_NEAR",
+          "line": 46,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "TEE_LINE_NEAR",
+          "line": 47,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_NEAR",
+          "line": 48,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_FAR",
+          "line": 49,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "TEE_LINE_FAR",
+          "line": 50,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "BACK_LINE_FAR",
+          "line": 51,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "OUT_OF_PLAY_Z",
+          "line": 52,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "STONE_RADIUS",
+          "line": 55,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "STONE_MASS",
+          "line": 56,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "PHYSICS_SCALE",
+          "line": 59,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ICE_FRICTION",
+          "line": 64,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SWEEP_FRICTION",
+          "line": 65,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MIN_SLIDE_SPEED",
+          "line": 69,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MAX_SLIDE_SPEED",
+          "line": 70,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "THROWER_CAM",
+          "line": 73,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "OVERHEAD_CAM",
+          "line": 74,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOG_LINE_Y",
+          "line": 77,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "FAR_HOG_LINE_Y",
+          "line": 78,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "HOUSE_CENTER_Y",
+          "line": 79,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "PHYSICS_TIMESTEP",
+          "line": 82,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "MAX_PHYSICS_STEPS",
+          "line": 83,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "physicsAccumulator",
+          "line": 84,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "lastPhysicsTime",
+          "line": 85,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "SHOT_TYPES",
+          "line": 88,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "CURL_PHYSICS",
+          "line": 99,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabaseUrl",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabaseAnonKey",
+          "line": 9,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "supabase",
+          "line": 11,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "multiplayerState",
+          "line": 20,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "generateRoomCode",
+          "line": 66,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "isMultiplayerAvailable",
+          "line": 80,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "createGame",
+          "line": 88,
+          "exported": true
+        },
+        {
+          "type": "class",
+          "name": "SoundManager",
+          "line": 5,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "constructor",
+          "line": 6,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "init",
+          "line": 19,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "setEnabled",
+          "line": 28,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "stopAllSounds",
+          "line": 41,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "playThrow",
+          "line": 50,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "playRelease",
+          "line": 73,
+          "exported": false
+        },
+        {
+          "type": "method",
+          "name": "startSliding",
+          "line": 99,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "setupCounter",
+          "line": 1,
+          "exported": true
+        }
+      ],
+      "dependencies": [],
+      "inferredCapabilities": [
+        "Start Session",
+        "Is Multiplayer Available",
+        "Create Game",
+        "Setup Counter"
+      ]
+    },
+    {
+      "id": "cluster-1-1767645283297",
+      "name": "Appdelegate",
+      "slug": "appdelegate",
+      "description": "Infrastructure utility with 1 file and 6 symbols",
+      "category": "infrastructure",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift",
+          "extension": ".swift",
+          "language": "swift",
+          "linesAnalyzed": 50,
+          "totalLines": 50,
+          "imports": [
+            {
+              "type": "import",
+              "source": "UIKit",
+              "names": [
+                "UIKit"
+              ],
+              "line": 1
+            },
+            {
+              "type": "import",
+              "source": "Capacitor",
+              "names": [
+                "Capacitor"
+              ],
+              "line": 2
+            }
+          ],
+          "exports": [
+            {
+              "type": "export",
+              "source": "",
+              "names": [
+                "AppDelegate",
+                "applicationWillResignActive",
+                "applicationDidEnterBackground",
+                "applicationWillEnterForeground",
+                "applicationDidBecomeActive",
+                "applicationWillTerminate"
+              ],
+              "line": 1
+            }
+          ],
+          "symbols": [
+            {
+              "type": "class",
+              "name": "AppDelegate",
+              "line": 5,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "applicationWillResignActive",
+              "line": 14,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "applicationDidEnterBackground",
+              "line": 19,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "applicationWillEnterForeground",
+              "line": 24,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "applicationDidBecomeActive",
+              "line": 28,
+              "exported": true
+            },
+            {
+              "type": "function",
+              "name": "applicationWillTerminate",
+              "line": 32,
+              "exported": true
+            }
+          ],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 8
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [
+        {
+          "type": "class",
+          "name": "AppDelegate",
+          "line": 5,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillResignActive",
+          "line": 14,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationDidEnterBackground",
+          "line": 19,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillEnterForeground",
+          "line": 24,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationDidBecomeActive",
+          "line": 28,
+          "exported": true
+        },
+        {
+          "type": "function",
+          "name": "applicationWillTerminate",
+          "line": 32,
+          "exported": true
+        }
+      ],
+      "dependencies": [],
+      "inferredCapabilities": [
+        "App Delegate",
+        "Application Will Resign Active",
+        "Application Did Enter Background",
+        "Application Will Enter Foreground",
+        "Application Did Become Active",
+        "Application Will Terminate"
+      ]
+    },
+    {
+      "id": "cluster-2-1767645283297",
+      "name": "Admin B69fqks ",
+      "slug": "admin-b69fqks",
+      "description": "Platform/Build tooling with 1 file and 0 symbols",
+      "category": "platform",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App/public/assets",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 32,
+          "totalLines": 32,
+          "imports": [],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 12
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-3-1767645283297",
+      "name": "Modulepreload Polyfill B5qt9emx",
+      "slug": "modulepreload-polyfill-b5qt9emx",
+      "description": "Platform/Build tooling with 1 file and 0 symbols",
+      "category": "platform",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App/public/assets",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 2,
+          "totalLines": 2,
+          "imports": [],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [
+            "integration"
+          ],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 6
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-4-1767645283297",
+      "name": "Cordova",
+      "slug": "cordova",
+      "description": "Platform/Build tooling with 1 file and 0 symbols",
+      "category": "platform",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App/public",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 1,
+          "totalLines": 1,
+          "imports": [],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 4
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-5-1767645283297",
+      "name": "Cordova Plugins",
+      "slug": "cordova-plugins",
+      "description": "Platform/Build tooling with 1 file and 0 symbols",
+      "category": "platform",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App/public",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 1,
+          "totalLines": 1,
+          "imports": [],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 5
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-6-1767645283297",
+      "name": "Sw",
+      "slug": "sw",
+      "description": "External integration with 1 file and 2 symbols",
+      "category": "integration",
+      "domain": "ios",
+      "primaryDirectory": "ios/App/App/public",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 80,
+          "totalLines": 80,
+          "imports": [],
+          "exports": [],
+          "symbols": [
+            {
+              "type": "const",
+              "name": "CACHE_NAME",
+              "line": 2,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "ASSETS_TO_CACHE",
+              "line": 3,
+              "exported": false
+            }
+          ],
+          "stubs": [],
+          "docstring": "Curling Pro Service Worker",
+          "completenessScore": 100,
+          "categoryHints": [
+            "integration"
+          ],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 10
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [
+        {
+          "type": "const",
+          "name": "CACHE_NAME",
+          "line": 2,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ASSETS_TO_CACHE",
+          "line": 3,
+          "exported": false
+        }
+      ],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-7-1767645283297",
+      "name": "Package",
+      "slug": "package",
+      "description": "Infrastructure utility with 1 file and 0 symbols",
+      "category": "infrastructure",
+      "domain": "capapp-spm",
+      "primaryDirectory": "ios/App/CapApp-SPM",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift",
+          "extension": ".swift",
+          "language": "swift",
+          "linesAnalyzed": 26,
+          "totalLines": 26,
+          "imports": [
+            {
+              "type": "import",
+              "source": "PackageDescription",
+              "names": [
+                "PackageDescription"
+              ],
+              "line": 2
+            }
+          ],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "docstring": "swift-tools-version: 5.9",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 9
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-8-1767645283297",
+      "name": "Capapp Spm",
+      "slug": "capapp-spm",
+      "description": "Infrastructure utility with 1 file and 0 symbols",
+      "category": "infrastructure",
+      "domain": "capapp-spm",
+      "primaryDirectory": "ios/App/CapApp-SPM/Sources/CapApp-SPM",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift",
+          "extension": ".swift",
+          "language": "swift",
+          "linesAnalyzed": 2,
+          "totalLines": 2,
+          "imports": [],
+          "exports": [],
+          "symbols": [],
+          "stubs": [],
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 12
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-9-1767645283297",
+      "name": "Sw",
+      "slug": "sw",
+      "description": "External integration with 1 file and 2 symbols",
+      "category": "integration",
+      "domain": "curling-pro",
+      "primaryDirectory": "public",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/public/sw.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/public/sw.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 80,
+          "totalLines": 80,
+          "imports": [],
+          "exports": [],
+          "symbols": [
+            {
+              "type": "const",
+              "name": "CACHE_NAME",
+              "line": 2,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "ASSETS_TO_CACHE",
+              "line": 3,
+              "exported": false
+            }
+          ],
+          "stubs": [],
+          "docstring": "Curling Pro Service Worker",
+          "completenessScore": 100,
+          "categoryHints": [
+            "integration"
+          ],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 11
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [
+        {
+          "type": "const",
+          "name": "CACHE_NAME",
+          "line": 2,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "ASSETS_TO_CACHE",
+          "line": 3,
+          "exported": false
+        }
+      ],
+      "dependencies": [],
+      "inferredCapabilities": []
+    },
+    {
+      "id": "cluster-10-1767645283297",
+      "name": "Server",
+      "slug": "server",
+      "description": "Infrastructure utility with 1 file and 3 symbols",
+      "category": "infrastructure",
+      "domain": "curling-pro",
+      "primaryDirectory": "",
+      "files": [
+        "/Users/Jonathan/Desktop/Curling Pro/server.js"
+      ],
+      "fingerprints": [
+        {
+          "path": "/Users/Jonathan/Desktop/Curling Pro/server.js",
+          "extension": ".js",
+          "language": "javascript",
+          "linesAnalyzed": 86,
+          "totalLines": 86,
+          "imports": [
+            {
+              "type": "import",
+              "source": "express",
+              "names": [],
+              "defaultName": "express",
+              "line": 1
+            },
+            {
+              "type": "import",
+              "source": "node-mailjet",
+              "names": [],
+              "defaultName": "Mailjet",
+              "line": 2
+            },
+            {
+              "type": "import",
+              "source": "vite",
+              "names": [
+                "createViteServer"
+              ],
+              "line": 3
+            },
+            {
+              "type": "import",
+              "source": "dotenv",
+              "names": [],
+              "defaultName": "dotenv",
+              "line": 4
+            }
+          ],
+          "exports": [],
+          "symbols": [
+            {
+              "type": "const",
+              "name": "app",
+              "line": 8,
+              "exported": false
+            },
+            {
+              "type": "const",
+              "name": "mailjet",
+              "line": 12,
+              "exported": false
+            },
+            {
+              "type": "function",
+              "name": "startServer",
+              "line": 71,
+              "exported": false
+            }
+          ],
+          "stubs": [],
+          "docstring": "Mailjet client - will use env vars",
+          "completenessScore": 100,
+          "categoryHints": [],
+          "relatedFiles": [],
+          "fingerprintDurationMs": 14
+        }
+      ],
+      "clusteringMethod": "import",
+      "confidence": "medium",
+      "confidenceScore": 70,
+      "completenessScore": 100,
+      "completenessStatus": "complete",
+      "symbols": [
+        {
+          "type": "const",
+          "name": "app",
+          "line": 8,
+          "exported": false
+        },
+        {
+          "type": "const",
+          "name": "mailjet",
+          "line": 12,
+          "exported": false
+        },
+        {
+          "type": "function",
+          "name": "startServer",
+          "line": 71,
+          "exported": false
+        }
+      ],
+      "dependencies": [],
+      "inferredCapabilities": []
+    }
+  ],
+  "clustersByCategory": {
+    "infrastructure": 5,
+    "platform": 4,
+    "integration": 2
+  },
+  "stats": {
+    "totalFiles": 104,
+    "fingerprintedFiles": 15,
+    "skippedFiles": 1,
+    "clusterCount": 11,
+    "avgCompletenessScore": 100,
+    "surveyDurationMs": 12,
+    "fingerprintDurationMs": 16,
+    "clusteringDurationMs": 5,
+    "totalDurationMs": 48
+  },
+  "analyzedAt": "2026-01-05T20:34:43.298Z",
+  "errors": [],
+  "dependencyGraph": {
+    "dependencies": {
+      "multiplayer": [],
+      "appdelegate": [],
+      "admin-b69fqks": [],
+      "modulepreload-polyfill-b5qt9emx": [],
+      "cordova": [],
+      "cordova-plugins": [],
+      "sw": [],
+      "package": [],
+      "capapp-spm": [],
+      "server": []
+    },
+    "dependents": {
+      "multiplayer": [],
+      "appdelegate": [],
+      "admin-b69fqks": [],
+      "modulepreload-polyfill-b5qt9emx": [],
+      "cordova": [],
+      "cordova-plugins": [],
+      "sw": [],
+      "package": [],
+      "capapp-spm": [],
+      "server": []
+    },
+    "buildOrder": [
+      "multiplayer",
+      "appdelegate",
+      "admin-b69fqks",
+      "modulepreload-polyfill-b5qt9emx",
+      "cordova",
+      "cordova-plugins",
+      "sw",
+      "package",
+      "capapp-spm",
+      "sw",
+      "server"
+    ],
+    "cycles": []
+  },
+  "gaps": {
+    "stubFiles": [],
+    "highTodoFiles": [],
+    "orphanFiles": [
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/main-DKjfIAjm.js"
+    ],
+    "untestedClusters": [
+      {
+        "slug": "multiplayer",
+        "name": "Multiplayer",
+        "category": "infrastructure"
+      },
+      {
+        "slug": "appdelegate",
+        "name": "Appdelegate",
+        "category": "infrastructure"
+      },
+      {
+        "slug": "admin-b69fqks",
+        "name": "Admin B69fqks ",
+        "category": "platform"
+      },
+      {
+        "slug": "modulepreload-polyfill-b5qt9emx",
+        "name": "Modulepreload Polyfill B5qt9emx",
+        "category": "platform"
+      },
+      {
+        "slug": "cordova",
+        "name": "Cordova",
+        "category": "platform"
+      },
+      {
+        "slug": "cordova-plugins",
+        "name": "Cordova Plugins",
+        "category": "platform"
+      },
+      {
+        "slug": "sw",
+        "name": "Sw",
+        "category": "integration"
+      },
+      {
+        "slug": "package",
+        "name": "Package",
+        "category": "infrastructure"
+      },
+      {
+        "slug": "capapp-spm",
+        "name": "Capapp Spm",
+        "category": "infrastructure"
+      },
+      {
+        "slug": "sw",
+        "name": "Sw",
+        "category": "integration"
+      },
+      {
+        "slug": "server",
+        "name": "Server",
+        "category": "infrastructure"
+      }
+    ]
+  },
+  "uiClusterResult": {
+    "clusterCount": 0,
+    "fileCount": 0,
+    "entryMethod": "none",
+    "trace": [
+      "Starting UI cluster build...",
+      "No UI entry point found - skipping UI clustering"
+    ]
+  }
+}

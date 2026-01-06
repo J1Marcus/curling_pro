@@ -16004,6 +16004,12 @@ window.debugWinMatch = function() {
     { label: 'Last End (Losing 3-5)', action: () => window.debugLastEnd(3, 5) },
     { label: 'End Current End', action: () => window.debugEndOfEnd() },
     { label: 'Win Match Now', action: () => window.debugWinMatch() },
+    { label: '🗑️ Reset All Data', action: () => {
+      if (confirm('Clear all saved data? This will reset tutorials, career, settings, and reload the page.')) {
+        localStorage.clear();
+        location.reload();
+      }
+    }},
   ];
 
   options.forEach(opt => {

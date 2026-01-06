@@ -1,0 +1,39 @@
+{
+  "features": [
+    {
+      "slug": "multiplayer-game-server",
+      "vision": {
+        "summary": "Enables users to play curling games online with other players through real-time multiplayer connectivity and game server infrastructure.",
+        "primaryGoal": "Start Session",
+        "valueProposition": "Enables multiplayer game server"
+      },
+      "workflow": [],
+      "contracts": [],
+      "actors": [
+        {
+          "name": "User",
+          "capabilities": [
+            "Start Session",
+            "Is Multiplayer Available",
+            "Create Game"
+          ]
+        }
+      ],
+      "servicesUsed": [],
+      "dataTouched": [],
+      "confidence": "low"
+    }
+  ],
+  "skipped": [
+    {
+      "slug": "ios-application-platform",
+      "reason": "Category platform skipped"
+    },
+    {
+      "slug": "capacitor-swift-package-manager",
+      "reason": "Category platform skipped"
+    }
+  ],
+  "tokensUsed": 9788,
+  "durationMs": 40543
+}

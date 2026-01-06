@@ -1,0 +1,179 @@
+[
+  {
+    "name": "iOS Application Platform",
+    "slug": "ios-application-platform",
+    "description": "Provides the native iOS application shell and Cordova plugin infrastructure for running the mobile app on Apple devices.",
+    "category": "platform",
+    "domain": "ios",
+    "capabilities": [
+      "App Delegate",
+      "Application Will Resign Active",
+      "Application Did Enter Background",
+      "Application Will Enter Foreground",
+      "Application Did Become Active",
+      "Application Will Terminate"
+    ],
+    "actors": [
+      "User"
+    ],
+    "primaryDirectory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/App",
+    "services": [],
+    "dataTouched": [],
+    "dependencies": [],
+    "completeness": {
+      "status": "functional",
+      "score": 85,
+      "gaps": []
+    },
+    "traceDepth": {
+      "level": "shallow",
+      "filesRead": 6,
+      "flowsMapped": 0,
+      "capabilitiesTraced": 0,
+      "capabilitiesTotal": 6,
+      "confidence": "high",
+      "notes": "Pre-analysis with LLM consolidation"
+    },
+    "consolidated": true,
+    "files": [
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/AppDelegate.swift",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/admin-B69FqKs-.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/assets/modulepreload-polyfill-B5Qt9EMX.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/cordova_plugins.js",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/App/public/sw.js"
+    ],
+    "memberClusters": [
+      "appdelegate",
+      "admin-b69fqks",
+      "modulepreload-polyfill-b5qt9emx",
+      "cordova",
+      "cordova-plugins",
+      "sw"
+    ],
+    "preAnalysisContext": {
+      "symbolCount": 8,
+      "inferredCapabilities": [
+        "App Delegate",
+        "Application Will Resign Active",
+        "Application Did Enter Background",
+        "Application Will Enter Foreground",
+        "Application Did Become Active",
+        "Application Will Terminate"
+      ],
+      "clusterDependencies": [],
+      "consolidationConfidence": "high"
+    }
+  },
+  {
+    "name": "Multiplayer Game Server",
+    "slug": "multiplayer-game-server",
+    "description": "Enables users to play curling games online with other players through real-time multiplayer connectivity and game server infrastructure.",
+    "category": "user-capability",
+    "domain": "curling-pro",
+    "capabilities": [
+      "Start Session",
+      "Is Multiplayer Available",
+      "Create Game",
+      "Setup Counter"
+    ],
+    "actors": [
+      "User"
+    ],
+    "primaryDirectory": "/Users/Jonathan/Desktop/Curling Pro",
+    "services": [],
+    "dataTouched": [],
+    "dependencies": [],
+    "completeness": {
+      "status": "functional",
+      "score": 85,
+      "gaps": []
+    },
+    "traceDepth": {
+      "level": "traced",
+      "filesRead": 7,
+      "flowsMapped": 0,
+      "capabilitiesTraced": 0,
+      "capabilitiesTotal": 4,
+      "confidence": "low",
+      "notes": "Semantically deepened (Phase 3)"
+    },
+    "consolidated": true,
+    "files": [
+      "/Users/Jonathan/Desktop/Curling Pro/src/analytics.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/main.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/multiplayer.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/sounds.js",
+      "/Users/Jonathan/Desktop/Curling Pro/src/counter.js",
+      "/Users/Jonathan/Desktop/Curling Pro/public/sw.js",
+      "/Users/Jonathan/Desktop/Curling Pro/server.js"
+    ],
+    "memberClusters": [
+      "multiplayer",
+      "sw",
+      "server"
+    ],
+    "preAnalysisContext": {
+      "symbolCount": 67,
+      "inferredCapabilities": [
+        "Start Session",
+        "Is Multiplayer Available",
+        "Create Game",
+        "Setup Counter"
+      ],
+      "clusterDependencies": [],
+      "importGraph": {
+        "/Users/Jonathan/Desktop/Curling Pro/src/main.js": [
+          "./sounds.js",
+          "./multiplayer.js",
+          "./analytics.js"
+        ]
+      },
+      "consolidationConfidence": "high"
+    }
+  },
+  {
+    "name": "Capacitor Swift Package Manager",
+    "slug": "capacitor-swift-package-manager",
+    "description": "Manages Swift package dependencies and native iOS module integration for the Capacitor mobile framework.",
+    "category": "platform",
+    "domain": "capapp-spm",
+    "capabilities": [],
+    "actors": [
+      "User"
+    ],
+    "primaryDirectory": "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM",
+    "services": [],
+    "dataTouched": [],
+    "dependencies": [],
+    "completeness": {
+      "status": "functional",
+      "score": 85,
+      "gaps": []
+    },
+    "traceDepth": {
+      "level": "shallow",
+      "filesRead": 2,
+      "flowsMapped": 0,
+      "capabilitiesTraced": 0,
+      "capabilitiesTotal": 0,
+      "confidence": "high",
+      "notes": "Pre-analysis with LLM consolidation"
+    },
+    "consolidated": true,
+    "files": [
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Package.swift",
+      "/Users/Jonathan/Desktop/Curling Pro/ios/App/CapApp-SPM/Sources/CapApp-SPM/CapApp-SPM.swift"
+    ],
+    "memberClusters": [
+      "package",
+      "capapp-spm"
+    ],
+    "preAnalysisContext": {
+      "symbolCount": 0,
+      "inferredCapabilities": [],
+      "clusterDependencies": [],
+      "consolidationConfidence": "high"
+    }
+  }
+]
