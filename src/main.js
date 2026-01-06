@@ -7529,6 +7529,11 @@ function updateCoachTargetMarker() {
 
 // Show post-shot feedback after player's throw
 function showPostShotFeedback() {
+  // Skip feedback during interactive tutorial
+  if (gameState.interactiveTutorialMode) {
+    return;
+  }
+
   const panel = document.getElementById('feedback-shot-panel');
   if (!panel) {
     // Fallback to normal flow if panel doesn't exist
@@ -7969,6 +7974,9 @@ function showShotFeedbackToast(message, type) {
 
 // Main function to evaluate and show feedback
 function processShotFeedback() {
+  // Skip during interactive tutorial
+  if (gameState.interactiveTutorialMode) return;
+
   // Skip if in learn mode (it has its own detailed feedback)
   if (gameState.learnMode && gameState.learnMode.enabled) return;
 
