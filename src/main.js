@@ -1855,6 +1855,8 @@ function showTutorial(tutorialId) {
 
 // Dismiss current tutorial with slide animation
 window.dismissTutorial = function() {
+  alert('dismissTutorial called, welcomeActive: ' + gameState.welcomeTutorialActive);
+
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
 
@@ -14277,6 +14279,8 @@ function showWelcomeTutorial(onComplete) {
 
 // Called when welcome tutorial is dismissed
 function dismissWelcomeTutorial() {
+  alert('dismissWelcomeTutorial called, callback: ' + (welcomeTutorialCallback ? 'yes' : 'no'));
+
   const overlay = document.getElementById('tutorial-overlay');
   if (overlay) overlay.style.display = 'none';
 
