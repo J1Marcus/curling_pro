@@ -10360,12 +10360,19 @@ function showModeSelection() {
     tutorialOverlay.style.pointerEvents = 'none';
   }
 
+  // Also hide splash screen just in case
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    splash.style.display = 'none';
+  }
+
   const screen = document.getElementById('mode-select-screen');
   if (screen) {
     screen.style.display = 'block';
     screen.style.visibility = 'visible';
     screen.style.opacity = '1';
-    screen.style.zIndex = '9999';
+    screen.style.zIndex = '99999';
+    screen.style.border = '5px solid red';  // DEBUG: visible indicator
   }
   // Show fixed footer
   const footer = document.getElementById('mode-select-footer');
