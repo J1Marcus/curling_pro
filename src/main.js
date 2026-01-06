@@ -10356,6 +10356,7 @@ function showModeSelection() {
   if (tutorialOverlay) tutorialOverlay.style.display = 'none';
 
   const screen = document.getElementById('mode-select-screen');
+  alert('screen found: ' + !!screen + ', tutorialOverlay hidden: ' + (tutorialOverlay ? tutorialOverlay.style.display : 'not found'));
   if (screen) {
     screen.style.display = 'block';
   }
