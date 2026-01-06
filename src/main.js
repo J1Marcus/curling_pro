@@ -8146,6 +8146,24 @@ function updateReturnButton() {
   const btn = document.getElementById('return-to-throw');
   if (!btn) return;
 
+  // Hide during tutorial until curl step is active (user clicked "Try it!" on curl)
+  if (gameState.interactiveTutorialMode) {
+    const currentStep = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+    const continueBtn = document.getElementById('tutorial-continue-btn');
+    const continueBtnVisible = continueBtn && continueBtn.style.display !== 'none';
+
+    // Hide during aim step or while Continue button is showing after aim
+    if (currentStep && (currentStep.action === 'aim' || currentStep.action === 'welcome')) {
+      btn.style.display = 'none';
+      return;
+    }
+    // Also hide if Continue button is visible (user hasn't proceeded yet)
+    if (continueBtnVisible) {
+      btn.style.display = 'none';
+      return;
+    }
+  }
+
   // Show button when locked at far view (marker optional), but NOT for computer or opponent's turn
   if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5 && !isInputBlocked()) {
     btn.style.display = 'block';
