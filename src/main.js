@@ -14226,6 +14226,7 @@ window.resetFirstRunTutorials = function() {
 // Show welcome tutorial for first-time users (before mode selection)
 let welcomeTutorialCallback = null;
 function showWelcomeTutorial(onComplete) {
+  console.log('[Welcome] showWelcomeTutorial called');
   welcomeTutorialCallback = onComplete;
 
   const tutorial = FIRST_RUN_TUTORIALS.fr_welcome;
@@ -14238,8 +14239,11 @@ function showWelcomeTutorial(onComplete) {
   const hintText = document.getElementById('tutorial-hint-text');
   const nextBtn = document.getElementById('tutorial-next-btn');
 
+  console.log('[Welcome] overlay:', overlay, 'tutorial:', tutorial);
+
   if (!overlay) {
     // Overlay not ready, skip to callback
+    console.log('[Welcome] No overlay found, skipping');
     if (onComplete) onComplete();
     return;
   }
@@ -16238,11 +16242,14 @@ setTimeout(() => {
 
   // Check if first-time user needs welcome tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
+  console.log('[Welcome] tutorialsShown:', tutorialsShown, 'disabled:', areFirstRunTutorialsDisabled());
   if (!tutorialsShown['fr_welcome'] && !areFirstRunTutorialsDisabled()) {
     // Show welcome tutorial, then mode selection
+    console.log('[Welcome] Showing welcome tutorial');
     showWelcomeTutorial(() => showModeSelection());
   } else {
     // Go directly to mode selection
+    console.log('[Welcome] Skipping welcome tutorial');
     showModeSelection();
   }
 }, remainingTime);
