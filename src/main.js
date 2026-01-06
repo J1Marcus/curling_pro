@@ -6281,6 +6281,49 @@ function clearTargetMarker() {
   setCurlDisplayVisible(false);  // Hide curl selection
 }
 
+// Drag existing target marker to new position
+function dragTargetMarker(screenX, screenY) {
+  // Only drag if marker exists and we're in target view
+  if (!gameState.targetMarker || !gameState.targetMarker.visible) return;
+  if (gameState.phase !== 'aiming') return;
+  if (gameState.previewHeight < 0.3) return;  // Must be in target view
+
+  // Prevent dragging during computer's turn
+  if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
+    return;
+  }
+
+  // Raycast from screen position to ice surface
+  const mouse = new THREE.Vector2(
+    (screenX / window.innerWidth) * 2 - 1,
+    -(screenY / window.innerHeight) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  const icePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  const intersection = new THREE.Vector3();
+
+  if (raycaster.ray.intersectPlane(icePlane, intersection)) {
+    // Check if within valid bounds (near the far house)
+    if (intersection.x >= -SHEET_WIDTH / 2 && intersection.x <= SHEET_WIDTH / 2 &&
+        intersection.z >= HOG_LINE_FAR && intersection.z <= BACK_LINE_FAR) {
+
+      // Update marker position
+      gameState.targetMarker.position.x = intersection.x;
+      gameState.targetMarker.position.z = intersection.z;
+      gameState.targetPosition = { x: intersection.x, z: intersection.z };
+
+      // Update skip signal arm
+      updateSkipSignalArm();
+
+      // Broadcast to opponent in multiplayer
+      broadcastAimStateThrottled();
+    }
+  }
+}
+
 // ============================================
 // AIMING LINE
 // ============================================
@@ -15725,6 +15768,7 @@ renderer.domElement.addEventListener('mousemove', (e) => {
   updateSlidingAim(e.clientX);  // Allow aiming during slide
   updatePreviewCamera(e.clientX, e.clientY);  // Preview camera during aiming
   updateSweepFromMovement(e.clientX, e.clientY);  // Sweeping via mouse drag
+  dragTargetMarker(e.clientX, e.clientY);  // Drag target marker in target view
 });
 
 renderer.domElement.addEventListener('mouseup', () => {
@@ -15845,6 +15889,7 @@ renderer.domElement.addEventListener('touchmove', (e) => {
   updateSlidingAim(touch.clientX);  // Allow aiming during slide
   updatePreviewCamera(touch.clientX, touch.clientY);  // Preview camera during aiming
   updateSweepFromMovement(touch.clientX, touch.clientY);  // Sweeping via touch drag
+  dragTargetMarker(touch.clientX, touch.clientY);  // Drag target marker in target view
 });
 
 renderer.domElement.addEventListener('touchend', (e) => {
