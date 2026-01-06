@@ -1855,8 +1855,6 @@ function showTutorial(tutorialId) {
 
 // Dismiss current tutorial with slide animation
 window.dismissTutorial = function() {
-  alert('dismissTutorial called, welcomeActive: ' + gameState.welcomeTutorialActive);
-
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
 
@@ -14228,7 +14226,6 @@ window.resetFirstRunTutorials = function() {
 // Show welcome tutorial for first-time users (before mode selection)
 let welcomeTutorialCallback = null;
 function showWelcomeTutorial(onComplete) {
-  console.log('[Welcome] showWelcomeTutorial called');
   welcomeTutorialCallback = onComplete;
 
   const tutorial = FIRST_RUN_TUTORIALS.fr_welcome;
@@ -14241,11 +14238,8 @@ function showWelcomeTutorial(onComplete) {
   const hintText = document.getElementById('tutorial-hint-text');
   const nextBtn = document.getElementById('tutorial-next-btn');
 
-  console.log('[Welcome] overlay:', overlay, 'tutorial:', tutorial);
-
   if (!overlay) {
     // Overlay not ready, skip to callback
-    console.log('[Welcome] No overlay found, skipping');
     if (onComplete) onComplete();
     return;
   }
@@ -14279,8 +14273,6 @@ function showWelcomeTutorial(onComplete) {
 
 // Called when welcome tutorial is dismissed
 function dismissWelcomeTutorial() {
-  alert('dismissWelcomeTutorial called, callback: ' + (welcomeTutorialCallback ? 'yes' : 'no'));
-
   const overlay = document.getElementById('tutorial-overlay');
   if (overlay) overlay.style.display = 'none';
 
@@ -14298,8 +14290,9 @@ function dismissWelcomeTutorial() {
 
   // Call the callback (show mode selection)
   if (welcomeTutorialCallback) {
-    welcomeTutorialCallback();
+    const cb = welcomeTutorialCallback;
     welcomeTutorialCallback = null;
+    cb();
   }
 }
 
@@ -16247,8 +16240,6 @@ setTimeout(() => {
   // Check if first-time user needs welcome tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
   const disabled = areFirstRunTutorialsDisabled();
-  // DEBUG: alert for phone testing
-  alert(`tutorialsShown: ${JSON.stringify(tutorialsShown)}\ndisabled: ${disabled}`);
   if (!tutorialsShown['fr_welcome'] && !disabled) {
     // Show welcome tutorial, then mode selection
     showWelcomeTutorial(() => showModeSelection());
