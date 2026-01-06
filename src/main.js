@@ -1858,9 +1858,9 @@ window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
 
-  // Check if this is the welcome tutorial (before mode selection)
+  // Check if this is the pre-mode tutorial sequence (before mode selection)
   if (gameState.welcomeTutorialActive) {
-    dismissWelcomeTutorial();
+    dismissPreModeTutorial();
     return;
   }
 
@@ -10355,11 +10355,13 @@ function showModeSelection() {
   const tutorialOverlay = document.getElementById('tutorial-overlay');
   if (tutorialOverlay) {
     tutorialOverlay.style.display = 'none';
+    tutorialOverlay.style.visibility = 'hidden';
   }
 
   const screen = document.getElementById('mode-select-screen');
   if (screen) {
     screen.style.display = 'block';
+    screen.style.visibility = 'visible';
   }
   // Show fixed footer
   const footer = document.getElementById('mode-select-footer');
@@ -14229,12 +14231,38 @@ window.resetFirstRunTutorials = function() {
   console.log('[First-Run Tutorials] Reset complete - tutorials will show again');
 };
 
-// Show welcome tutorial for first-time users (before mode selection)
-let welcomeTutorialCallback = null;
-function showWelcomeTutorial(onComplete) {
-  welcomeTutorialCallback = onComplete;
+// Pre-mode selection tutorial sequence for first-time users
+const PRE_MODE_TUTORIALS = ['fr_welcome', 'fr_aim', 'fr_curl', 'fr_throw', 'fr_sweep'];
+let preModeCallback = null;
+let currentPreModeTutorialIndex = 0;
 
-  const tutorial = FIRST_RUN_TUTORIALS.fr_welcome;
+function showPreModeTutorials(onComplete) {
+  preModeCallback = onComplete;
+  currentPreModeTutorialIndex = 0;
+  gameState.welcomeTutorialActive = true;
+  showNextPreModeTutorial();
+}
+
+function showNextPreModeTutorial() {
+  // Skip any already shown tutorials
+  while (currentPreModeTutorialIndex < PRE_MODE_TUTORIALS.length) {
+    const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
+    const shown = getFirstRunTutorialsShown();
+    if (!shown[tutorialId]) {
+      break;
+    }
+    currentPreModeTutorialIndex++;
+  }
+
+  // If all tutorials shown, proceed to callback
+  if (currentPreModeTutorialIndex >= PRE_MODE_TUTORIALS.length) {
+    finishPreModeTutorials();
+    return;
+  }
+
+  const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
+  const tutorial = FIRST_RUN_TUTORIALS[tutorialId];
+
   const overlay = document.getElementById('tutorial-overlay');
   const icon = document.getElementById('tutorial-icon');
   const title = document.getElementById('tutorial-title');
@@ -14244,9 +14272,8 @@ function showWelcomeTutorial(onComplete) {
   const hintText = document.getElementById('tutorial-hint-text');
   const nextBtn = document.getElementById('tutorial-next-btn');
 
-  if (!overlay) {
-    // Overlay not ready, skip to callback
-    if (onComplete) onComplete();
+  if (!overlay || !tutorial) {
+    finishPreModeTutorials();
     return;
   }
 
@@ -14262,42 +14289,51 @@ function showWelcomeTutorial(onComplete) {
     hintDiv.style.display = 'none';
   }
 
-  if (nextBtn) nextBtn.textContent = 'Got it!';
+  // Update button text
+  const isLast = currentPreModeTutorialIndex === PRE_MODE_TUTORIALS.length - 1;
+  if (nextBtn) nextBtn.textContent = isLast ? 'Got it!' : 'Next';
 
   // Reset checkbox
   const checkbox = document.getElementById('tutorial-dont-show');
   if (checkbox) checkbox.checked = false;
 
-  // Mark this as a welcome tutorial for dismissTutorial to handle
-  gameState.welcomeTutorialActive = true;
-
   overlay.style.display = 'block';
 
   // Track for analytics
-  analytics.trackEvent('tutorial', 'fr_welcome', { step: 1, firstRun: true });
+  analytics.trackEvent('tutorial', tutorialId, { step: tutorial.step, firstRun: true });
 }
 
-// Called when welcome tutorial is dismissed
-function dismissWelcomeTutorial() {
-  const overlay = document.getElementById('tutorial-overlay');
-  if (overlay) overlay.style.display = 'none';
+// Called when a pre-mode tutorial is dismissed
+function dismissPreModeTutorial() {
+  const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
 
   // Mark as shown
-  markFirstRunTutorialShown('fr_welcome');
-  gameState.firstRunTutorialsShownThisSession['fr_welcome'] = true;
+  markFirstRunTutorialShown(tutorialId);
+  gameState.firstRunTutorialsShownThisSession[tutorialId] = true;
 
   // Check if user disabled tutorials
   const checkbox = document.getElementById('tutorial-dont-show');
   if (checkbox && checkbox.checked) {
     disableFirstRunTutorials();
+    finishPreModeTutorials();
+    return;
   }
+
+  // Move to next tutorial
+  currentPreModeTutorialIndex++;
+  showNextPreModeTutorial();
+}
+
+function finishPreModeTutorials() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) overlay.style.display = 'none';
 
   gameState.welcomeTutorialActive = false;
 
   // Call the callback (show mode selection)
-  if (welcomeTutorialCallback) {
-    const cb = welcomeTutorialCallback;
-    welcomeTutorialCallback = null;
+  if (preModeCallback) {
+    const cb = preModeCallback;
+    preModeCallback = null;
     cb();
   }
 }
@@ -16243,12 +16279,13 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Check if first-time user needs welcome tutorial
+  // Check if first-time user needs tutorials
   const tutorialsShown = getFirstRunTutorialsShown();
   const disabled = areFirstRunTutorialsDisabled();
-  if (!tutorialsShown['fr_welcome'] && !disabled) {
-    // Show welcome tutorial, then mode selection
-    showWelcomeTutorial(() => showModeSelection());
+  const needsTutorials = PRE_MODE_TUTORIALS.some(id => !tutorialsShown[id]);
+  if (needsTutorials && !disabled) {
+    // Show tutorial sequence, then mode selection
+    showPreModeTutorials(() => showModeSelection());
   } else {
     // Go directly to mode selection
     showModeSelection();
