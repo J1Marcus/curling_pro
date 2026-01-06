@@ -8152,8 +8152,8 @@ function updateReturnButton() {
     const continueBtn = document.getElementById('tutorial-continue-btn');
     const continueBtnVisible = continueBtn && continueBtn.style.display !== 'none';
 
-    // Hide during aim step or while Continue button is showing after aim
-    if (currentStep && (currentStep.action === 'aim' || currentStep.action === 'welcome')) {
+    // Hide during aim and curl steps
+    if (currentStep && (currentStep.action === 'aim' || currentStep.action === 'curl' || currentStep.action === 'welcome')) {
       btn.style.display = 'none';
       return;
     }
@@ -14371,7 +14371,7 @@ const INTERACTIVE_TUTORIAL_STEPS = [
   {
     id: 'throw',
     icon: '💪',
-    title: 'Throw the Stone',
+    title: 'Prepare to Throw',
     text: `Tap READY to go to the throwing view. Then TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
     hint: 'Tap READY, then drag down and release to throw.',
     action: 'throw',  // Wait for user to throw
