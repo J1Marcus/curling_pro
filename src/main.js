@@ -14838,8 +14838,8 @@ function finishInteractiveTutorial() {
   gameState.stones = [];
 
   // Reset preview stone
-  if (previewStone) {
-    previewStone.visible = false;
+  if (gameState.previewStone) {
+    gameState.previewStone.visible = false;
   }
 
   // Call callback (show mode selection)
