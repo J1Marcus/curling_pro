@@ -16242,14 +16242,14 @@ setTimeout(() => {
 
   // Check if first-time user needs welcome tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
-  console.log('[Welcome] tutorialsShown:', tutorialsShown, 'disabled:', areFirstRunTutorialsDisabled());
-  if (!tutorialsShown['fr_welcome'] && !areFirstRunTutorialsDisabled()) {
+  const disabled = areFirstRunTutorialsDisabled();
+  // DEBUG: alert for phone testing
+  alert(`tutorialsShown: ${JSON.stringify(tutorialsShown)}\ndisabled: ${disabled}`);
+  if (!tutorialsShown['fr_welcome'] && !disabled) {
     // Show welcome tutorial, then mode selection
-    console.log('[Welcome] Showing welcome tutorial');
     showWelcomeTutorial(() => showModeSelection());
   } else {
     // Go directly to mode selection
-    console.log('[Welcome] Skipping welcome tutorial');
     showModeSelection();
   }
 }, remainingTime);
