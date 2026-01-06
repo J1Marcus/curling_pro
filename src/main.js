@@ -14571,6 +14571,14 @@ function onTutorialActionComplete(action) {
   // Move to next step
   interactiveTutorialStep++;
 
+  // For 'ready' action, show throw tutorial immediately after entering throw view
+  if (action === 'ready') {
+    setTimeout(() => {
+      showInteractiveTutorialStep();
+    }, 800);  // Brief delay for camera transition
+    return;
+  }
+
   // Show "Continue" button after a brief moment
   setTimeout(() => {
     showTutorialContinueButton();
