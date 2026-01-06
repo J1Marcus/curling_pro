@@ -266,6 +266,7 @@ const gameState = {
   firstRunTutorial: null,  // { id, pausesGame }
   firstRunTutorialsShownThisSession: {},  // Track tutorials shown this session (resets on refresh)
   welcomeTutorialActive: false,  // Welcome tutorial showing before mode selection
+  interactiveTutorialMode: false,  // Interactive tutorial mode active
 
   // App backgrounding state (iOS lifecycle)
   isPaused: false,
@@ -1857,6 +1858,12 @@ function showTutorial(tutorialId) {
 window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
+
+  // Check if this is the interactive tutorial mode
+  if (gameState.interactiveTutorialMode) {
+    dismissInteractiveTutorialStep();
+    return;
+  }
 
   // Check if this is the pre-mode tutorial sequence (before mode selection)
   if (gameState.welcomeTutorialActive) {
@@ -6248,6 +6255,9 @@ function placeTargetMarker(screenX, screenY) {
       updateMarkerHint();    // Hide the marker hint
       setCurlDisplayVisible(true);  // Show curl selection
 
+      // Interactive tutorial: detect aim action
+      onTutorialActionComplete('aim');
+
       // Show curl tutorial after target is selected (Learn Mode)
       if (gameState.learnMode.enabled) {
         showTutorial('curl');
@@ -6788,6 +6798,9 @@ function releaseStone() {
   document.getElementById('phase-text').style.color = '#4ade80';
   document.getElementById('phase-text').textContent = 'Released!';
 
+  // Interactive tutorial: detect throw action
+  onTutorialActionComplete('throw');
+
   // Hide green beacon and curl arrow but keep the skip visible
   if (gameState.targetMarker) {
     gameState.targetMarker.traverse((child) => {
@@ -6888,6 +6901,9 @@ window.updateCurlSlider = function(value) {
   updateCurlDisplay();
   updateSkipSignalArm();
   updatePreviewStoneRotation();
+
+  // Interactive tutorial: detect curl action
+  onTutorialActionComplete('curl');
 
   // Broadcast aim state to opponent in multiplayer
   broadcastAimStateThrottled();
@@ -8261,6 +8277,9 @@ function updateSweepFromMovement(x, y) {
     // Debug: log sweep detection with angle info
     if (gameState.isSweeping && !wasSweeping) {
       console.log(`[DEBUG] Sweep started - base: ${(baseEffectiveness * 100).toFixed(0)}%, angle: ${gameState.sweepAngle.toFixed(0)}°, effective: ${(gameState.sweepEffectiveness * 100).toFixed(0)}%`);
+
+      // Interactive tutorial: detect sweep action
+      onTutorialActionComplete('sweep');
     }
 
     // Start/stop sweeping sound
@@ -9482,6 +9501,12 @@ function updatePhysics() {
       const wasMyShot = gameState.selectedMode !== 'online' || gameState.currentTeam === localTeam;
       if (wasMyShot) {
         processShotFeedback();
+      }
+
+      // Interactive tutorial: complete sweep step when stone stops (even if user didn't sweep)
+      if (gameState.interactiveTutorialMode) {
+        onTutorialActionComplete('sweep');
+        return;  // Don't proceed to normal game flow
       }
 
       // Practice mode: evaluate outcome and show result
@@ -14231,109 +14256,322 @@ window.resetFirstRunTutorials = function() {
   console.log('[First-Run Tutorials] Reset complete - tutorials will show again');
 };
 
-// Pre-mode selection tutorial sequence for first-time users
-const PRE_MODE_TUTORIALS = ['fr_welcome', 'fr_aim', 'fr_curl', 'fr_throw', 'fr_sweep'];
-let preModeCallback = null;
-let currentPreModeTutorialIndex = 0;
+// ============================================
+// INTERACTIVE TUTORIAL (before mode selection)
+// ============================================
 
-function showPreModeTutorials(onComplete) {
-  preModeCallback = onComplete;
-  currentPreModeTutorialIndex = 0;
+const INTERACTIVE_TUTORIAL_STEPS = [
+  {
+    id: 'welcome',
+    icon: '🥌',
+    title: 'Welcome to Curling!',
+    text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.`,
+    hint: 'The last stone thrown in an end is called the Hammer.',
+    action: 'click',  // Just click to continue
+    step: 1,
+    total: 5
+  },
+  {
+    id: 'aim',
+    icon: '🎯',
+    title: 'Aim Your Shot',
+    text: `Drag LEFT and RIGHT on the screen to aim your stone. The arrow shows where your stone will travel.`,
+    hint: 'Try it now! Drag to aim at the center of the house.',
+    action: 'aim',  // Wait for user to aim
+    step: 2,
+    total: 5
+  },
+  {
+    id: 'curl',
+    icon: '🌀',
+    title: 'Choose Your Curl',
+    text: `Curling stones curve as they slow down! Tap IN or OUT to set the curl direction:
+• IN-turn → stone curves LEFT
+• OUT-turn → stone curves RIGHT`,
+    hint: 'Tap the IN or OUT button in the bottom left.',
+    action: 'curl',  // Wait for user to select curl
+    step: 3,
+    total: 5
+  },
+  {
+    id: 'throw',
+    icon: '💪',
+    title: 'Throw the Stone',
+    text: `Tap and DRAG DOWN to set your throwing power. The bar on the left shows your power level. Release to throw!`,
+    hint: 'Try it! Drag down and release to throw.',
+    action: 'throw',  // Wait for user to throw
+    step: 4,
+    total: 5
+  },
+  {
+    id: 'sweep',
+    icon: '🧹',
+    title: 'Sweep!',
+    text: `While your stone is moving, TAP AND HOLD anywhere to sweep! Sweeping makes your stone travel farther and straighter.`,
+    hint: 'Try sweeping now to help your stone reach the target!',
+    action: 'sweep',  // Wait for user to sweep (or stone to stop)
+    step: 5,
+    total: 5
+  }
+];
+
+let interactiveTutorialCallback = null;
+let interactiveTutorialStep = 0;
+let tutorialActionCompleted = false;
+
+// Start interactive tutorial
+function startInteractiveTutorial(onComplete) {
+  interactiveTutorialCallback = onComplete;
+  interactiveTutorialStep = 0;
+  tutorialActionCompleted = false;
+  gameState.interactiveTutorialMode = true;
   gameState.welcomeTutorialActive = true;
-  showNextPreModeTutorial();
+
+  // Set up tutorial game state
+  setupTutorialGameState();
+
+  // Show first step
+  showInteractiveTutorialStep();
 }
 
-function showNextPreModeTutorial() {
-  // Skip any already shown tutorials
-  while (currentPreModeTutorialIndex < PRE_MODE_TUTORIALS.length) {
-    const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
-    const shown = getFirstRunTutorialsShown();
-    if (!shown[tutorialId]) {
-      break;
-    }
-    currentPreModeTutorialIndex++;
-  }
+// Set up minimal game state for tutorial
+function setupTutorialGameState() {
+  // Reset game state for tutorial
+  gameState.phase = 'aiming';
+  gameState.currentTeam = 'red';
+  gameState.computerTeam = 'yellow';
+  gameState.hammer = 'red';
+  gameState.end = 1;
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.stones = [];
+  gameState.curlDirection = null;
+  gameState.aimAngle = 0;
+  gameState.effort = 0.6;
+  gameState.previewHeight = 0;
+  gameState.previewLocked = false;
+  gameState.targetMarker = null;
 
-  // If all tutorials shown, proceed to callback
-  if (currentPreModeTutorialIndex >= PRE_MODE_TUTORIALS.length) {
-    finishPreModeTutorials();
+  // Set placeholder countries
+  gameState.playerCountry = { id: 'tutorial', name: 'You', flag: '🥌' };
+  gameState.opponentCountry = { id: 'cpu', name: 'Opponent', flag: '🎯' };
+
+  // Update preview stone
+  updatePreviewStoneForTeam();
+
+  // Hide UI elements that shouldn't show in tutorial
+  const scoreboardContainer = document.getElementById('scoreboard-container');
+  if (scoreboardContainer) scoreboardContainer.style.display = 'none';
+
+  const turnDisplay = document.getElementById('turn');
+  if (turnDisplay) turnDisplay.style.display = 'none';
+
+  const gameButtons = document.getElementById('game-buttons');
+  if (gameButtons) gameButtons.style.display = 'none';
+
+  // Show curl buttons
+  const curlBtns = document.getElementById('curl-buttons');
+  if (curlBtns) curlBtns.style.display = 'none';  // Hidden until curl step
+
+  // Show effort bar
+  const effortContainer = document.getElementById('effort-container');
+  if (effortContainer) effortContainer.style.display = 'none';  // Hidden until throw step
+}
+
+// Show current tutorial step
+function showInteractiveTutorialStep() {
+  const step = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+  if (!step) {
+    finishInteractiveTutorial();
     return;
   }
 
-  const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
-  const tutorial = FIRST_RUN_TUTORIALS[tutorialId];
+  tutorialActionCompleted = false;
 
   const overlay = document.getElementById('tutorial-overlay');
+  const popup = document.getElementById('tutorial-popup');
   const icon = document.getElementById('tutorial-icon');
   const title = document.getElementById('tutorial-title');
-  const step = document.getElementById('tutorial-step');
+  const stepEl = document.getElementById('tutorial-step');
   const text = document.getElementById('tutorial-text');
   const hintDiv = document.getElementById('tutorial-hint');
   const hintText = document.getElementById('tutorial-hint-text');
   const nextBtn = document.getElementById('tutorial-next-btn');
 
-  if (!overlay || !tutorial) {
-    finishPreModeTutorials();
+  if (!overlay) {
+    finishInteractiveTutorial();
     return;
   }
 
-  icon.textContent = tutorial.icon;
-  title.textContent = tutorial.title;
-  step.textContent = `Step ${tutorial.step} of ${tutorial.total}`;
-  text.innerHTML = tutorial.text.replace(/\n/g, '<br>');
+  icon.textContent = step.icon;
+  title.textContent = step.title;
+  stepEl.textContent = `Step ${step.step} of ${step.total}`;
+  text.innerHTML = step.text.replace(/\n/g, '<br>');
 
-  if (tutorial.hint) {
+  if (step.hint) {
     hintDiv.style.display = 'block';
-    hintText.textContent = tutorial.hint;
+    hintText.textContent = step.hint;
   } else {
     hintDiv.style.display = 'none';
   }
 
-  // Update button text
-  const isLast = currentPreModeTutorialIndex === PRE_MODE_TUTORIALS.length - 1;
-  if (nextBtn) nextBtn.textContent = isLast ? 'Got it!' : 'Next';
+  // Position popup at top for interactive steps (so user can see the game)
+  if (step.action !== 'click') {
+    popup.style.top = '15%';
+    popup.style.transform = 'translateX(-50%)';
+    // Make overlay transparent so user can interact with game
+    overlay.style.background = 'transparent';
+    overlay.style.pointerEvents = 'none';
+    popup.style.pointerEvents = 'auto';
+    // Hide the button for action steps
+    nextBtn.style.display = 'none';
+  } else {
+    popup.style.top = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.pointerEvents = 'auto';
+    popup.style.pointerEvents = 'auto';
+    nextBtn.style.display = 'block';
+    nextBtn.textContent = 'Next';
+  }
 
-  // Reset checkbox
-  const checkbox = document.getElementById('tutorial-dont-show');
-  if (checkbox) checkbox.checked = false;
+  // Hide checkbox for tutorial
+  const checkboxContainer = document.getElementById('tutorial-checkbox-container');
+  if (checkboxContainer) checkboxContainer.style.display = 'none';
 
   overlay.style.display = 'block';
 
+  // Set up UI for this step
+  setupUIForTutorialStep(step);
+
   // Track for analytics
-  analytics.trackEvent('tutorial', tutorialId, { step: tutorial.step, firstRun: true });
+  analytics.trackEvent('tutorial_interactive', step.id, { step: step.step });
 }
 
-// Called when a pre-mode tutorial is dismissed
-function dismissPreModeTutorial() {
-  const tutorialId = PRE_MODE_TUTORIALS[currentPreModeTutorialIndex];
+// Set up UI elements for current tutorial step
+function setupUIForTutorialStep(step) {
+  const curlDisplay = document.getElementById('curl-display');
 
-  // Mark as shown
-  markFirstRunTutorialShown(tutorialId);
-  gameState.firstRunTutorialsShownThisSession[tutorialId] = true;
+  switch (step.action) {
+    case 'aim':
+      // Put user in target view so they can see the house and place target
+      gameState.previewHeight = 1;
+      gameState.previewLocked = true;
+      gameState.phase = 'aiming';
+      // Hide curl display until target is placed
+      if (curlDisplay) curlDisplay.style.display = 'none';
+      // Show marker hint
+      updateMarkerHint();
+      break;
+    case 'curl':
+      // Keep in target view, curl display will show automatically when target placed
+      // User should already have target placed from previous step
+      break;
+    case 'throw':
+      // Return to throwing view
+      gameState.previewHeight = 0;
+      gameState.previewLocked = false;
+      gameState.phase = 'aiming';
+      updateReturnButton();
+      break;
+    case 'sweep':
+      // Stone is moving, user can sweep
+      // Phase should already be 'sweeping' from the throw
+      break;
+  }
+}
 
-  // Check if user disabled tutorials
-  const checkbox = document.getElementById('tutorial-dont-show');
-  if (checkbox && checkbox.checked) {
-    disableFirstRunTutorials();
-    finishPreModeTutorials();
-    return;
+// Called when user completes a tutorial action
+function onTutorialActionComplete(action) {
+  if (!gameState.interactiveTutorialMode) return;
+
+  const currentStep = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+  if (!currentStep || currentStep.action !== action) return;
+
+  if (tutorialActionCompleted) return;  // Prevent double-triggers
+  tutorialActionCompleted = true;
+
+  // Mark this tutorial as shown
+  const tutorialId = 'fr_' + currentStep.id;
+  if (tutorialId === 'fr_aim') markFirstRunTutorialShown('fr_aim');
+  else if (tutorialId === 'fr_curl') markFirstRunTutorialShown('fr_curl');
+  else if (tutorialId === 'fr_throw') markFirstRunTutorialShown('fr_throw');
+  else if (tutorialId === 'fr_sweep') markFirstRunTutorialShown('fr_sweep');
+
+  // Move to next step
+  interactiveTutorialStep++;
+
+  // Small delay before showing next step
+  setTimeout(() => {
+    showInteractiveTutorialStep();
+  }, 500);
+}
+
+// Called when user clicks Next/Got it on a click-only step
+function dismissInteractiveTutorialStep() {
+  const currentStep = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+
+  if (currentStep && currentStep.action === 'click') {
+    // Mark welcome as shown
+    if (currentStep.id === 'welcome') {
+      markFirstRunTutorialShown('fr_welcome');
+    }
+
+    interactiveTutorialStep++;
+    showInteractiveTutorialStep();
+  }
+}
+
+// Finish interactive tutorial
+function finishInteractiveTutorial() {
+  const overlay = document.getElementById('tutorial-overlay');
+  const popup = document.getElementById('tutorial-popup');
+
+  if (overlay) {
+    overlay.style.display = 'none';
+    overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+    overlay.style.pointerEvents = 'auto';
+  }
+  if (popup) {
+    popup.style.top = '50%';
+    popup.style.transform = 'translate(-50%, -50%)';
+    popup.style.pointerEvents = 'auto';
   }
 
-  // Move to next tutorial
-  currentPreModeTutorialIndex++;
-  showNextPreModeTutorial();
-}
+  // Show checkbox again
+  const checkboxContainer = document.getElementById('tutorial-checkbox-container');
+  if (checkboxContainer) checkboxContainer.style.display = 'block';
 
-function finishPreModeTutorials() {
-  const overlay = document.getElementById('tutorial-overlay');
-  if (overlay) overlay.style.display = 'none';
+  // Restore UI
+  const scoreboardContainer = document.getElementById('scoreboard-container');
+  if (scoreboardContainer) scoreboardContainer.style.display = '';
 
+  const turnDisplay = document.getElementById('turn');
+  if (turnDisplay) turnDisplay.style.display = '';
+
+  const gameButtons = document.getElementById('game-buttons');
+  if (gameButtons) gameButtons.style.display = '';
+
+  // Clear tutorial state
+  gameState.interactiveTutorialMode = false;
   gameState.welcomeTutorialActive = false;
 
-  // Call the callback (show mode selection)
-  if (preModeCallback) {
-    const cb = preModeCallback;
-    preModeCallback = null;
+  // Clear any stones from tutorial
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Reset preview stone
+  if (previewStone) {
+    previewStone.visible = false;
+  }
+
+  // Call callback (show mode selection)
+  if (interactiveTutorialCallback) {
+    const cb = interactiveTutorialCallback;
+    interactiveTutorialCallback = null;
     cb();
   }
 }
@@ -16279,13 +16517,13 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Check if first-time user needs tutorials
+  // Check if first-time user needs interactive tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
   const disabled = areFirstRunTutorialsDisabled();
-  const needsTutorials = PRE_MODE_TUTORIALS.some(id => !tutorialsShown[id]);
-  if (needsTutorials && !disabled) {
-    // Show tutorial sequence, then mode selection
-    showPreModeTutorials(() => showModeSelection());
+  const needsWelcomeTutorial = !tutorialsShown['fr_welcome'];
+  if (needsWelcomeTutorial && !disabled) {
+    // Show interactive tutorial, then mode selection
+    startInteractiveTutorial(() => showModeSelection());
   } else {
     // Go directly to mode selection
     showModeSelection();
