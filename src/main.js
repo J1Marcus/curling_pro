@@ -265,6 +265,7 @@ const gameState = {
   // First-run tutorial state (for regular mode)
   firstRunTutorial: null,  // { id, pausesGame }
   firstRunTutorialsShownThisSession: {},  // Track tutorials shown this session (resets on refresh)
+  welcomeTutorialActive: false,  // Welcome tutorial showing before mode selection
 
   // App backgrounding state (iOS lifecycle)
   isPaused: false,
@@ -1568,18 +1569,8 @@ const LEARN_LEVELS = [
 
 // Tutorial definitions - only shown in Learn Mode Level 1 (Complete Beginner)
 const TUTORIALS = {
-  // PART 1: Game Basics & Rules
-  welcome: {
-    id: 'welcome',
-    icon: '🥌',
-    title: 'Welcome to Curling!',
-    text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.
-
-Each "end" (like an inning) consists of 16 stones total - 8 per team, thrown alternately.`,
-    hint: 'Your stones are RED. The computer plays YELLOW.',
-    step: 1,
-    total: 10
-  },
+  // PART 1: Game Basics & Rules (shown before coin toss in Learn Mode)
+  // Note: 'welcome' is now shown to ALL new users after splash screen
   scoring: {
     id: 'scoring',
     icon: '🏆',
@@ -1590,8 +1581,8 @@ You score 1 point for each of your stones that is closer to the button than the 
 
 Stones must be touching the house (the colored rings) to count.`,
     hint: 'The team that doesn\'t score gets the "hammer" next end.',
-    step: 2,
-    total: 10
+    step: 1,
+    total: 9
   },
   hammer: {
     id: 'hammer',
@@ -1603,8 +1594,8 @@ The team that scores gives up the hammer. If neither team scores (a "blank end")
 
 Strategy tip: Teams with hammer often try to score 2+ points. Scoring just 1 point ("getting forced") gives the opponent hammer.`,
     hint: 'Winning the coin toss and choosing hammer is a big advantage!',
-    step: 3,
-    total: 10
+    step: 2,
+    total: 9
   },
   freeGuardZone: {
     id: 'freeGuardZone',
@@ -1616,8 +1607,8 @@ Guards are stones between the hog line and the house. If you knock out a protect
 
 This rule encourages strategic play and prevents early aggressive takeouts.`,
     hint: 'After stone 4, all stones are fair game!',
-    step: 4,
-    total: 10
+    step: 3,
+    total: 9
   },
   shotTypes: {
     id: 'shotTypes',
@@ -1631,8 +1622,8 @@ This rule encourages strategic play and prevents early aggressive takeouts.`,
 • FREEZE - Stops touching another stone (hard to remove)
 • PEEL - Removes a guard at high speed`,
     hint: 'The Coach panel will suggest which shot type to play.',
-    step: 5,
-    total: 10
+    step: 4,
+    total: 9
   },
 
   // PART 2: Controls
@@ -1644,8 +1635,8 @@ This rule encourages strategic play and prevents early aggressive takeouts.`,
 
 Your Coach (the panel on the right) suggests where to aim based on the current game situation. Look for the green target marker on the ice.`,
     hint: 'Tap when the aim arrow points toward your target.',
-    step: 6,
-    total: 10
+    step: 5,
+    total: 9
   },
   curl: {
     id: 'curl',
@@ -1659,8 +1650,8 @@ Tap the IN or OUT button (bottom left):
 
 Curl helps you navigate around guards and reach positions you couldn't hit straight-on.`,
     hint: 'You must select curl before you can throw!',
-    step: 7,
-    total: 10
+    step: 6,
+    total: 9
   },
   effort: {
     id: 'effort',
@@ -1673,8 +1664,8 @@ Different weights for different shots:
 • Draw weight (50-70%): Stops in the house
 • Takeout weight (70-85%): Hits and removes stones`,
     hint: 'Watch the weight indicator on the left side of the screen.',
-    step: 8,
-    total: 10
+    step: 7,
+    total: 9
   },
   throw: {
     id: 'throw',
@@ -1684,8 +1675,8 @@ Different weights for different shots:
 
 The stone will slide down the ice following the path determined by your aim. The curl effect increases as the stone slows down near the house.`,
     hint: 'Release when you\'re happy with your weight setting.',
-    step: 9,
-    total: 10
+    step: 8,
+    total: 9
   },
   sweeping: {
     id: 'sweeping',
@@ -1697,8 +1688,8 @@ Tap and hold anywhere on the screen to sweep. Sweeping warms the ice, reducing f
 • Help a light stone reach its target
 • Keep a stone straighter when it starts to curl too much`,
     hint: 'You can only sweep your own team\'s stones!',
-    step: 10,
-    total: 10,
+    step: 9,
+    total: 9,
     pausesGame: true  // Pause stone movement during this tutorial
   },
   // Intermediate version - focuses on directional sweeping
@@ -1765,7 +1756,8 @@ function showTutorial(tutorialId) {
 
   // Filter tutorials based on level
   const level = gameState.learnMode.level;
-  const ruleTutorials = ['welcome', 'scoring', 'hammer', 'freeGuardZone', 'shotTypes'];
+  // Note: 'welcome' is now shown to ALL new users after splash screen (not Learn Mode specific)
+  const ruleTutorials = ['scoring', 'hammer', 'freeGuardZone', 'shotTypes'];
   const controlTutorials = ['aiming', 'curl', 'effort', 'throw', 'sweeping'];
 
   // Level 1 (Beginner): Show all tutorials
@@ -1865,6 +1857,12 @@ function showTutorial(tutorialId) {
 window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
+
+  // Check if this is the welcome tutorial (before mode selection)
+  if (gameState.welcomeTutorialActive) {
+    dismissWelcomeTutorial();
+    return;
+  }
 
   // Check if this is a first-run tutorial (regular mode)
   if (gameState.firstRunTutorial) {
@@ -7172,13 +7170,11 @@ function updateCoachPanel() {
     if (gameState.learnMode.enabled && gameState.end === 1 && gameState.stonesThrown.red === 0 && !menuOpen) {
       // Show rules/terminology tutorials first, then control tutorials
       // Each tutorial only shows once (tracked in tutorialsShown)
+      // Note: 'welcome' is now shown to ALL new users after splash screen
       const tutorialSequence = [
-        'welcome',        // 1. Basic intro
-        'scoring',        // 2. How scoring works
-        'hammer',         // 3. What hammer is
-        'freeGuardZone',  // 4. FGZ rule
-        'shotTypes',      // 5. Types of shots
-        'aiming'          // 6. How to aim
+        'freeGuardZone',  // 1. FGZ rule
+        'shotTypes',      // 2. Types of shots
+        'aiming'          // 3. How to aim
         // curl tutorial is shown after selecting target (in placeTargetMarker)
       ];
 
@@ -13733,7 +13729,8 @@ function showSettingsSummary() {
 }
 
 // Pre-toss tutorials for Learn Mode (shown before coin toss)
-const PRE_TOSS_TUTORIALS = ['welcome', 'scoring', 'hammer'];
+// Note: 'welcome' is now shown to ALL new users after splash, not just Learn Mode
+const PRE_TOSS_TUTORIALS = ['scoring', 'hammer'];
 
 // Start pre-toss tutorials or coin toss
 window.startCoinToss = function() {
@@ -14028,6 +14025,17 @@ function updateScoreboardFlags() {
 
 // First-run tutorials for new users (not in Learn Mode)
 const FIRST_RUN_TUTORIALS = {
+  fr_welcome: {
+    id: 'fr_welcome',
+    icon: '🥌',
+    title: 'Welcome to Curling!',
+    text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.
+
+Each "end" (like an inning) consists of 16 stones total - 8 per team, thrown alternately.`,
+    hint: 'Your stones are RED. The computer plays YELLOW.',
+    step: 1,
+    total: 5
+  },
   fr_aim: {
     id: 'fr_aim',
     icon: '🎯',
@@ -14036,8 +14044,8 @@ const FIRST_RUN_TUTORIALS = {
 
 The green arrow shows your aim direction. Drag left or right to fine-tune your aim.`,
     hint: 'Place your target in the house (colored rings) to score!',
-    step: 1,
-    total: 4
+    step: 2,
+    total: 5
   },
   fr_curl: {
     id: 'fr_curl',
@@ -14048,8 +14056,8 @@ The green arrow shows your aim direction. Drag left or right to fine-tune your a
 • IN-turn → stone curves LEFT
 • OUT-turn → stone curves RIGHT`,
     hint: 'Curl helps you navigate around other stones.',
-    step: 2,
-    total: 4
+    step: 3,
+    total: 5
   },
   fr_throw: {
     id: 'fr_throw',
@@ -14059,8 +14067,8 @@ The green arrow shows your aim direction. Drag left or right to fine-tune your a
 
 Release to throw! Tap again when the stone crosses the hog line to let go.`,
     hint: 'More power = stone travels farther.',
-    step: 3,
-    total: 4
+    step: 4,
+    total: 5
   },
   fr_sweep: {
     id: 'fr_sweep',
@@ -14072,8 +14080,8 @@ Sweeping makes your stone:
 • Travel farther
 • Stay straighter`,
     hint: 'Sweep if your stone looks light!',
-    step: 4,
-    total: 4,
+    step: 5,
+    total: 5,
     pausesGame: true
   }
 };
@@ -14214,6 +14222,78 @@ window.resetFirstRunTutorials = function() {
   gameState.firstRunTutorialsShownThisSession = {};
   console.log('[First-Run Tutorials] Reset complete - tutorials will show again');
 };
+
+// Show welcome tutorial for first-time users (before mode selection)
+let welcomeTutorialCallback = null;
+function showWelcomeTutorial(onComplete) {
+  welcomeTutorialCallback = onComplete;
+
+  const tutorial = FIRST_RUN_TUTORIALS.fr_welcome;
+  const overlay = document.getElementById('tutorial-overlay');
+  const icon = document.getElementById('tutorial-icon');
+  const title = document.getElementById('tutorial-title');
+  const step = document.getElementById('tutorial-step');
+  const text = document.getElementById('tutorial-text');
+  const hintDiv = document.getElementById('tutorial-hint');
+  const hintText = document.getElementById('tutorial-hint-text');
+  const nextBtn = document.getElementById('tutorial-next-btn');
+
+  if (!overlay) {
+    // Overlay not ready, skip to callback
+    if (onComplete) onComplete();
+    return;
+  }
+
+  icon.textContent = tutorial.icon;
+  title.textContent = tutorial.title;
+  step.textContent = `Step ${tutorial.step} of ${tutorial.total}`;
+  text.innerHTML = tutorial.text.replace(/\n/g, '<br>');
+
+  if (tutorial.hint) {
+    hintDiv.style.display = 'block';
+    hintText.textContent = tutorial.hint;
+  } else {
+    hintDiv.style.display = 'none';
+  }
+
+  if (nextBtn) nextBtn.textContent = 'Got it!';
+
+  // Reset checkbox
+  const checkbox = document.getElementById('tutorial-dont-show');
+  if (checkbox) checkbox.checked = false;
+
+  // Mark this as a welcome tutorial for dismissTutorial to handle
+  gameState.welcomeTutorialActive = true;
+
+  overlay.style.display = 'block';
+
+  // Track for analytics
+  analytics.trackEvent('tutorial', 'fr_welcome', { step: 1, firstRun: true });
+}
+
+// Called when welcome tutorial is dismissed
+function dismissWelcomeTutorial() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Mark as shown
+  markFirstRunTutorialShown('fr_welcome');
+  gameState.firstRunTutorialsShownThisSession['fr_welcome'] = true;
+
+  // Check if user disabled tutorials
+  const checkbox = document.getElementById('tutorial-dont-show');
+  if (checkbox && checkbox.checked) {
+    disableFirstRunTutorials();
+  }
+
+  gameState.welcomeTutorialActive = false;
+
+  // Call the callback (show mode selection)
+  if (welcomeTutorialCallback) {
+    welcomeTutorialCallback();
+    welcomeTutorialCallback = null;
+  }
+}
 
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
@@ -16156,6 +16236,13 @@ setTimeout(() => {
   animate();
   console.log('Curling game initialized!');
 
-  // Go to mode selection
-  showModeSelection();
+  // Check if first-time user needs welcome tutorial
+  const tutorialsShown = getFirstRunTutorialsShown();
+  if (!tutorialsShown['fr_welcome'] && !areFirstRunTutorialsDisabled()) {
+    // Show welcome tutorial, then mode selection
+    showWelcomeTutorial(() => showModeSelection());
+  } else {
+    // Go directly to mode selection
+    showModeSelection();
+  }
 }, remainingTime);
