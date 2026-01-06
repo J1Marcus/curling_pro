@@ -14474,6 +14474,7 @@ function showInteractiveTutorialStep() {
 
   // Always show centered popup with dark background
   popup.style.top = '50%';
+  popup.style.bottom = 'auto';  // Reset bottom positioning
   popup.style.transform = 'translate(-50%, -50%)';
   overlay.style.background = 'rgba(0, 0, 0, 0.7)';
   overlay.style.pointerEvents = 'auto';
@@ -14569,11 +14570,12 @@ function showTutorialContinueButton() {
   nextBtn.style.display = 'block';
   nextBtn.textContent = 'Continue';
 
-  // Make popup smaller for just the button
-  popup.style.top = '50%';
-  popup.style.transform = 'translate(-50%, -50%)';
-  overlay.style.background = 'rgba(0, 0, 0, 0.5)';
-  overlay.style.pointerEvents = 'auto';
+  // Position at bottom so user can still see and adjust marker
+  popup.style.top = 'auto';
+  popup.style.bottom = '20px';
+  popup.style.transform = 'translateX(-50%)';
+  overlay.style.background = 'transparent';
+  overlay.style.pointerEvents = 'none';
   popup.style.pointerEvents = 'auto';
 
   overlay.style.display = 'block';
@@ -14626,6 +14628,7 @@ function finishInteractiveTutorial() {
   }
   if (popup) {
     popup.style.top = '50%';
+    popup.style.bottom = 'auto';  // Reset bottom positioning
     popup.style.transform = 'translate(-50%, -50%)';
     popup.style.pointerEvents = 'auto';
   }
