@@ -11488,21 +11488,21 @@ window.startQuickMatch = async function() {
   const rating = await multiplayer.getOrCreatePlayerRating(playerName);
   document.getElementById('qm-player-elo').textContent = rating.elo_rating;
 
-  // Track if match was found (to cancel timeout)
-  let matchFound = false;
-
-  // Store timeout reference globally so cancel button can clear it too
+  // Track matchmaking state globally
+  gameState.matchmakingActive = true;
   gameState.matchmakingTimeout = null;
 
   // Set 20-second timeout for matchmaking
+  console.log('[QuickMatch] Starting 20-second timeout');
   gameState.matchmakingTimeout = setTimeout(() => {
-    if (!matchFound) {
-      console.log('[QuickMatch] Timeout - no match found after 20 seconds');
+    console.log('[QuickMatch] Timeout fired, matchmakingActive:', gameState.matchmakingActive);
+    if (gameState.matchmakingActive) {
+      gameState.matchmakingActive = false;
+      console.log('[QuickMatch] No match found after 20 seconds - cancelling');
       multiplayer.leaveMatchmakingQueue();
       const searchScreen = document.getElementById('quickmatch-searching-screen');
       if (searchScreen) searchScreen.style.display = 'none';
       showMultiplayerLobby();
-      // Show error after a brief delay to ensure lobby is visible
       setTimeout(() => {
         showMultiplayerError('No opponents found. Please try again later.');
       }, 100);
@@ -11514,7 +11514,7 @@ window.startQuickMatch = async function() {
     playerName,
     // Match found callback
     async (matchData) => {
-      matchFound = true;
+      gameState.matchmakingActive = false;
       if (gameState.matchmakingTimeout) {
         clearTimeout(gameState.matchmakingTimeout);
         gameState.matchmakingTimeout = null;
@@ -11560,6 +11560,7 @@ window.startQuickMatch = async function() {
   );
 
   if (!result.success) {
+    gameState.matchmakingActive = false;
     if (gameState.matchmakingTimeout) {
       clearTimeout(gameState.matchmakingTimeout);
       gameState.matchmakingTimeout = null;
@@ -11702,7 +11703,7 @@ function setupCommonMultiplayerCallbacks() {
 
 // Cancel quick match search
 window.cancelQuickMatch = async function() {
-  // Clear the timeout
+  gameState.matchmakingActive = false;
   if (gameState.matchmakingTimeout) {
     clearTimeout(gameState.matchmakingTimeout);
     gameState.matchmakingTimeout = null;
