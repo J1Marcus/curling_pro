@@ -14415,34 +14415,22 @@ function showInteractiveTutorialStep() {
     hintDiv.style.display = 'none';
   }
 
-  // Position popup at top for interactive steps (so user can see the game)
-  if (step.action !== 'click') {
-    popup.style.top = '15%';
-    popup.style.transform = 'translateX(-50%)';
-    // Make overlay transparent so user can interact with game
-    overlay.style.background = 'transparent';
-    overlay.style.pointerEvents = 'none';
-    popup.style.pointerEvents = 'auto';
-    // Hide the button for action steps
-    nextBtn.style.display = 'none';
-  } else {
-    popup.style.top = '50%';
-    popup.style.transform = 'translate(-50%, -50%)';
-    overlay.style.background = 'rgba(0, 0, 0, 0.7)';
-    overlay.style.pointerEvents = 'auto';
-    popup.style.pointerEvents = 'auto';
-    nextBtn.style.display = 'block';
-    nextBtn.textContent = 'Next';
-  }
+  // Always show centered popup with dark background
+  popup.style.top = '50%';
+  popup.style.transform = 'translate(-50%, -50%)';
+  overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+  overlay.style.pointerEvents = 'auto';
+  popup.style.pointerEvents = 'auto';
+  nextBtn.style.display = 'block';
 
-  // Hide checkbox for tutorial
+  // Button text: "Next" for welcome, "Try it!" for action steps
+  nextBtn.textContent = step.action === 'click' ? 'Next' : 'Try it!';
+
+  // Hide checkbox for interactive tutorial
   const checkboxContainer = document.getElementById('tutorial-checkbox-container');
   if (checkboxContainer) checkboxContainer.style.display = 'none';
 
   overlay.style.display = 'block';
-
-  // Set up UI for this step
-  setupUIForTutorialStep(step);
 
   // Track for analytics
   analytics.trackEvent('tutorial_interactive', step.id, { step: step.step });
@@ -14491,17 +14479,10 @@ function onTutorialActionComplete(action) {
   if (tutorialActionCompleted) return;  // Prevent double-triggers
   tutorialActionCompleted = true;
 
-  // Mark this tutorial as shown
-  const tutorialId = 'fr_' + currentStep.id;
-  if (tutorialId === 'fr_aim') markFirstRunTutorialShown('fr_aim');
-  else if (tutorialId === 'fr_curl') markFirstRunTutorialShown('fr_curl');
-  else if (tutorialId === 'fr_throw') markFirstRunTutorialShown('fr_throw');
-  else if (tutorialId === 'fr_sweep') markFirstRunTutorialShown('fr_sweep');
-
   // Move to next step
   interactiveTutorialStep++;
 
-  // Small delay before showing next step
+  // Small delay before showing next step instruction
   setTimeout(() => {
     showInteractiveTutorialStep();
   }, 500);
@@ -14510,15 +14491,27 @@ function onTutorialActionComplete(action) {
 // Called when user clicks Next/Got it on a click-only step
 function dismissInteractiveTutorialStep() {
   const currentStep = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+  if (!currentStep) return;
 
-  if (currentStep && currentStep.action === 'click') {
-    // Mark welcome as shown
-    if (currentStep.id === 'welcome') {
-      markFirstRunTutorialShown('fr_welcome');
-    }
+  const overlay = document.getElementById('tutorial-overlay');
 
+  // Mark tutorial as shown
+  if (currentStep.id === 'welcome') markFirstRunTutorialShown('fr_welcome');
+  else if (currentStep.id === 'aim') markFirstRunTutorialShown('fr_aim');
+  else if (currentStep.id === 'curl') markFirstRunTutorialShown('fr_curl');
+  else if (currentStep.id === 'throw') markFirstRunTutorialShown('fr_throw');
+  else if (currentStep.id === 'sweep') markFirstRunTutorialShown('fr_sweep');
+
+  if (currentStep.action === 'click') {
+    // Click-only step (welcome) - advance immediately
     interactiveTutorialStep++;
     showInteractiveTutorialStep();
+  } else {
+    // Action step - hide popup and let user try
+    if (overlay) overlay.style.display = 'none';
+
+    // Set up UI for this action
+    setupUIForTutorialStep(currentStep);
   }
 }
 
