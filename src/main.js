@@ -255,7 +255,8 @@ const gameState = {
     lastShotIntended: null,   // What the coach suggested
     showOverlays: true,       // Show visual aids on ice
     panelExpanded: true,      // Coach panel expanded or minimized
-    preThrowState: null       // Snapshot of stone positions before throw
+    preThrowState: null,      // Snapshot of stone positions before throw
+    preTossPhase: false       // Showing pre-toss tutorials
   },
 
   // Coach target marker (Three.js mesh)
@@ -1601,7 +1602,7 @@ Stones must be touching the house (the colored rings) to count.`,
 The team that scores gives up the hammer. If neither team scores (a "blank end"), the hammer stays with whoever had it.
 
 Strategy tip: Teams with hammer often try to score 2+ points. Scoring just 1 point ("getting forced") gives the opponent hammer.`,
-    hint: 'Yellow (computer) has hammer in the first end.',
+    hint: 'Winning the coin toss and choosing hammer is a big advantage!',
     step: 3,
     total: 10
   },
@@ -1912,6 +1913,19 @@ window.dismissTutorial = function() {
 
   // After slide-out animation, check for next tutorial
   setTimeout(() => {
+    // If in pre-toss phase, show next pre-toss tutorial or proceed to coin toss
+    if (gameState.learnMode.preTossPhase) {
+      if (!showNextPreTossTutorial()) {
+        // No more pre-toss tutorials, hide overlay
+        if (overlay) overlay.style.display = 'none';
+        if (popup) {
+          popup.style.transform = 'translate(-50%, -50%)';
+          popup.style.opacity = '1';
+        }
+      }
+      return;
+    }
+
     if (typeof updateCoachPanel === 'function') {
       updateCoachPanel();
     }
@@ -13718,10 +13732,43 @@ function showSettingsSummary() {
   screen.style.display = 'block';
 }
 
-// Start coin toss animation
+// Pre-toss tutorials for Learn Mode (shown before coin toss)
+const PRE_TOSS_TUTORIALS = ['welcome', 'scoring', 'hammer'];
+
+// Start pre-toss tutorials or coin toss
 window.startCoinToss = function() {
   document.getElementById('settings-summary-screen').style.display = 'none';
 
+  // In Learn Mode level 1, show intro tutorials before coin toss
+  if (gameState.learnMode.enabled && gameState.learnMode.level === 1 && !gameState.learnMode.tutorialsDisabled) {
+    // Check if any pre-toss tutorials need to be shown
+    const needsPreTossTutorials = PRE_TOSS_TUTORIALS.some(id => !gameState.learnMode.tutorialsShown[id]);
+    if (needsPreTossTutorials) {
+      gameState.learnMode.preTossPhase = true;
+      showNextPreTossTutorial();
+      return;
+    }
+  }
+
+  // No pre-toss tutorials needed, proceed directly to coin toss
+  performCoinToss();
+};
+
+// Show next pre-toss tutorial in sequence
+function showNextPreTossTutorial() {
+  for (const tutorialId of PRE_TOSS_TUTORIALS) {
+    if (showTutorial(tutorialId)) {
+      return true;  // Found one to show
+    }
+  }
+  // No more pre-toss tutorials, proceed to coin toss
+  gameState.learnMode.preTossPhase = false;
+  performCoinToss();
+  return false;
+}
+
+// Perform actual coin toss animation
+function performCoinToss() {
   const overlay = document.getElementById('coin-toss-overlay');
   const coin = document.getElementById('coin');
   const result = document.getElementById('toss-result');
@@ -13768,7 +13815,7 @@ window.startCoinToss = function() {
       }
     }, 2000);
   }, 2000);
-};
+}
 
 // Handle player's toss choice
 window.chooseTossOption = function(choice) {
