@@ -14478,7 +14478,7 @@ function setupTutorialGameState() {
 function showInteractiveTutorialStep() {
   const step = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
   if (!step) {
-    finishInteractiveTutorial();
+    showTutorialCompletion();
     return;
   }
 
@@ -14672,6 +14672,114 @@ function dismissInteractiveTutorialStep() {
   }
 }
 
+// Show tutorial completion message
+function showTutorialCompletion() {
+  hideTutorialContinueButton();
+
+  const overlay = document.getElementById('tutorial-overlay');
+  const popup = document.getElementById('tutorial-popup');
+  const icon = document.getElementById('tutorial-icon');
+  const title = document.getElementById('tutorial-title');
+  const stepEl = document.getElementById('tutorial-step');
+  const text = document.getElementById('tutorial-text');
+  const hintDiv = document.getElementById('tutorial-hint');
+  const nextBtn = document.getElementById('tutorial-next-btn');
+
+  if (!overlay || !popup) {
+    finishInteractiveTutorial();
+    return;
+  }
+
+  // Set completion content
+  icon.textContent = '🎉';
+  title.textContent = 'Tutorial Complete!';
+  stepEl.textContent = '';
+  text.innerHTML = `Great job! You've learned the basics of curling:<br><br>
+    • Set your target on the house<br>
+    • Choose your curl direction<br>
+    • Throw with the right power<br>
+    • Sweep to control your stone<br><br>
+    Ready to play a real game?`;
+  hintDiv.style.display = 'none';
+
+  // Replace button with two options
+  nextBtn.style.display = 'none';
+
+  // Create button container if it doesn't exist
+  let btnContainer = document.getElementById('tutorial-completion-btns');
+  if (!btnContainer) {
+    btnContainer = document.createElement('div');
+    btnContainer.id = 'tutorial-completion-btns';
+    btnContainer.style.cssText = 'display: flex; gap: 12px; justify-content: center; margin-top: 16px;';
+    nextBtn.parentNode.appendChild(btnContainer);
+  }
+
+  btnContainer.innerHTML = `
+    <button onclick="restartTutorial()" style="
+      padding: 12px 24px;
+      background: transparent;
+      border: 2px solid #60a5fa;
+      border-radius: 8px;
+      color: #60a5fa;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    ">Try Again</button>
+    <button onclick="finishInteractiveTutorial()" style="
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    ">Start Playing</button>
+  `;
+  btnContainer.style.display = 'flex';
+
+  // Show popup
+  popup.style.top = '50%';
+  popup.style.bottom = 'auto';
+  popup.style.transform = 'translate(-50%, -50%)';
+  overlay.style.background = 'rgba(0, 0, 0, 0.7)';
+  overlay.style.pointerEvents = 'auto';
+  popup.style.pointerEvents = 'auto';
+  overlay.style.display = 'block';
+}
+
+// Restart the tutorial from the beginning
+function restartTutorial() {
+  // Hide completion buttons
+  const btnContainer = document.getElementById('tutorial-completion-btns');
+  if (btnContainer) btnContainer.style.display = 'none';
+
+  // Show next button again
+  const nextBtn = document.getElementById('tutorial-next-btn');
+  if (nextBtn) nextBtn.style.display = 'block';
+
+  // Clear stones from previous attempt
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+
+  // Reset target marker
+  if (gameState.targetMarker) {
+    gameState.targetMarker.visible = false;
+  }
+  gameState.targetPosition = null;
+
+  // Reset to first step
+  interactiveTutorialStep = 0;
+  tutorialActionCompleted = false;
+
+  // Show first step
+  showInteractiveTutorialStep();
+}
+
 // Finish interactive tutorial
 function finishInteractiveTutorial() {
   hideTutorialContinueButton();
@@ -14690,6 +14798,14 @@ function finishInteractiveTutorial() {
     popup.style.transform = 'translate(-50%, -50%)';
     popup.style.pointerEvents = 'auto';
   }
+
+  // Hide completion buttons
+  const btnContainer = document.getElementById('tutorial-completion-btns');
+  if (btnContainer) btnContainer.style.display = 'none';
+
+  // Show next button again for future tutorials
+  const nextBtn = document.getElementById('tutorial-next-btn');
+  if (nextBtn) nextBtn.style.display = 'block';
 
   // Show checkbox again
   const checkboxContainer = document.getElementById('tutorial-checkbox-container');
