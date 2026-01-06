@@ -11502,10 +11502,9 @@ window.startQuickMatch = async function() {
       multiplayer.leaveMatchmakingQueue();
       const searchScreen = document.getElementById('quickmatch-searching-screen');
       if (searchScreen) searchScreen.style.display = 'none';
-      showMultiplayerLobby();
-      setTimeout(() => {
-        showMultiplayerError('No opponents found. Please try again later.');
-      }, 100);
+      // Show modal dialog
+      const modal = document.getElementById('no-opponents-modal');
+      if (modal) modal.style.display = 'flex';
     }
   }, 20000);
 
@@ -11710,6 +11709,13 @@ window.cancelQuickMatch = async function() {
   }
   await multiplayer.leaveMatchmakingQueue();
   document.getElementById('quickmatch-searching-screen').style.display = 'none';
+  showMultiplayerLobby();
+};
+
+// Close no opponents modal and return to lobby
+window.closeNoOpponentsModal = function() {
+  const modal = document.getElementById('no-opponents-modal');
+  if (modal) modal.style.display = 'none';
   showMultiplayerLobby();
 };
 
