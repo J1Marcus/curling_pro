@@ -14850,6 +14850,10 @@ function finishInteractiveTutorial() {
   }
 }
 
+// Expose tutorial functions for onclick handlers
+window.restartTutorial = restartTutorial;
+window.finishInteractiveTutorial = finishInteractiveTutorial;
+
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
   updateDifficultyButtons(difficulty);
