@@ -2545,87 +2545,6 @@
           </div>
         </div>
 
-        <!-- Learn Mode -->
-        <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
-            Learn Mode
-          </label>
-          <button id="learn-mode-btn" onclick="window.setGameMode('learn')" style="
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #666;
-            background: #333;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            text-align: left;
-            transition: all 0.2s;
-          ">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: bold;">📚 Learn to Curl</span>
-              <span id="learn-mode-badge" style="font-size: 10px; background: #4ade80; color: #000; padding: 2px 8px; border-radius: 10px; display: none;">ACTIVE</span>
-            </div>
-            <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">AI coach suggests shots, explains strategy, and guides your play</div>
-          </button>
-        </div>
-
-        <!-- Learn Level Selector (only shown in Learn mode) -->
-        <div id="learn-level-section" style="margin-bottom: 25px; display: none;">
-          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
-            Your Experience Level
-          </label>
-          <div style="display: flex; flex-direction: column; gap: 6px;">
-            <button class="learn-level-btn" data-level="1" onclick="window.setLearnLevel(1)" style="
-              padding: 10px 12px;
-              border: 2px solid #4ade80;
-              background: #2d5a3d;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #4ade80;">●</span> Complete Beginner - <span style="color: #94a3b8;">New to curling</span></button>
-            <button class="learn-level-btn" data-level="2" onclick="window.setLearnLevel(2)" style="
-              padding: 10px 12px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #3b82f6;">●</span> Know the Basics - <span style="color: #94a3b8;">Learning strategy</span></button>
-            <button class="learn-level-btn" data-level="3" onclick="window.setLearnLevel(3)" style="
-              padding: 10px 12px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #f59e0b;">●</span> Intermediate - <span style="color: #94a3b8;">Strategic play</span></button>
-            <button class="learn-level-btn" data-level="4" onclick="window.setLearnLevel(4)" style="
-              padding: 10px 12px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #ef4444;">●</span> Advanced - <span style="color: #94a3b8;">Minimal coaching</span></button>
-          </div>
-          <p id="learn-level-description" style="margin: 10px 0 0 0; font-size: 12px; color: #718096;">
-            Full tutorial with rules, controls, and simple suggestions
-          </p>
-        </div>
-
         <!-- Quick Play Level Selector (only shown in Quick Play mode) -->
         <div id="quickplay-level-section" style="margin-bottom: 25px; display: none;">
           <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
@@ -2920,25 +2839,6 @@
           </div>
         </div>
 
-        <!-- Learn Mode Section -->
-        <div style="margin-bottom: 20px;">
-          <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Learn Mode</h3>
-          <button id="reset-tutorials-btn" onclick="window.resetTutorials(); window.closeSettings(); this.textContent='Done!'; this.style.background='rgba(74, 222, 128, 0.3)'; this.style.borderColor='#4ade80';" style="
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #3b82f6;
-            background: rgba(96, 165, 250, 0.2);
-            color: #93c5fd;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 13px;
-            transition: all 0.2s;
-          ">Reset Tutorials & Restart Game</button>
-          <p style="margin: 8px 0 0 0; font-size: 11px; color: #718096;">
-            Restarts in Learn Mode (Beginner) with all tutorials
-          </p>
-        </div>
-
         <!-- Help & FAQ -->
         <div style="margin-bottom: 20px;">
           <h3 style="margin: 0 0 12px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px;">Help</h3>
@@ -3073,6 +2973,21 @@
             Voluntary contribution — no features or gameplay changes
           </p>
         </div>
+
+        <!-- Exit Game Button -->
+        <button onclick="window.exitToMainMenu()" style="
+          width: 100%;
+          padding: 12px;
+          margin-bottom: 10px;
+          background: rgba(239, 68, 68, 0.2);
+          border: 2px solid #ef4444;
+          border-radius: 8px;
+          color: #fca5a5;
+          font-size: 14px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">🚪 Exit Game</button>
 
         <!-- Close Button -->
         <button onclick="window.closeSettings()" style="

@@ -10432,6 +10432,9 @@ window.exitToMenu = function() {
   showModeSelection();
 };
 
+// Alias for settings button
+window.exitToMainMenu = window.exitToMenu;
+
 // ============================================
 // GAME SETUP FLOW
 // ============================================
@@ -16844,6 +16847,17 @@ setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
+
+  // Initialize sound on first user interaction (browser autoplay policy)
+  const enableSoundOnInteraction = () => {
+    if (gameState.settings.soundEnabled) {
+      soundManager.setEnabled(true);
+    }
+    document.removeEventListener('click', enableSoundOnInteraction);
+    document.removeEventListener('touchstart', enableSoundOnInteraction);
+  };
+  document.addEventListener('click', enableSoundOnInteraction);
+  document.addEventListener('touchstart', enableSoundOnInteraction);
 
   // Check if first-time user needs interactive tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
