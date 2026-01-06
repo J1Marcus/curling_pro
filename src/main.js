@@ -10351,7 +10351,10 @@ window.exitToMenu = function() {
 
 // Show mode selection screen (first screen after splash)
 function showModeSelection() {
-  alert('showModeSelection called');  // DEBUG
+  // Force hide tutorial overlay
+  const tutorialOverlay = document.getElementById('tutorial-overlay');
+  if (tutorialOverlay) tutorialOverlay.style.display = 'none';
+
   const screen = document.getElementById('mode-select-screen');
   if (screen) {
     screen.style.display = 'block';
