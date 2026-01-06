@@ -10351,6 +10351,7 @@ window.exitToMenu = function() {
 
 // Show mode selection screen (first screen after splash)
 function showModeSelection() {
+  alert('showModeSelection called');  // DEBUG
   const screen = document.getElementById('mode-select-screen');
   if (screen) {
     screen.style.display = 'block';
