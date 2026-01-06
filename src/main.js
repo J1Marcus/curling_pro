@@ -11488,11 +11488,27 @@ window.startQuickMatch = async function() {
   const rating = await multiplayer.getOrCreatePlayerRating(playerName);
   document.getElementById('qm-player-elo').textContent = rating.elo_rating;
 
+  // Track if match was found (to cancel timeout)
+  let matchFound = false;
+
+  // Set 20-second timeout for matchmaking
+  const matchmakingTimeout = setTimeout(async () => {
+    if (!matchFound) {
+      console.log('[QuickMatch] Timeout - no match found after 20 seconds');
+      await multiplayer.leaveMatchmakingQueue();
+      document.getElementById('quickmatch-searching-screen').style.display = 'none';
+      showMultiplayerLobby();
+      showMultiplayerError('No opponents found. Please try again later.');
+    }
+  }, 20000);
+
   // Join matchmaking queue
   const result = await multiplayer.joinMatchmakingQueue(
     playerName,
     // Match found callback
     async (matchData) => {
+      matchFound = true;
+      clearTimeout(matchmakingTimeout);
       console.log('[QuickMatch] Match found:', matchData);
 
       // Show match found UI
@@ -11534,6 +11550,7 @@ window.startQuickMatch = async function() {
   );
 
   if (!result.success) {
+    clearTimeout(matchmakingTimeout);
     document.getElementById('quickmatch-searching-screen').style.display = 'none';
     showMultiplayerLobby();
     showMultiplayerError(result.error || 'Failed to join matchmaking');
