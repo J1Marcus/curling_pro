@@ -14365,7 +14365,7 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     id: 'curl',
     icon: '🌀',
     title: 'Choose Your Curl',
-    text: `Curling stones curve as they slow down! Move the slider to choose your curl direction - the stone will curve the way you slide.`,
+    text: `Curling stones curve as they slow down! Move the slider to choose your curl direction - slide LEFT and the stone curves RIGHT, slide RIGHT and it curves LEFT.`,
     hint: 'Slide left or right to set curl.',
     action: 'curl',  // Wait for user to select curl
     step: 3,
