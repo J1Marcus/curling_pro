@@ -1858,10 +1858,16 @@ function showTutorial(tutorialId) {
 window.dismissTutorial = function() {
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
+  const nextBtn = document.getElementById('tutorial-next-btn');
 
   // Check if this is the interactive tutorial mode
   if (gameState.interactiveTutorialMode) {
-    dismissInteractiveTutorialStep();
+    // Check if this is the "Continue" button after completing an action
+    if (nextBtn && nextBtn.textContent === 'Continue') {
+      continueTutorial();
+    } else {
+      dismissInteractiveTutorialStep();
+    }
     return;
   }
 
@@ -14533,10 +14539,52 @@ function onTutorialActionComplete(action) {
   // Move to next step
   interactiveTutorialStep++;
 
-  // Longer delay so user can see the result of their action
+  // Show "Continue" button after a brief moment
   setTimeout(() => {
-    showInteractiveTutorialStep();
-  }, 2000);
+    showTutorialContinueButton();
+  }, 500);
+}
+
+// Show a continue button after user completes an action
+function showTutorialContinueButton() {
+  const overlay = document.getElementById('tutorial-overlay');
+  const popup = document.getElementById('tutorial-popup');
+  const icon = document.getElementById('tutorial-icon');
+  const title = document.getElementById('tutorial-title');
+  const stepEl = document.getElementById('tutorial-step');
+  const text = document.getElementById('tutorial-text');
+  const hintDiv = document.getElementById('tutorial-hint');
+  const nextBtn = document.getElementById('tutorial-next-btn');
+
+  if (!overlay) return;
+
+  // Show success message
+  icon.textContent = '✓';
+  title.textContent = 'Great!';
+  stepEl.textContent = '';
+  text.textContent = '';
+  hintDiv.style.display = 'none';
+
+  // Show continue button
+  nextBtn.style.display = 'block';
+  nextBtn.textContent = 'Continue';
+
+  // Make popup smaller for just the button
+  popup.style.top = '50%';
+  popup.style.transform = 'translate(-50%, -50%)';
+  overlay.style.background = 'rgba(0, 0, 0, 0.5)';
+  overlay.style.pointerEvents = 'auto';
+  popup.style.pointerEvents = 'auto';
+
+  overlay.style.display = 'block';
+}
+
+// Called when user clicks Continue after completing an action
+function continueTutorial() {
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  showInteractiveTutorialStep();
 }
 
 // Called when user clicks Next/Got it on a click-only step
