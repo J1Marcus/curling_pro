@@ -8072,6 +8072,9 @@ window.returnToThrowView = function() {
     updateMarkerHint();
     updateScoreboardVisibility();  // Show scoreboard when returning to throw view
 
+    // Interactive tutorial: detect ready action
+    onTutorialActionComplete('ready');
+
     // Show the green beacon now that we're preparing to throw
     if (gameState.targetMarker) {
       gameState.targetMarker.traverse((child) => {
@@ -8152,8 +8155,8 @@ function updateReturnButton() {
     const continueBtn = document.getElementById('tutorial-continue-btn');
     const continueBtnVisible = continueBtn && continueBtn.style.display !== 'none';
 
-    // Hide during aim and curl steps
-    if (currentStep && (currentStep.action === 'aim' || currentStep.action === 'curl' || currentStep.action === 'welcome')) {
+    // Hide during welcome, aim, and curl steps (show during 'ready' step so user can click it)
+    if (currentStep && (currentStep.action === 'welcome' || currentStep.action === 'aim' || currentStep.action === 'curl')) {
       btn.style.display = 'none';
       return;
     }
@@ -14346,7 +14349,7 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     hint: 'The last stone thrown in an end is called the Hammer.',
     action: 'click',  // Just click to continue
     step: 1,
-    total: 5
+    total: 6
   },
   {
     id: 'aim',
@@ -14356,7 +14359,7 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     hint: 'Tap anywhere on the rings to set your target.',
     action: 'aim',  // Wait for user to place target marker
     step: 2,
-    total: 5
+    total: 6
   },
   {
     id: 'curl',
@@ -14366,17 +14369,27 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     hint: 'Move the slider at the top of the screen.',
     action: 'curl',  // Wait for user to select curl
     step: 3,
-    total: 5
+    total: 6
+  },
+  {
+    id: 'ready',
+    icon: '✅',
+    title: 'Prepare to Throw',
+    text: `Now tap the READY button to go to the throwing view.`,
+    hint: 'Tap READY when you\'re happy with your target and curl.',
+    action: 'ready',  // Wait for user to click READY
+    step: 4,
+    total: 6
   },
   {
     id: 'throw',
     icon: '💪',
-    title: 'Prepare to Throw',
-    text: `Tap READY to go to the throwing view. Then TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
-    hint: 'Tap READY, then drag down and release to throw.',
+    title: 'Throw the Stone',
+    text: `TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
+    hint: 'Drag down to set power, release, then tap to throw.',
     action: 'throw',  // Wait for user to throw
-    step: 4,
-    total: 5
+    step: 5,
+    total: 6
   },
   {
     id: 'sweep',
@@ -14385,8 +14398,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `While your stone is moving, SWIPE BACK AND FORTH on the screen to sweep! Sweeping makes your stone travel farther and straighter.`,
     hint: 'Swipe rapidly to sweep your stone toward the target!',
     action: 'sweep',  // Wait for user to sweep (or stone to stop)
-    step: 5,
-    total: 5
+    step: 6,
+    total: 6
   }
 ];
 
