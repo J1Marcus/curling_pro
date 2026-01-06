@@ -6259,9 +6259,10 @@ function placeTargetMarker(screenX, screenY) {
       onTutorialActionComplete('aim');
 
       // Show curl tutorial after target is selected (Learn Mode)
+      // Skip if in interactive tutorial mode (has its own flow)
       if (gameState.learnMode.enabled) {
         showTutorial('curl');
-      } else {
+      } else if (!gameState.interactiveTutorialMode) {
         // First-run tutorial for regular mode
         showFirstRunTutorial('fr_curl');
       }
@@ -6506,8 +6507,8 @@ function startPull(x, y) {
     if (showTutorial('throw')) {
       return;
     }
-  } else {
-    // First-run tutorial for regular mode
+  } else if (!gameState.interactiveTutorialMode) {
+    // First-run tutorial for regular mode (skip if in interactive tutorial)
     if (showFirstRunTutorial('fr_throw')) {
       return;  // Wait for user to dismiss tutorial
     }
@@ -6860,8 +6861,8 @@ function releaseStone() {
         // Level 3 (Intermediate) gets advanced directional sweeping tutorial
         const tutorialId = gameState.learnMode.level === 3 ? 'sweepingAdvanced' : 'sweeping';
         showTutorial(tutorialId);
-      } else if (isPlayerThrow) {
-        // First-run tutorial for regular mode
+      } else if (isPlayerThrow && !gameState.interactiveTutorialMode) {
+        // First-run tutorial for regular mode (skip if in interactive tutorial)
         showFirstRunTutorial('fr_sweep');
       }
     }
@@ -13997,8 +13998,8 @@ function startGame() {
     // Player's turn - start in target view
     gameState.previewHeight = 1;
     gameState.previewLocked = true;
-    // Show first-run aim tutorial
-    if (gameState.selectedMode !== 'online') {
+    // Show first-run aim tutorial (skip if in interactive tutorial)
+    if (gameState.selectedMode !== 'online' && !gameState.interactiveTutorialMode) {
       showFirstRunTutorial('fr_aim');
     }
   }
