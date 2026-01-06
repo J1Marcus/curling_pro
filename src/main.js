@@ -1812,6 +1812,14 @@ function showTutorial(tutorialId) {
     nextBtn.textContent = tutorial.step < tutorial.total ? 'Next' : 'Got it!';
   }
 
+  // Make sure Exit button is hidden (only for interactive tutorial)
+  const exitBtn = document.getElementById('tutorial-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'none';
+
+  // Make sure checkbox is visible (only hidden in interactive tutorial)
+  const checkboxContainer = document.getElementById('tutorial-checkbox-container');
+  if (checkboxContainer) checkboxContainer.style.display = 'flex';
+
   // Store current tutorial ID
   gameState.learnMode.currentTutorial = tutorialId;
 
@@ -14293,6 +14301,14 @@ function showFirstRunTutorial(tutorialId) {
   if (nextBtn) {
     nextBtn.textContent = tutorial.step < tutorial.total ? 'Next' : 'Got it!';
   }
+
+  // Make sure Exit button is hidden (only for interactive tutorial)
+  const exitBtn = document.getElementById('tutorial-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'none';
+
+  // Make sure checkbox is visible (only hidden in interactive tutorial)
+  const checkboxContainer = document.getElementById('tutorial-checkbox-container');
+  if (checkboxContainer) checkboxContainer.style.display = 'flex';
 
   // Store current tutorial info for dismissal
   gameState.firstRunTutorial = {
