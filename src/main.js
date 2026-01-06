@@ -9353,6 +9353,14 @@ function updatePhysics() {
 
       // Display hog-to-hog time for player feedback
       displayHogToHogTime(hogToHog);
+
+      // Show sweep tutorial when stone crosses far hog line
+      if (gameState.interactiveTutorialMode) {
+        const currentStep = INTERACTIVE_TUTORIAL_STEPS[interactiveTutorialStep];
+        if (currentStep && currentStep.action === 'sweep') {
+          showInteractiveTutorialStep();
+        }
+      }
     }
   }
 
@@ -14576,6 +14584,12 @@ function onTutorialActionComplete(action) {
     setTimeout(() => {
       showInteractiveTutorialStep();
     }, 800);  // Brief delay for camera transition
+    return;
+  }
+
+  // For 'throw' action, wait for stone to cross hog line before showing sweep tutorial
+  if (action === 'throw') {
+    // Don't show anything yet - sweep tutorial will be triggered when stone crosses hog line
     return;
   }
 
