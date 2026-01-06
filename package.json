@@ -1,7 +1,7 @@
 {
   "name": "curling-game",
   "private": true,
-  "version": "1.1.49",
+  "version": "1.1.62",
   "type": "module",
   "scripts": {
     "dev": "vite",

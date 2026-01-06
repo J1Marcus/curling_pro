@@ -1742,16 +1742,19 @@ function saveTutorialPrefs() {
 function showTutorial(tutorialId) {
   // Only show in Learn Mode
   if (!gameState.learnMode.enabled) {
+    console.log('[Tutorial] showTutorial returning false - learnMode not enabled');
     return false;
   }
 
   // Check if tutorials are disabled
   if (gameState.learnMode.tutorialsDisabled) {
+    console.log('[Tutorial] showTutorial returning false - tutorials disabled');
     return false;
   }
 
   // Check if already shown
   if (gameState.learnMode.tutorialsShown[tutorialId]) {
+    console.log('[Tutorial] showTutorial returning false - already shown:', tutorialId);
     return false;
   }
 
@@ -1777,7 +1780,10 @@ function showTutorial(tutorialId) {
   // Level 1 shows all tutorials
 
   const tutorial = TUTORIALS[tutorialId];
-  if (!tutorial) return false;
+  if (!tutorial) {
+    console.log('[Tutorial] showTutorial returning false - tutorial not found:', tutorialId);
+    return false;
+  }
 
   // Update UI
   const overlay = document.getElementById('tutorial-overlay');
@@ -1788,7 +1794,10 @@ function showTutorial(tutorialId) {
   const hintDiv = document.getElementById('tutorial-hint');
   const hintText = document.getElementById('tutorial-hint-text');
 
-  if (!overlay) return false;
+  if (!overlay) {
+    console.log('[Tutorial] showTutorial returning false - overlay not found');
+    return false;
+  }
 
   icon.textContent = tutorial.icon;
   title.textContent = tutorial.title;
@@ -1844,10 +1853,13 @@ function showTutorial(tutorialId) {
     });
   } else {
     // First tutorial - just show normally
+    console.log('[Tutorial] Showing tutorial overlay for:', tutorialId);
     overlay.style.display = 'block';
+    console.log('[Tutorial] Overlay display set to:', overlay.style.display, 'computed:', getComputedStyle(overlay).display);
     if (popup) {
       popup.style.transform = 'translate(-50%, -50%)';
       popup.style.opacity = '1';
+      console.log('[Tutorial] Popup opacity:', popup.style.opacity, 'transform:', popup.style.transform);
     }
   }
 
@@ -6235,7 +6247,6 @@ function placeTargetMarker(screenX, screenY) {
     // Check if click is within the sheet bounds and near the far house
     if (intersection.x >= -SHEET_WIDTH / 2 && intersection.x <= SHEET_WIDTH / 2 &&
         intersection.z >= HOG_LINE_FAR && intersection.z <= BACK_LINE_FAR) {
-
       // Create marker if it doesn't exist
       if (!gameState.targetMarker) {
         gameState.targetMarker = createTargetMarker();
@@ -6272,14 +6283,7 @@ function placeTargetMarker(screenX, screenY) {
       // Interactive tutorial: detect aim action
       onTutorialActionComplete('aim');
 
-      // Show curl tutorial after target is selected (Learn Mode)
-      // Skip if in interactive tutorial mode (has its own flow)
-      if (gameState.learnMode.enabled) {
-        showTutorial('curl');
-      } else if (!gameState.interactiveTutorialMode) {
-        // First-run tutorial for regular mode
-        showFirstRunTutorial('fr_curl');
-      }
+      // Tutorials are now handled by interactive tutorial at startup
 
       return true;  // Marker was placed
     }
@@ -6297,6 +6301,9 @@ function clearTargetMarker() {
 
 // Drag existing target marker to new position
 function dragTargetMarker(screenX, screenY) {
+  // Only allow dragging during interactive tutorial (not regular gameplay)
+  if (!gameState.interactiveTutorialMode) return;
+
   // Only drag if marker exists and we're in target view
   if (!gameState.targetMarker || !gameState.targetMarker.visible) return;
   if (gameState.phase !== 'aiming') return;
@@ -6555,21 +6562,8 @@ function startPull(x, y) {
     return;
   }
 
-  // Show tutorials before starting throw (Learn Mode)
-  if (gameState.learnMode.enabled) {
-    // Show effort and throw tutorials (curl was already shown before they could click)
-    if (showTutorial('effort')) {
-      return;  // Wait for user to dismiss tutorial before proceeding
-    }
-    if (showTutorial('throw')) {
-      return;
-    }
-  } else if (!gameState.interactiveTutorialMode) {
-    // First-run tutorial for regular mode (skip if in interactive tutorial)
-    if (showFirstRunTutorial('fr_throw')) {
-      return;  // Wait for user to dismiss tutorial
-    }
-  }
+  // Tutorials are now handled by interactive tutorial at startup
+  // No blocking tutorials needed here
 
   // Save pre-shot state for potential rollback on interruption
   savePreShotState();
@@ -6921,16 +6915,7 @@ function releaseStone() {
     if (gameState.phase === 'throwing') {
       gameState.phase = 'sweeping';
 
-      // Show sweeping tutorial (Learn Mode, player's throw only)
-      const isPlayerThrow = gameState.activeStone && gameState.activeStone.team === 'red';
-      if (gameState.learnMode.enabled && isPlayerThrow) {
-        // Level 3 (Intermediate) gets advanced directional sweeping tutorial
-        const tutorialId = gameState.learnMode.level === 3 ? 'sweepingAdvanced' : 'sweeping';
-        showTutorial(tutorialId);
-      } else if (isPlayerThrow && !gameState.interactiveTutorialMode) {
-        // First-run tutorial for regular mode (skip if in interactive tutorial)
-        showFirstRunTutorial('fr_sweep');
-      }
+      // Tutorials are now handled by interactive tutorial at startup
     }
   }, 500);
 }
@@ -7246,27 +7231,7 @@ function updateCoachPanel() {
     panel.style.display = 'block';
     if (showBtn) showBtn.style.display = 'none';  // Hide "show coach" button
     generateCoachSuggestion();
-
-    // Show tutorials (only on first stone of first end, and only when settings menu is closed)
-    const settingsOverlay = document.getElementById('settings-overlay');
-    const menuOpen = settingsOverlay && settingsOverlay.style.display !== 'none';
-    if (gameState.learnMode.enabled && gameState.end === 1 && gameState.stonesThrown.red === 0 && !menuOpen) {
-      // Show rules/terminology tutorials first, then control tutorials
-      // Each tutorial only shows once (tracked in tutorialsShown)
-      // Note: 'welcome' is now shown to ALL new users after splash screen
-      const tutorialSequence = [
-        'freeGuardZone',  // 1. FGZ rule
-        'shotTypes',      // 2. Types of shots
-        'aiming'          // 3. How to aim
-        // curl tutorial is shown after selecting target (in placeTargetMarker)
-      ];
-
-      for (const tutorialId of tutorialSequence) {
-        if (showTutorial(tutorialId)) {
-          break;  // Show one at a time
-        }
-      }
-    }
+    // Tutorials are now handled by interactive tutorial at startup
   } else {
     panel.style.display = 'none';
     if (showBtn) showBtn.style.display = 'none';  // Also hide when not player's turn
@@ -8067,18 +8032,14 @@ function updateScoreboardVisibility() {
 
 // Return to throw view button
 window.returnToThrowView = function() {
-  console.log('[returnToThrowView] phase:', gameState.phase, 'previewLocked:', gameState.previewLocked, 'targetPosition:', !!gameState.targetPosition);
-
   // Prevent during computer's turn
   if (gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam) {
-    console.log('[returnToThrowView] Blocked - computer turn');
     return;
   }
 
   if (gameState.phase === 'aiming' && gameState.previewLocked) {
     // Check if marker has been placed (use targetPosition, not targetMarker object)
     if (!gameState.targetPosition) {
-      console.log('[returnToThrowView] No marker - showing reminder');
       showMarkerReminder();
       return;
     }
@@ -13870,29 +13831,23 @@ const PRE_TOSS_TUTORIALS = ['scoring', 'hammer'];
 window.startCoinToss = function() {
   document.getElementById('settings-summary-screen').style.display = 'none';
 
-  // In Learn Mode level 1, show intro tutorials before coin toss
-  if (gameState.learnMode.enabled && gameState.learnMode.level === 1 && !gameState.learnMode.tutorialsDisabled) {
-    // Check if any pre-toss tutorials need to be shown
-    const needsPreTossTutorials = PRE_TOSS_TUTORIALS.some(id => !gameState.learnMode.tutorialsShown[id]);
-    if (needsPreTossTutorials) {
-      gameState.learnMode.preTossPhase = true;
-      showNextPreTossTutorial();
-      return;
-    }
-  }
-
-  // No pre-toss tutorials needed, proceed directly to coin toss
+  // Pre-toss tutorials are no longer needed since interactive tutorial runs at startup
+  // Go directly to coin toss
   performCoinToss();
 };
 
 // Show next pre-toss tutorial in sequence
 function showNextPreTossTutorial() {
+  console.log('[CoinToss] showNextPreTossTutorial called');
   for (const tutorialId of PRE_TOSS_TUTORIALS) {
+    console.log('[CoinToss] Checking tutorial:', tutorialId, 'shown:', gameState.learnMode.tutorialsShown[tutorialId]);
     if (showTutorial(tutorialId)) {
+      console.log('[CoinToss] Showing tutorial:', tutorialId);
       return true;  // Found one to show
     }
   }
   // No more pre-toss tutorials, proceed to coin toss
+  console.log('[CoinToss] No more pre-toss tutorials, calling performCoinToss');
   gameState.learnMode.preTossPhase = false;
   performCoinToss();
   return false;
@@ -13900,12 +13855,18 @@ function showNextPreTossTutorial() {
 
 // Perform actual coin toss animation
 function performCoinToss() {
+  console.log('[CoinToss] performCoinToss called');
   const overlay = document.getElementById('coin-toss-overlay');
   const coin = document.getElementById('coin');
   const result = document.getElementById('toss-result');
   const subtitle = document.getElementById('toss-subtitle');
   const title = document.getElementById('toss-title');
 
+  if (!overlay) {
+    console.error('[CoinToss] coin-toss-overlay element not found!');
+    return;
+  }
+  console.log('[CoinToss] Showing coin toss overlay');
   overlay.style.display = 'flex';
   result.style.display = 'none';
   title.textContent = 'Coin Toss';
@@ -13921,12 +13882,18 @@ function performCoinToss() {
   setTimeout(() => {
     coin.classList.remove('coin-flipping');
 
+    // Safety check for country data
+    const playerFlag = gameState.playerCountry?.flag || '🥌';
+    const playerName = gameState.playerCountry?.name || 'Player';
+    const opponentFlag = gameState.opponentCountry?.flag || '🥌';
+    const opponentName = gameState.opponentCountry?.name || 'Opponent';
+
     if (playerWins) {
-      result.textContent = `${gameState.playerCountry.flag} ${gameState.playerCountry.name} wins!`;
+      result.textContent = `${playerFlag} ${playerName} wins!`;
       result.style.color = '#4ade80';
       subtitle.textContent = 'You get to choose...';
     } else {
-      result.textContent = `${gameState.opponentCountry.flag} ${gameState.opponentCountry.name} wins!`;
+      result.textContent = `${opponentFlag} ${opponentName} wins!`;
       result.style.color = '#f59e0b';
       subtitle.textContent = 'They choose hammer';
     }
@@ -14021,6 +13988,7 @@ window.chooseColor = function(color) {
 // Start the actual game after setup
 function startGame() {
   gameState.setupComplete = true;
+  gameState.phase = 'aiming';  // Ensure phase is reset for new game
 
   // Track game start
   const gameMode = gameState.selectedMode || 'quickplay';
@@ -14866,6 +14834,52 @@ function finishInteractiveTutorial() {
   // Reset preview stone
   if (gameState.previewStone) {
     gameState.previewStone.visible = false;
+  }
+
+  // Reset game state completely for fresh game start (match initial defaults)
+  gameState.setupComplete = false;
+  gameState.phase = 'aiming';
+  gameState.selectedMode = null;
+  gameState.gameMode = '1player';  // Default is '1player', not null
+  gameState.playerCountry = null;
+  gameState.opponentCountry = null;
+  gameState.currentTeam = 'red';
+  gameState.computerTeam = 'yellow';
+  gameState.hammer = 'yellow';
+  gameState.curlDirection = null;
+  gameState.playerCurlDirection = null;
+  gameState.targetPosition = null;
+  gameState.previewHeight = 0;
+  gameState.previewLocked = false;
+  gameState.end = 1;
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.learnMode.enabled = false;
+  gameState.learnMode.level = 1;
+  gameState.aimAngle = 0;
+  gameState.baseAimAngle = 0;
+
+  // Mark ALL first-run tutorials as shown since user completed interactive tutorial
+  // Mark in localStorage (persistent)
+  markFirstRunTutorialShown('fr_welcome');
+  markFirstRunTutorialShown('fr_aim');
+  markFirstRunTutorialShown('fr_curl');
+  markFirstRunTutorialShown('fr_throw');
+  markFirstRunTutorialShown('fr_sweep');
+
+  // Also mark in session state (immediate effect, no localStorage dependency)
+  gameState.firstRunTutorialsShownThisSession['fr_welcome'] = true;
+  gameState.firstRunTutorialsShownThisSession['fr_aim'] = true;
+  gameState.firstRunTutorialsShownThisSession['fr_curl'] = true;
+  gameState.firstRunTutorialsShownThisSession['fr_throw'] = true;
+  gameState.firstRunTutorialsShownThisSession['fr_sweep'] = true;
+
+  // Also disable first-run tutorials entirely to prevent any blocking
+  disableFirstRunTutorials();
+
+  // Hide target marker if it exists
+  if (gameState.targetMarker) {
+    gameState.targetMarker.visible = false;
   }
 
   // Call callback (show mode selection)
