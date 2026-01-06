@@ -9721,6 +9721,11 @@ function handleTurnTimeout() {
 // GAME FLOW
 // ============================================
 function nextTurn() {
+  // Skip during interactive tutorial - no turn progression
+  if (gameState.interactiveTutorialMode) {
+    return;
+  }
+
   console.log('[TURN] nextTurn called, stonesThrown:', gameState.stonesThrown);
 
   // Clear computer shot in progress flag
