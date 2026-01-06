@@ -14528,9 +14528,12 @@ function showInteractiveTutorialStep() {
   // Button text: "Next" for welcome, "Try it!" for action steps
   nextBtn.textContent = step.action === 'click' ? 'Next' : 'Try it!';
 
-  // Hide checkbox for interactive tutorial
+  // Hide checkbox and show Exit button for interactive tutorial
   const checkboxContainer = document.getElementById('tutorial-checkbox-container');
   if (checkboxContainer) checkboxContainer.style.display = 'none';
+
+  const exitBtn = document.getElementById('tutorial-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'block';
 
   overlay.style.display = 'block';
 
@@ -14812,9 +14815,13 @@ function finishInteractiveTutorial() {
   const nextBtn = document.getElementById('tutorial-next-btn');
   if (nextBtn) nextBtn.style.display = 'block';
 
+  // Hide exit button
+  const exitBtn = document.getElementById('tutorial-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'none';
+
   // Show checkbox again
   const checkboxContainer = document.getElementById('tutorial-checkbox-container');
-  if (checkboxContainer) checkboxContainer.style.display = 'block';
+  if (checkboxContainer) checkboxContainer.style.display = 'flex';
 
   // Restore UI
   const scoreboardContainer = document.getElementById('scoreboard-container');
@@ -14850,9 +14857,15 @@ function finishInteractiveTutorial() {
   }
 }
 
+// Exit tutorial early (user clicked Exit button)
+function exitTutorial() {
+  finishInteractiveTutorial();
+}
+
 // Expose tutorial functions for onclick handlers
 window.restartTutorial = restartTutorial;
 window.finishInteractiveTutorial = finishInteractiveTutorial;
+window.exitTutorial = exitTutorial;
 
 window.setDifficulty = function(difficulty) {
   gameState.settings.difficulty = difficulty;
