@@ -14684,6 +14684,9 @@ function dismissInteractiveTutorialStep() {
 function showTutorialCompletion() {
   hideTutorialContinueButton();
 
+  // Mark tutorial as completed so it doesn't show again
+  markFirstRunTutorialShown('fr_welcome');
+
   const overlay = document.getElementById('tutorial-overlay');
   const popup = document.getElementById('tutorial-popup');
   const icon = document.getElementById('tutorial-icon');
@@ -14859,6 +14862,8 @@ function finishInteractiveTutorial() {
 
 // Exit tutorial early (user clicked Exit button)
 function exitTutorial() {
+  // Mark welcome tutorial as shown so it doesn't appear again
+  markFirstRunTutorialShown('fr_welcome');
   finishInteractiveTutorial();
 }
 
