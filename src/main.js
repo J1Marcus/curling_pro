@@ -14480,10 +14480,10 @@ function onTutorialActionComplete(action) {
   // Move to next step
   interactiveTutorialStep++;
 
-  // Small delay before showing next step instruction
+  // Longer delay so user can see the result of their action
   setTimeout(() => {
     showInteractiveTutorialStep();
-  }, 500);
+  }, 2000);
 }
 
 // Called when user clicks Next/Got it on a click-only step
