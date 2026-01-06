@@ -14274,10 +14274,10 @@ const INTERACTIVE_TUTORIAL_STEPS = [
   {
     id: 'aim',
     icon: '🎯',
-    title: 'Aim Your Shot',
-    text: `Drag LEFT and RIGHT on the screen to aim your stone. The arrow shows where your stone will travel.`,
-    hint: 'Try it now! Drag to aim at the center of the house.',
-    action: 'aim',  // Wait for user to aim
+    title: 'Set Your Target',
+    text: `First, choose where you want your stone to go. TAP on the house (the target area) to place your marker. The skip will stand where you tap to show your target.`,
+    hint: 'Tap anywhere on the rings to set your target.',
+    action: 'aim',  // Wait for user to place target marker
     step: 2,
     total: 5
   },
@@ -14285,10 +14285,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     id: 'curl',
     icon: '🌀',
     title: 'Choose Your Curl',
-    text: `Curling stones curve as they slow down! Tap IN or OUT to set the curl direction:
-• IN-turn → stone curves LEFT
-• OUT-turn → stone curves RIGHT`,
-    hint: 'Tap the IN or OUT button in the bottom left.',
+    text: `Curling stones curve as they slow down! Move the slider to set the curl direction. Slide LEFT for the stone to curve left, slide RIGHT to curve right.`,
+    hint: 'Move the slider at the top of the screen.',
     action: 'curl',  // Wait for user to select curl
     step: 3,
     total: 5
@@ -14297,8 +14295,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     id: 'throw',
     icon: '💪',
     title: 'Throw the Stone',
-    text: `Tap and DRAG DOWN to set your throwing power. The bar on the left shows your power level. Release to throw!`,
-    hint: 'Try it! Drag down and release to throw.',
+    text: `Double-tap to return to the throwing view. Then TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
+    hint: 'Double-tap, then drag down and release to throw.',
     action: 'throw',  // Wait for user to throw
     step: 4,
     total: 5
@@ -14307,8 +14305,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     id: 'sweep',
     icon: '🧹',
     title: 'Sweep!',
-    text: `While your stone is moving, TAP AND HOLD anywhere to sweep! Sweeping makes your stone travel farther and straighter.`,
-    hint: 'Try sweeping now to help your stone reach the target!',
+    text: `While your stone is moving, SWIPE BACK AND FORTH on the screen to sweep! Sweeping makes your stone travel farther and straighter.`,
+    hint: 'Swipe rapidly to sweep your stone toward the target!',
     action: 'sweep',  // Wait for user to sweep (or stone to stop)
     step: 5,
     total: 5
