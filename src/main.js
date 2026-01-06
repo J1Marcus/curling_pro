@@ -10372,7 +10372,12 @@ function showModeSelection() {
     screen.style.visibility = 'visible';
     screen.style.opacity = '1';
     screen.style.zIndex = '99999';
-    screen.style.border = '5px solid red';  // DEBUG: visible indicator
+    // Force all children visible
+    const children = screen.querySelectorAll('*');
+    children.forEach(el => {
+      el.style.visibility = 'visible';
+      el.style.opacity = '1';
+    });
   }
   // Show fixed footer
   const footer = document.getElementById('mode-select-footer');
