@@ -7959,8 +7959,8 @@ function updateScoreboardVisibility() {
   const inPracticeMode = gameState.practiceMode?.active;
 
   // Keep scoreboard hidden during aiming and charging phases (until thrower releases)
-  // Also hide in practice mode entirely
-  const hideScoreboard = inPracticeMode || gameState.phase === 'aiming' || gameState.phase === 'charging';
+  // Also hide in practice mode and interactive tutorial
+  const hideScoreboard = inPracticeMode || gameState.interactiveTutorialMode || gameState.phase === 'aiming' || gameState.phase === 'charging';
 
   // Sliding phase includes: sliding, throwing, sweeping
   const isSlidingPhase = gameState.phase === 'sliding' || gameState.phase === 'throwing' || gameState.phase === 'sweeping';
