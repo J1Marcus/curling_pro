@@ -14040,7 +14040,7 @@ const FIRST_RUN_TUTORIALS = {
     text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.
 
 Each "end" (like an inning) consists of 16 stones total - 8 per team, thrown alternately.`,
-    hint: 'Your stones are RED. The computer plays YELLOW.',
+    hint: 'The last stone thrown in an end is called the Hammer.',
     step: 1,
     total: 5
   },
