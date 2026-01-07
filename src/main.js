@@ -2638,10 +2638,22 @@ function saveSeasonState() {
 }
 
 // Save current match progress (for crash recovery during tournament matches)
+// Now saves after every shot with full stone positions for mid-end recovery
 function saveMatchProgress() {
   if (!seasonState.activeTournament) return;
 
   try {
+    // Capture current stone positions
+    const stonePositions = gameState.stones
+      .filter(s => !s.outOfPlay)
+      .map(s => ({
+        team: s.team,
+        x: s.mesh.position.x,
+        y: s.mesh.position.y,
+        z: s.mesh.position.z,
+        rotation: s.mesh.rotation.y
+      }));
+
     const matchState = {
       end: gameState.end,
       scores: gameState.scores,
@@ -2650,10 +2662,15 @@ function saveMatchProgress() {
       currentTeam: gameState.currentTeam,
       computerTeam: gameState.computerTeam,
       gameMode: gameState.gameMode,
+      stonesThrown: gameState.stonesThrown,
+      stonePositions: stonePositions,
+      playerCountry: gameState.playerCountry,
+      opponentCountry: gameState.opponentCountry,
       timestamp: Date.now()
     };
     localStorage.setItem('curlingpro_match_progress', JSON.stringify(matchState));
-    console.log('[Save] Match progress saved - End', gameState.end, 'Score:', gameState.scores);
+    const totalThrown = gameState.stonesThrown.red + gameState.stonesThrown.yellow;
+    console.log('[Save] Match progress saved - End', gameState.end, 'Shot', totalThrown, 'Stones on ice:', stonePositions.length);
   } catch (e) {
     console.warn('Could not save match progress:', e);
   }
@@ -10088,6 +10105,9 @@ function nextTurn() {
   gameState.currentTeam = gameState.currentTeam === 'red' ? 'yellow' : 'red';
   gameState.phase = 'aiming';
 
+  // Save match progress after each shot (for crash recovery)
+  saveMatchProgress();
+
   // Determine if it's computer's turn (needed for camera view)
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
 
@@ -14427,6 +14447,42 @@ function startGame() {
     gameState.currentTeam = savedProgress.currentTeam;
     if (savedProgress.computerTeam) {
       gameState.computerTeam = savedProgress.computerTeam;
+    }
+    // Restore stones thrown count
+    if (savedProgress.stonesThrown) {
+      gameState.stonesThrown = savedProgress.stonesThrown;
+    }
+    // Restore country info
+    if (savedProgress.playerCountry) {
+      gameState.playerCountry = savedProgress.playerCountry;
+    }
+    if (savedProgress.opponentCountry) {
+      gameState.opponentCountry = savedProgress.opponentCountry;
+    }
+    // Restore stone positions (mid-end recovery)
+    if (savedProgress.stonePositions && savedProgress.stonePositions.length > 0) {
+      console.log('[Recovery] Restoring', savedProgress.stonePositions.length, 'stones on ice');
+      // Clear any existing stones first
+      for (const stone of gameState.stones) {
+        scene.remove(stone.mesh);
+        Matter.Composite.remove(world, stone.body);
+      }
+      gameState.stones = [];
+      // Recreate stones at saved positions
+      for (const pos of savedProgress.stonePositions) {
+        const stone = createStone(pos.team);
+        stone.mesh.position.set(pos.x, pos.y, pos.z);
+        stone.mesh.rotation.y = pos.rotation || 0;
+        // Set physics body position (scaled)
+        Matter.Body.setPosition(stone.body, {
+          x: pos.x * PHYSICS_SCALE,
+          y: pos.z * PHYSICS_SCALE  // Z in Three.js = Y in Matter.js
+        });
+        Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });  // Stopped
+        gameState.stones.push(stone);
+      }
+      // Update stone count display
+      updateStoneCountDisplay();
     }
   }
 
