@@ -9990,7 +9990,7 @@ function updatePhysics() {
 
   updateSweeping();
   } catch (err) {
-    // Send detailed diagnostic info to analytics (visible in admin dashboard)
+    // Send diagnostic info to analytics but DON'T crash - just skip this frame
     const stoneData = gameState.activeStone ? {
       posX: gameState.activeStone.body.position.x?.toFixed(2),
       posY: gameState.activeStone.body.position.y?.toFixed(2),
@@ -10006,9 +10006,7 @@ function updatePhysics() {
       stones: gameState.stones.length,
       end: gameState.currentEnd
     });
-
-    // Re-throw to still report the error
-    throw err;
+    // Don't re-throw - gracefully continue
   }
 }
 
@@ -17043,14 +17041,14 @@ function animate() {
 
   renderer.render(scene, camera);
   } catch (err) {
-    // Send diagnostic info to analytics (visible in admin dashboard)
+    // Send diagnostic info to analytics but DON'T crash - just skip this frame
     analytics.trackError('animate_error', `${err.name}: ${err.message}`, {
       phase: gameState.phase,
       ffw: gameState.cpuFastForward,
       camAnim: !!cameraAnimation,
       end: gameState.currentEnd
     });
-    throw err;
+    // Don't re-throw - gracefully continue
   }
 }
 
