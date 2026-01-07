@@ -13935,6 +13935,7 @@ window.startTournamentMatch = function() {
   gameState.selectedMode = 'career';
   gameState.gameMode = '1player';
   gameState.inTournamentMatch = true;
+  gameState.computerTeam = 'yellow';  // Default, may be swapped by coin toss
 
   // Use player's selected career difficulty (set during club selection)
   // The difficulty was already set in gameState.settings.difficulty when career was created
