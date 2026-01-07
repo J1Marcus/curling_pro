@@ -9778,8 +9778,8 @@ function updatePhysics() {
       // Ensure base is positive for Math.pow with fractional exponent
       const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
       const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
-      let curlForce = curlDirection * 0.000008 * lateCurlMultiplier * iceRandomness * omegaFactor;
-      curlForce = Math.max(-0.0002, Math.min(0.0002, curlForce));  // Cap max lateral force
+      let curlForce = curlDirection * 0.000004 * lateCurlMultiplier * iceRandomness * omegaFactor;
+      curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
 
       // Sweeping reduces curl (makes stone go straighter)
       // In real curling, sweeping melts the pebbles, reducing friction differential
@@ -9801,7 +9801,7 @@ function updatePhysics() {
       }
 
       // Final cap to prevent any extreme cases
-      curlForce = Math.max(-0.0001, Math.min(0.0001, curlForce));
+      curlForce = Math.max(-0.00005, Math.min(0.00005, curlForce));
       Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
 
       // Update sliding sound volume based on speed
