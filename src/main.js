@@ -61,8 +61,77 @@ const PHYSICS_SCALE = 100;
 // Realistic physics - tuned to real curling timing:
 // Draw weight: hog-to-hog ~14s, far hog-to-rest ~4-5s, total ~18-19s
 // frictionAir in Matter.js acts as a velocity dampening factor
-const ICE_FRICTION = 0.0015;      // Base friction (original value)
-const SWEEP_FRICTION = 0.0009;    // Reduced friction when sweeping (~40% reduction)
+const ICE_FRICTION_BASE = 0.0015;      // Base friction (original value)
+const SWEEP_FRICTION_BASE = 0.0009;    // Reduced friction when sweeping (~40% reduction)
+
+// Ice conditioning: ice gets faster throughout a match (pebble wears, paths polish)
+// Real curling: ~4-8% speed increase over 8-10 ends (~0.2-0.4s faster hog-to-hog)
+// Only applies to medium and hard difficulties
+const ICE_CONDITIONING = {
+  maxSpeedIncrease: 0.07,  // 7% faster by end of game (friction reduced by 7%)
+  // Guards are more affected by friction changes than hits
+  guardMultiplier: 1.3,    // Guards feel ~9% faster
+  hitMultiplier: 0.7       // Hits feel ~5% faster
+};
+
+// Get current ice friction adjusted for game progression
+// Lower friction = faster ice
+function getIceFriction(isGuardWeight = false) {
+  const difficulty = gameState.settings.difficulty;
+
+  // Only apply ice conditioning on medium and hard
+  if (difficulty === 'easy') {
+    return ICE_FRICTION_BASE;
+  }
+
+  // Calculate progression (0 at end 1, 1 at max ends)
+  const currentEnd = gameState.end || 1;
+  const maxEnds = gameState.settings.gameLength || 8;
+  const progression = Math.min(1, (currentEnd - 1) / (maxEnds - 1));
+
+  // Speed increase factor (how much faster the ice is)
+  // Guards are more affected since they're slower and more friction-dominated
+  const weightMultiplier = isGuardWeight ? ICE_CONDITIONING.guardMultiplier : 1.0;
+  const speedIncrease = progression * ICE_CONDITIONING.maxSpeedIncrease * weightMultiplier;
+
+  // Lower friction = faster ice
+  const adjustedFriction = ICE_FRICTION_BASE * (1 - speedIncrease);
+
+  // Debug: log ice speed changes (only on first call per end to avoid spam)
+  if (!getIceFriction._lastLoggedEnd || getIceFriction._lastLoggedEnd !== currentEnd) {
+    getIceFriction._lastLoggedEnd = currentEnd;
+    const speedPercent = (speedIncrease * 100).toFixed(1);
+    if (speedIncrease > 0) {
+      console.log(`[Ice] End ${currentEnd}: Ice is ${speedPercent}% faster (guards: ${(speedIncrease * ICE_CONDITIONING.guardMultiplier * 100).toFixed(1)}%)`);
+    }
+  }
+
+  return adjustedFriction;
+}
+
+// Get sweep friction adjusted for game progression
+function getSweepFriction(isGuardWeight = false) {
+  const difficulty = gameState.settings.difficulty;
+
+  if (difficulty === 'easy') {
+    return SWEEP_FRICTION_BASE;
+  }
+
+  const currentEnd = gameState.end || 1;
+  const maxEnds = gameState.settings.gameLength || 8;
+  const progression = Math.min(1, (currentEnd - 1) / (maxEnds - 1));
+
+  const weightMultiplier = isGuardWeight ? ICE_CONDITIONING.guardMultiplier : 1.0;
+  const speedIncrease = progression * ICE_CONDITIONING.maxSpeedIncrease * weightMultiplier;
+
+  // Sweep friction also decreases (but sweep effectiveness is slightly reduced late game)
+  // since the ice is already fast
+  return SWEEP_FRICTION_BASE * (1 - speedIncrease * 0.8);
+}
+
+// Legacy constants for compatibility (used by some code paths)
+const ICE_FRICTION = ICE_FRICTION_BASE;
+const SWEEP_FRICTION = SWEEP_FRICTION_BASE;
 
 // Velocities based on real curling timing (T-line to hog = 6.4m)
 // Guard: 4.3-4.8s, Draw: 3.6-4.2s, Takeout: 2.9-3.5s, Peel: 2.2-2.8s
@@ -6892,7 +6961,14 @@ function releaseStone() {
   Matter.Body.setAngularVelocity(gameState.activeStone.body, finalOmega);
 
   // Now apply ice friction since thrower released
-  gameState.activeStone.body.frictionAir = ICE_FRICTION;
+  // Determine if this is guard weight (slower shots affected more by ice conditioning)
+  const releaseSpeed = Math.sqrt(
+    gameState.activeStone.body.velocity.x ** 2 +
+    gameState.activeStone.body.velocity.y ** 2
+  );
+  const isGuardWeight = releaseSpeed < 3.0; // Guards and light draws
+  gameState.activeStone._isGuardWeight = isGuardWeight; // Store for sweeping friction
+  gameState.activeStone.body.frictionAir = getIceFriction(isGuardWeight);
 
   gameState.stonesThrown[gameState.currentTeam]++;
   updateStoneCountDisplay();
@@ -8499,7 +8575,11 @@ function updateSweeping() {
 
   // Friction varies based on sweep effectiveness
   // Full sweep = SWEEP_FRICTION, no sweep = ICE_FRICTION
-  const friction = ICE_FRICTION - (gameState.sweepEffectiveness * (ICE_FRICTION - SWEEP_FRICTION));
+  // Use ice conditioning based on shot weight and game progression
+  const isGuardWeight = gameState.activeStone?._isGuardWeight || false;
+  const currentIceFriction = getIceFriction(isGuardWeight);
+  const currentSweepFriction = getSweepFriction(isGuardWeight);
+  const friction = currentIceFriction - (gameState.sweepEffectiveness * (currentIceFriction - currentSweepFriction));
   gameState.activeStone.body.frictionAir = friction;
 
   // Update sweep indicator
@@ -9420,7 +9500,9 @@ function updatePhysics() {
       // Progressive friction increase as stone slows
       // At high speeds: base friction only
       // At low speeds: aggressive "cliff" slowdown kicks in
-      let friction = ICE_FRICTION;
+      // Use ice conditioning based on shot weight
+      const isGuardWeight = stone._isGuardWeight || false;
+      let friction = getIceFriction(isGuardWeight);
 
       // Mild increase at medium-low speeds (1.5 to 1.0)
       if (speed < 1.5 && speed >= 1.0) {
