@@ -184,9 +184,11 @@ const ADVANCED_PHYSICS = {
     // Curve function: more curl as speed drops
     // f(v) returns multiplier (1.0 at high speed, up to max at low speed)
     getCurlMultiplier: function(speed) {
-      if (speed >= this.vLateThreshold) return 1.0;
+      // Clamp speed to non-negative (physics glitches can cause negative speeds)
+      const safeSpeed = Math.max(0, speed);
+      if (safeSpeed >= this.vLateThreshold) return 1.0;
       // Ramp from 1.0 to max as speed goes from threshold to near-zero
-      const t = 1 - (speed / this.vLateThreshold);  // 0 at threshold, 1 at zero
+      const t = Math.max(0, Math.min(1, 1 - (safeSpeed / this.vLateThreshold)));  // Clamp 0-1
       const ramp = 1 + (this.lateCurlMultiplierMax - 1) * Math.pow(t, 1.5);
       return Math.min(ramp, this.lateCurlMultiplierMax);
     }
@@ -9740,7 +9742,9 @@ function updatePhysics() {
 
       // Base curl force with late curl multiplier
       // Uses weak omega exponent (0.25) so rotation doesn't dominate
-      const omegaFactor = Math.pow(ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15), ADVANCED_PHYSICS.rotation.curlOmegaExponent);
+      // Ensure base is positive for Math.pow with fractional exponent
+      const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
+      const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
       let curlForce = curlDirection * 0.000004 * lateCurlMultiplier * iceRandomness * omegaFactor;
       curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
 
