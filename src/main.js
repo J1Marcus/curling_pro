@@ -5997,6 +5997,21 @@ function createStone(team) {
   footRight.position.set(0.04, height + 0.007, 0);
   mesh.add(footRight);
 
+  // Scoring indicator - glowing ring under stone (hidden by default)
+  const glowColor = team === 'red' ? 0xff4444 : 0xffdd44;
+  const glowGeometry = new THREE.RingGeometry(STONE_RADIUS * 0.9, STONE_RADIUS * 1.3, 32);
+  const glowMaterial = new THREE.MeshBasicMaterial({
+    color: glowColor,
+    transparent: true,
+    opacity: 0,
+    side: THREE.DoubleSide
+  });
+  const scoringGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+  scoringGlow.rotation.x = -Math.PI / 2;  // Lay flat on ice
+  scoringGlow.position.y = 0.002;  // Just above ice
+  scoringGlow.name = 'scoringGlow';
+  mesh.add(scoringGlow);
+
   scene.add(mesh);
 
   // Physics body (scaled for Matter.js)
@@ -10273,6 +10288,57 @@ function calculateScore() {
   saveMatchProgress();
 
   showScoreOverlay(scoringTeam, points, gameState.end);
+}
+
+// Update scoring indicators on stones (show which stones are currently counting)
+function updateScoringIndicators() {
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+
+  // Calculate distances from button for all stones in the house
+  const stonesWithDist = gameState.stones
+    .filter(stone => !stone.outOfPlay)
+    .map(stone => {
+      const dx = stone.mesh.position.x - buttonPos.x;
+      const dz = stone.mesh.position.z - buttonPos.z;
+      return {
+        stone: stone,
+        distance: Math.sqrt(dx * dx + dz * dz)
+      };
+    })
+    .filter(s => s.distance <= RING_12FT + STONE_RADIUS)
+    .sort((a, b) => a.distance - b.distance);
+
+  // Determine scoring stones
+  const scoringStones = new Set();
+
+  if (stonesWithDist.length > 0) {
+    const scoringTeam = stonesWithDist[0].stone.team;
+
+    for (const entry of stonesWithDist) {
+      if (entry.stone.team === scoringTeam) {
+        // Check if closer than any opponent stone
+        const closerOpponent = stonesWithDist.find(
+          s => s.stone.team !== scoringTeam && s.distance < entry.distance
+        );
+        if (!closerOpponent) {
+          scoringStones.add(entry.stone);
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  // Update glow visibility on all stones
+  for (const stone of gameState.stones) {
+    const glow = stone.mesh.getObjectByName('scoringGlow');
+    if (glow) {
+      const isScoring = scoringStones.has(stone);
+      // Smooth fade in/out
+      const targetOpacity = isScoring ? 0.6 : 0;
+      glow.material.opacity += (targetOpacity - glow.material.opacity) * 0.15;
+    }
+  }
 }
 
 // ============================================
@@ -17056,6 +17122,11 @@ function animate() {
 
   // Fade skip when stones pass nearby
   updateSkipFade();
+
+  // Update scoring indicators on stones (show which are counting)
+  if (gameState.stones.length > 0 && gameState.setupComplete) {
+    updateScoringIndicators();
+  }
 
   renderer.render(scene, camera);
   } catch (err) {
