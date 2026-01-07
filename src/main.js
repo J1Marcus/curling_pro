@@ -9990,18 +9990,23 @@ function updatePhysics() {
 
   updateSweeping();
   } catch (err) {
-    // Log detailed error info to help diagnose RangeError
-    console.error('[PHYSICS ERROR]', err.name, err.message);
-    console.error('[PHYSICS STATE]', {
+    // Send detailed diagnostic info to analytics (visible in admin dashboard)
+    const stoneData = gameState.activeStone ? {
+      posX: gameState.activeStone.body.position.x?.toFixed(2),
+      posY: gameState.activeStone.body.position.y?.toFixed(2),
+      velX: gameState.activeStone.body.velocity.x?.toFixed(3),
+      velY: gameState.activeStone.body.velocity.y?.toFixed(3),
+      angVel: gameState.activeStone.body.angularVelocity?.toFixed(3)
+    } : null;
+
+    analytics.trackError('physics_error', `${err.name}: ${err.message}`, {
       phase: gameState.phase,
-      cpuFastForward: gameState.cpuFastForward,
-      activeStone: gameState.activeStone ? {
-        pos: gameState.activeStone.body.position,
-        vel: gameState.activeStone.body.velocity,
-        angVel: gameState.activeStone.body.angularVelocity
-      } : null,
-      stonesCount: gameState.stones.length
+      ffw: gameState.cpuFastForward,
+      stone: stoneData ? JSON.stringify(stoneData) : 'none',
+      stones: gameState.stones.length,
+      end: gameState.currentEnd
     });
+
     // Re-throw to still report the error
     throw err;
   }
@@ -17038,12 +17043,12 @@ function animate() {
 
   renderer.render(scene, camera);
   } catch (err) {
-    // Log detailed error info to help diagnose RangeError in animate loop
-    console.error('[ANIMATE ERROR]', err.name, err.message);
-    console.error('[ANIMATE STATE]', {
+    // Send diagnostic info to analytics (visible in admin dashboard)
+    analytics.trackError('animate_error', `${err.name}: ${err.message}`, {
       phase: gameState.phase,
-      cpuFastForward: gameState.cpuFastForward,
-      cameraAnimation: !!cameraAnimation
+      ffw: gameState.cpuFastForward,
+      camAnim: !!cameraAnimation,
+      end: gameState.currentEnd
     });
     throw err;
   }
