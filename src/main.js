@@ -3591,7 +3591,8 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
   const tournament = seasonState.activeTournament;
   if (!tournament || !tournament.currentMatchup) return null;
 
-  const match = tournament.currentMatchup;
+  // currentMatchup can be { round, matchup } format from getNextPlayerMatch
+  const match = tournament.currentMatchup.matchup || tournament.currentMatchup;
   let result = { playerWon, tournamentComplete: false, playerEliminated: false };
 
   try {
@@ -3710,7 +3711,9 @@ function checkTournamentStatus(tournament, playerWon) {
 
   // Check if this was the final
   const finalMatch = tournament.bracket.rounds[tournament.bracket.rounds.length - 1].matchups[0];
-  if (tournament.currentMatchup.id === finalMatch.id) {
+  // currentMatchup can be { round, matchup } format
+  const currentMatch = tournament.currentMatchup.matchup || tournament.currentMatchup;
+  if (currentMatch.id === finalMatch.id) {
     result.tournamentComplete = true;
     result.isFinal = true;
     if (playerWon) {
@@ -3733,8 +3736,8 @@ function checkTournamentStatus(tournament, playerWon) {
     }
     // In page playoff, check if there's a loser bracket path
     else if (tournament.bracket.type === 'page_playoff') {
-      const match = tournament.currentMatchup;
-      if (!match.loserNextMatchId) {
+      // currentMatch already extracted above
+      if (!currentMatch.loserNextMatchId) {
         result.playerEliminated = true;
         result.tournamentComplete = true;
         result.placement = calculatePlacement(tournament);
@@ -10056,6 +10059,7 @@ function showGameOverOverlay() {
   const playerScore = userTeam ? gameState.scores[userTeam] : gameState.scores.red;
   const opponentScore = userTeam ? gameState.scores[userTeam === 'red' ? 'yellow' : 'red'] : gameState.scores.yellow;
   const won = userTeam ? (playerScore > opponentScore) : null;
+  console.log('[GameOver] Tracking game_complete:', { gameMode, selectedMode: gameState.selectedMode, won, playerScore, opponentScore, ends: gameState.end });
   analytics.trackGameComplete(gameMode, won, playerScore, opponentScore, gameState.end, gameState.learnMode?.enabled || false);
 
   if (winnerClass !== 'tie') {

@@ -589,10 +589,24 @@
         document.getElementById('total-sessions').textContent = allSessions.count || 0;
 
         // Calculate average duration
-        const sessionsWithDuration = todaySessions.data?.filter(s => s.duration_seconds) || [];
-        const avgDuration = sessionsWithDuration.length > 0
-          ? Math.round(sessionsWithDuration.reduce((sum, s) => sum + s.duration_seconds, 0) / sessionsWithDuration.length / 60)
-          : 0;
+        // Use duration_seconds if available, otherwise calculate from timestamps
+        const sessionsForDuration = todaySessions.data || [];
+        let totalDuration = 0;
+        let sessionCount = 0;
+        sessionsForDuration.forEach(s => {
+          let duration = s.duration_seconds;
+          if (!duration && s.started_at) {
+            // Calculate from timestamps - use last_activity or ended_at, fallback to now
+            const start = new Date(s.started_at);
+            const end = s.ended_at ? new Date(s.ended_at) : (s.last_activity ? new Date(s.last_activity) : new Date());
+            duration = Math.floor((end - start) / 1000);
+          }
+          if (duration && duration > 0) {
+            totalDuration += duration;
+            sessionCount++;
+          }
+        });
+        const avgDuration = sessionCount > 0 ? Math.round(totalDuration / sessionCount / 60) : 0;
         document.getElementById('avg-duration').textContent = avgDuration;
 
         // Mobile percentage

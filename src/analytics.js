@@ -197,14 +197,20 @@ export async function endSession() {
 
 // Track a custom event
 export async function trackEvent(eventType, eventName, eventData = null) {
-  if (!supabase) return;
+  if (!supabase) {
+    console.log('[Analytics] Skipping event (no supabase):', eventType, eventName);
+    return;
+  }
 
   // Wait for session to be ready before tracking events
   if (sessionReadyPromise) {
     await sessionReadyPromise;
   }
 
-  if (!sessionId) return;
+  if (!sessionId) {
+    console.log('[Analytics] Skipping event (no sessionId):', eventType, eventName);
+    return;
+  }
 
   try {
     const { error } = await supabase
@@ -218,6 +224,8 @@ export async function trackEvent(eventType, eventName, eventData = null) {
 
     if (error) {
       console.warn('[Analytics] Event insert error:', error.message);
+    } else {
+      console.log('[Analytics] Event tracked successfully:', eventType, eventName);
     }
   } catch (e) {
     console.warn('[Analytics] Failed to track event:', e.message);
@@ -245,6 +253,7 @@ export function trackGameStart(gameMode, difficulty = null, learnMode = false) {
 
 // Track game complete
 export function trackGameComplete(gameMode, won, playerScore, opponentScore, endsPlayed, learnMode = false) {
+  console.log('[Analytics] trackGameComplete called:', { gameMode, won, playerScore, opponentScore, endsPlayed });
   trackEvent('game_complete', gameMode, {
     won,
     playerScore,
