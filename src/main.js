@@ -133,6 +133,231 @@ function getSweepFriction(isGuardWeight = false) {
 const ICE_FRICTION = ICE_FRICTION_BASE;
 const SWEEP_FRICTION = SWEEP_FRICTION_BASE;
 
+// ============================================
+// ADVANCED PHYSICS & AI TUNING SYSTEM
+// Quantified real-world curling dynamics
+// ============================================
+
+const ADVANCED_PHYSICS = {
+  // ----------------------------------------
+  // 1A: SWEEPING DISTANCE GAIN
+  // Strong sweeping can extend travel by ~2-3 meters
+  // ----------------------------------------
+  sweep: {
+    // Friction multiplier when sweeping (0.85 = 15% friction reduction)
+    frictionMultiplier: 0.60,        // Base sweep reduces friction by 40%
+    maxDistanceBonusMeters: 3.0,     // Max ~3m extra travel
+    // Sweep effect vs speed curve: more effective at moderate speeds
+    // At peel weight, sweeping matters less (speed dominates)
+    speedEffectCurve: (speed) => {
+      // Returns 0-1, where 1 = full sweep effect
+      // Moderate speeds (1.5-3.0) get full effect
+      // Very fast (>4) or very slow (<0.5) get reduced effect
+      if (speed > 4.0) return 0.5;        // Peel weight - less sweep effect
+      if (speed > 3.0) return 0.7;        // Takeout - moderate effect
+      if (speed > 1.5) return 1.0;        // Draw/guard - full effect
+      if (speed > 0.5) return 0.9;        // Slow - still good
+      return 0.5;                          // Very slow - reduced
+    }
+  },
+
+  // ----------------------------------------
+  // 1B: ASYMMETRIC SWEEPING (HARD MODE ONLY)
+  // Directional sweeping can slightly nudge the line
+  // ----------------------------------------
+  directionalSweep: {
+    enabled: true,                    // Only active on hard difficulty
+    maxCurlBias: 0.000003,           // Small lateral force modifier
+    // Player must actively sweep left/right side to activate
+    activationThreshold: 0.3         // Sweep effectiveness needed
+  },
+
+  // ----------------------------------------
+  // 2: LATE CURL BEHAVIOR
+  // Curl increases as stone slows ("dive" at the end)
+  // ----------------------------------------
+  lateCurl: {
+    // Speed threshold where late curl begins ramping
+    vLateThreshold: 1.5,             // Below this speed, curl ramps up
+    // Maximum multiplier for curl at very low speeds
+    lateCurlMultiplierMax: 3.5,      // Up to 3.5x curl at low speeds
+    // Curve function: more curl as speed drops
+    // f(v) returns multiplier (1.0 at high speed, up to max at low speed)
+    getCurlMultiplier: function(speed) {
+      if (speed >= this.vLateThreshold) return 1.0;
+      // Ramp from 1.0 to max as speed goes from threshold to near-zero
+      const t = 1 - (speed / this.vLateThreshold);  // 0 at threshold, 1 at zero
+      const ramp = 1 + (this.lateCurlMultiplierMax - 1) * Math.pow(t, 1.5);
+      return Math.min(ramp, this.lateCurlMultiplierMax);
+    }
+  },
+
+  // ----------------------------------------
+  // 3: ROTATION/STABILITY SYSTEM
+  // Rotation affects stability more than curl magnitude
+  // ----------------------------------------
+  rotation: {
+    omegaRef: 1.2,                   // Reference angular velocity (rad/s)
+    omegaMin: 0.4,                   // Below this = unstable "dump"
+    // Stability: more RPM = less random variance
+    // Returns multiplier for shot variance (1.0 = normal, 0.7 = 30% less variance)
+    getStabilityFactor: function(omega) {
+      const absOmega = Math.abs(omega);
+      if (absOmega < this.omegaMin) {
+        // Dumped stone - very unstable
+        return 1.5;  // 50% MORE variance
+      }
+      // More rotation = more stable (less variance)
+      // At omegaRef, stability = 0.8 (20% less variance)
+      const stability = 1.0 - 0.3 * Math.min(absOmega / this.omegaRef, 1.0);
+      return Math.max(0.7, stability);
+    },
+    // Curl magnitude exponent (keep small - rotation shouldn't dominate curl)
+    curlOmegaExponent: 0.25          // Weak inverse relationship
+  }
+};
+
+// ============================================
+// AI STRATEGY & SKILL SYSTEM
+// ============================================
+
+const AI_STRATEGY = {
+  // ----------------------------------------
+  // 4: HAMMER ADVANTAGE SCALING
+  // AI exploits hammer more in late game
+  // ----------------------------------------
+  hammerAdvantage: {
+    // Base win probability with hammer in tied game
+    baseWinProb: 0.60,               // 60% with hammer early
+    // Final end hammer advantage (tied game)
+    finalEndWinProb: 0.74,           // 74% in last end
+    // Returns aggression modifier based on hammer state
+    // Higher = more aggressive (takeouts), Lower = more defensive (guards)
+    getAggressionMod: function(hasHammer, endNumber, maxEnds, scoreDiff) {
+      const endsRemaining = maxEnds - endNumber + 1;
+      const isLateGame = endsRemaining <= 2;
+      const isFinalEnd = endsRemaining === 1;
+
+      if (hasHammer) {
+        // With hammer: play more aggressive late, especially if tied/trailing
+        if (isFinalEnd && scoreDiff <= 0) return 1.3;   // Very aggressive
+        if (isLateGame && scoreDiff <= 0) return 1.2;   // Aggressive
+        if (scoreDiff < 0) return 1.15;                  // Trailing - aggressive
+        return 1.0;                                      // Normal
+      } else {
+        // Without hammer: try to steal, more guards early
+        if (isFinalEnd && scoreDiff >= 0) return 0.7;   // Protect lead - defensive
+        if (isLateGame && scoreDiff > 0) return 0.75;   // Defensive
+        if (scoreDiff > 0) return 0.85;                  // Leading - careful
+        return 1.0;                                      // Normal
+      }
+    }
+  },
+
+  // ----------------------------------------
+  // 5: SKILL TIERS (Accuracy + Variance)
+  // ----------------------------------------
+  skillTiers: {
+    // Each tier defines mean error and consistency
+    // meanErrorMod: multiplier on base aim error (lower = more accurate)
+    // varianceMod: multiplier on shot variance (lower = more consistent)
+    // Based on real curling: elite teams ~82% accuracy ±6%
+    club: {
+      meanErrorMod: 1.3,             // 30% more error
+      varianceMod: 1.4,              // 40% more variance (inconsistent)
+      accuracy: 0.65                  // ~65% make rate
+    },
+    regional: {
+      meanErrorMod: 1.1,
+      varianceMod: 1.2,
+      accuracy: 0.72                  // ~72% make rate
+    },
+    provincial: {
+      meanErrorMod: 1.0,             // Baseline
+      varianceMod: 1.0,
+      accuracy: 0.78                  // ~78% make rate
+    },
+    national: {
+      meanErrorMod: 0.85,
+      varianceMod: 0.85,
+      accuracy: 0.82                  // ~82% make rate (elite)
+    },
+    international: {
+      meanErrorMod: 0.75,
+      varianceMod: 0.7,
+      accuracy: 0.85                  // ~85% make rate
+    },
+    olympic: {
+      meanErrorMod: 0.65,
+      varianceMod: 0.6,
+      accuracy: 0.88                  // ~88% make rate (world class)
+    }
+  },
+
+  // ----------------------------------------
+  // 6: STRATEGY MIX SHIFTS
+  // Shot type ratios based on game state
+  // ----------------------------------------
+  shotMix: {
+    // Returns weights for shot categories
+    // { draw, guard, hit, peel }
+    getWeights: function(scoreDiff, endNumber, maxEnds, hasHammer) {
+      const endsRemaining = maxEnds - endNumber + 1;
+      const isEarlyGame = endNumber <= 2;
+      const isLateGame = endsRemaining <= 2;
+      const isFinalEnd = endsRemaining === 1;
+
+      // Base neutral mix (~50/50 draw vs hit)
+      let weights = { draw: 0.30, guard: 0.20, hit: 0.35, peel: 0.15 };
+
+      if (scoreDiff > 2) {
+        // Big lead - simplify, more takeouts
+        weights = { draw: 0.15, guard: 0.10, hit: 0.50, peel: 0.25 };
+      } else if (scoreDiff > 0) {
+        // Small lead - moderate defense
+        weights = { draw: 0.25, guard: 0.15, hit: 0.40, peel: 0.20 };
+      } else if (scoreDiff < -2) {
+        // Big deficit - high variance offense, more guards
+        weights = { draw: 0.35, guard: 0.35, hit: 0.20, peel: 0.10 };
+      } else if (scoreDiff < 0) {
+        // Small deficit - balanced offense
+        weights = { draw: 0.35, guard: 0.25, hit: 0.30, peel: 0.10 };
+      }
+
+      // Late game adjustments
+      if (isLateGame) {
+        if (scoreDiff > 0) {
+          // Protecting lead late - more hits
+          weights.hit += 0.15;
+          weights.guard -= 0.10;
+          weights.draw -= 0.05;
+        } else if (scoreDiff < 0 && hasHammer) {
+          // Trailing with hammer - set up big end
+          weights.guard += 0.15;
+          weights.draw += 0.05;
+          weights.hit -= 0.15;
+          weights.peel -= 0.05;
+        }
+      }
+
+      // Early game - more guards to build
+      if (isEarlyGame && hasHammer) {
+        weights.guard += 0.10;
+        weights.hit -= 0.10;
+      }
+
+      // Normalize weights
+      const total = weights.draw + weights.guard + weights.hit + weights.peel;
+      weights.draw /= total;
+      weights.guard /= total;
+      weights.hit /= total;
+      weights.peel /= total;
+
+      return weights;
+    }
+  }
+};
+
 // Velocities based on real curling timing (T-line to hog = 6.4m)
 // Guard: 4.3-4.8s, Draw: 3.6-4.2s, Takeout: 2.9-3.5s, Peel: 2.2-2.8s
 const MIN_SLIDE_SPEED = 2.2;      // Ultra-light guard
@@ -8579,7 +8804,14 @@ function updateSweeping() {
   const isGuardWeight = gameState.activeStone?._isGuardWeight || false;
   const currentIceFriction = getIceFriction(isGuardWeight);
   const currentSweepFriction = getSweepFriction(isGuardWeight);
-  const friction = currentIceFriction - (gameState.sweepEffectiveness * (currentIceFriction - currentSweepFriction));
+
+  // ADVANCED PHYSICS 1A: Sweep effectiveness varies with stone speed
+  const stoneVel = gameState.activeStone.body.velocity;
+  const stoneSpeed = Math.sqrt(stoneVel.x * stoneVel.x + stoneVel.y * stoneVel.y);
+  const sweepSpeedFactor = ADVANCED_PHYSICS.sweep.speedEffectCurve(stoneSpeed);
+  const effectiveSweep = gameState.sweepEffectiveness * sweepSpeedFactor;
+
+  const friction = currentIceFriction - (effectiveSweep * (currentIceFriction - currentSweepFriction));
   gameState.activeStone.body.frictionAir = friction;
 
   // Update sweep indicator
@@ -8862,18 +9094,50 @@ function getComputerShot() {
   const isEasyMode = difficulty === 'easy';
   const isHardMode = difficulty === 'hard';
 
-  // Guard probability: Easy plays fewer guards, Hard plays more strategic guards
-  const baseGuardProb = isEasyMode ? 0.25 : (isHardMode ? 0.7 : 0.5);
-  const guardProbability = personalityMods.guardProbability || baseGuardProb;
-  const shouldPlayGuard = Math.random() < guardProbability;
+  // AI STRATEGY 4: HAMMER ADVANTAGE SCALING (stronger on hard mode)
+  // Calculate score difference from AI's perspective
+  const aiScore = computerTeam === 'red' ? gameState.scores.red : gameState.scores.yellow;
+  const playerScore = computerTeam === 'red' ? gameState.scores.yellow : gameState.scores.red;
+  const scoreDiff = aiScore - playerScore;  // Positive = AI leading
+  const maxEnds = gameState.settings.gameLength || 8;
 
-  // Takeout aggression modifier: scales base effort (1.0 = normal, 1.1 = harder hits)
-  // Hard mode AI hits harder and more precisely
+  // Get hammer advantage aggression modifier (only on medium/hard)
+  let hammerAggressionMod = 1.0;
+  if (!isEasyMode) {
+    hammerAggressionMod = AI_STRATEGY.hammerAdvantage.getAggressionMod(
+      hasHammer, gameState.end, maxEnds, scoreDiff
+    );
+    // Hard mode uses full hammer advantage; medium uses reduced
+    if (!isHardMode) hammerAggressionMod = 1 + (hammerAggressionMod - 1) * 0.5;
+  }
+
+  // AI STRATEGY 6: STRATEGY MIX SHIFTS (stronger on hard mode)
+  // Get shot type weights based on game state
+  const shotMixWeights = AI_STRATEGY.shotMix.getWeights(scoreDiff, gameState.end, maxEnds, hasHammer);
+  // Easy mode ignores mix weights; medium uses partial; hard uses full
+  const mixInfluence = isEasyMode ? 0 : (isHardMode ? 1.0 : 0.5);
+
+  // Guard probability incorporating strategy mix and hammer advantage
+  const baseGuardProb = isEasyMode ? 0.25 : (isHardMode ? 0.6 : 0.45);
+  // Blend base probability with strategy mix
+  const strategyGuardProb = shotMixWeights.guard / (shotMixWeights.guard + shotMixWeights.draw);
+  const blendedGuardProb = baseGuardProb * (1 - mixInfluence) + strategyGuardProb * mixInfluence;
+  const guardProbability = personalityMods.guardProbability || blendedGuardProb;
+  const shouldPlayGuard = Math.random() < guardProbability * hammerAggressionMod;
+
+  // Takeout aggression modifier incorporating hammer advantage
   const baseAggression = isHardMode ? 1.05 : 1.0;
-  const takeoutAggressionMod = personalityMods.takeoutAggression || baseAggression;
+  const takeoutAggressionMod = (personalityMods.takeoutAggression || baseAggression) * hammerAggressionMod;
 
   // Strategic mistake chance: Easy AI sometimes makes poor shot choices
   const mistakeChance = isEasyMode ? 0.15 : (isHardMode ? 0 : 0.05);
+
+  // Log AI strategy decision (dev only)
+  if (isHardMode && gameState.end >= maxEnds - 1) {
+    console.log(`[AI Strategy] End ${gameState.end}/${maxEnds}, Score: AI ${aiScore} - ${playerScore} Player, ` +
+                `Hammer: ${hasHammer}, AggressionMod: ${hammerAggressionMod.toFixed(2)}, ` +
+                `Mix: draw=${(shotMixWeights.draw*100).toFixed(0)}% guard=${(shotMixWeights.guard*100).toFixed(0)}% hit=${(shotMixWeights.hit*100).toFixed(0)}%`);
+  }
 
   // Strategic decision making
   if (isLastStone && hasHammer) {
@@ -9060,16 +9324,21 @@ function getComputerShot() {
   const aimAngle = Math.atan2(aimX, TEE_LINE_FAR - HACK_Z);
 
   // Add randomness based on difficulty setting
-  // Career levels use level.difficulty (0.02-0.12), scale to variance range (0.005-0.025)
+  // AI STRATEGY 5: SKILL TIERS - accuracy and variance by career tier
   const level = getCurrentLevel();
+
+  // Map career tier to skill tier for quantified accuracy/variance
+  const careerTier = gameState.careerLevel || seasonState?.activeTournament?.definition?.tier || 'provincial';
+  const skillTier = AI_STRATEGY.skillTiers[careerTier] || AI_STRATEGY.skillTiers.provincial;
+
+  // Base variance by difficulty setting
   const difficultyVariance = {
     easy: 0.025,   // ~1.4 degrees aim variance
     medium: 0.015, // ~0.9 degrees aim variance
     hard: 0.006    // ~0.3 degrees aim variance (very precise)
   };
 
-  // Difficulty modifier for CPU accuracy
-  // Easy: CPU is 30% less accurate, Hard: CPU is 25% more accurate
+  // Difficulty modifier for CPU accuracy (combines with skill tier)
   const cpuDifficultyMod = {
     easy: 1.3,    // CPU makes more mistakes
     medium: 1.0,  // Normal
@@ -9077,12 +9346,23 @@ function getComputerShot() {
   };
   const diffMod = cpuDifficultyMod[gameState.settings.difficulty] || 1.0;
 
-  // Career mode: scale level.difficulty to variance range, then apply difficulty modifier
-  // Club (0.12) -> 0.025, Olympics (0.02) -> 0.005
-  // Quick play: use settings-based variance
-  let variance = gameState.gameMode === '1player'
-    ? (0.005 + (level.difficulty / 0.12) * 0.020) * diffMod  // Apply difficulty modifier
-    : (difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium);
+  // Career mode: Use skill tier modifiers for accuracy and variance
+  // Skill tier modifies both mean error and consistency
+  let variance;
+  if (gameState.gameMode === '1player' && gameState.inTournamentMatch) {
+    // Tournament match: use skill tier variance modifier
+    const baseVariance = 0.012; // Baseline for provincial level
+    variance = baseVariance * skillTier.varianceMod * diffMod;
+  } else if (gameState.gameMode === '1player') {
+    // Quick play 1-player: scale by level difficulty
+    variance = (0.005 + (level.difficulty / 0.12) * 0.020) * diffMod;
+  } else {
+    // Quick play difficulty-based
+    variance = difficultyVariance[gameState.settings.difficulty] || difficultyVariance.medium;
+  }
+
+  // Apply skill tier mean error modifier (shifts aim systematically)
+  const meanErrorMod = skillTier.meanErrorMod;
 
   // Guards and draws (low effort) require more precision
   // Skilled AI is more accurate on finesse shots; takeouts are forgiving due to speed
@@ -9117,8 +9397,13 @@ function getComputerShot() {
     variance = variance * clutchMod;
   }
 
-  // Apply variance
+  // Apply variance (random consistency error)
   const accuracyVariance = (Math.random() - 0.5) * variance;
+
+  // AI STRATEGY 5: Apply mean error modifier (systematic skill-based error)
+  // meanErrorMod > 1 = more systematic error; < 1 = less error
+  // Creates a small bias that varies per shot (but less random than variance)
+  const meanErrorBias = (Math.random() - 0.5) * 0.005 * meanErrorMod;
 
   // Effort variance is proportional to base variance but scaled for weight control
   // Precision shots (draws, guards) should have tighter weight control
@@ -9128,9 +9413,11 @@ function getComputerShot() {
     effortVarianceMultiplier = 8;
   }
   const effortVariance = (Math.random() - 0.5) * variance * effortVarianceMultiplier;
+  // Mean error also affects weight control
+  const effortMeanError = (Math.random() - 0.5) * 3 * meanErrorMod;
 
-  const finalEffort = Math.min(100, Math.max(30, effort + effortVariance));  // Min 30% effort
-  const finalAimAngle = aimAngle + accuracyVariance;
+  const finalEffort = Math.min(100, Math.max(30, effort + effortVariance + effortMeanError));  // Min 30% effort
+  const finalAimAngle = aimAngle + accuracyVariance + meanErrorBias;
 
   const opponentName = opponent ? `${opponent.firstName} ${opponent.lastName}` : 'Generic AI';
   console.log('[COMPUTER SHOT]', opponentName, '-', shotType,
@@ -9434,46 +9721,45 @@ function updatePhysics() {
 
     if (speed > 0.3) {
       const normalizedSpeed = Math.min(speed, 5) / 5;
-      // Curl increases as stone slows down (realistic curling behavior)
-      const curlMultiplier = 1 + Math.pow(1 - normalizedSpeed, 2) * 2.5;
 
-      // Ice variability - slight random variation in curl (more at higher levels)
-      const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability;
+      // ADVANCED PHYSICS 2: LATE CURL BEHAVIOR
+      // Curl increases dramatically as stone slows ("dive" at the end)
+      const lateCurlMultiplier = ADVANCED_PHYSICS.lateCurl.getCurlMultiplier(speed);
 
-      // Calculate curl force - INVERSE relationship: more rotation = straighter path
-      // Rotation direction: negative omega = clockwise = curl RIGHT, positive omega = counterclockwise = curl LEFT
-      // Magnitude is inversely proportional to rotation rate
-      //
-      // Physics analysis:
-      // - Sheet width = 4.75m = 475 physics units, walls at ±237.5
-      // - Target curl: 0.3-1.2m (30-120 physics units) over full travel
-      // - Stone travels ~900 frames at 60fps for a 15s shot
-      // - Force accumulates quadratically: displacement = 0.5 * (F/m) * frames²
-      // - For 100 units displacement over 900 frames with mass 20:
-      //   100 = 0.5 * (F/20) * 900² → F = 100 * 40 / 810000 = 0.000005
-      //
+      // Ice variability - slight random variation in curl
+      // ADVANCED PHYSICS 3: Rotation affects stability/variance
       const omega = body.angularVelocity;
       const absOmega = Math.abs(omega);
-      // Negative omega (clockwise) = curl left (-X), Positive omega (counterclockwise) = curl right (+X)
+      const stabilityFactor = ADVANCED_PHYSICS.rotation.getStabilityFactor(omega);
+      const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability * stabilityFactor;
+
+      // Calculate curl force - INVERSE relationship: more rotation = straighter path
+      // Rotation direction: negative omega = clockwise = curl LEFT, positive omega = counterclockwise = curl RIGHT
+      // Magnitude is weakly inversely proportional to rotation rate (curlOmegaExponent is small)
       const curlDirection = omega < 0 ? -1 : 1;
 
-      // Base curl force - adjusted for slower rotation speeds (0.1-0.5 rad/s)
-      // Increased for more noticeable curl effect
-      let curlForce = curlDirection * 0.000004 * curlMultiplier * iceRandomness / (absOmega + 0.15);
+      // Base curl force with late curl multiplier
+      // Uses weak omega exponent (0.25) so rotation doesn't dominate
+      const omegaFactor = Math.pow(ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15), ADVANCED_PHYSICS.rotation.curlOmegaExponent);
+      let curlForce = curlDirection * 0.000004 * lateCurlMultiplier * iceRandomness * omegaFactor;
       curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
 
       // Sweeping reduces curl (makes stone go straighter)
       // In real curling, sweeping melts the pebbles, reducing friction differential
-      // This reduces the curl effect significantly
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
         // Reduce curl by 40-70% based on sweep effectiveness
         const curlReduction = 0.4 + gameState.sweepEffectiveness * 0.3;
         curlForce *= (1 - curlReduction);
       }
 
-      // Directional sweeping effect (subtle)
-      if (gameState.isSweeping && gameState.sweepEffectiveness > 0.2) {
-        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness * 0.000002 * curlMultiplier;
+      // ADVANCED PHYSICS 1B: ASYMMETRIC/DIRECTIONAL SWEEPING (HARD MODE ONLY)
+      // Player can slightly influence line by sweeping left or right side
+      const isHardMode = gameState.settings.difficulty === 'hard';
+      if (isHardMode && ADVANCED_PHYSICS.directionalSweep.enabled &&
+          gameState.isSweeping && gameState.sweepEffectiveness > ADVANCED_PHYSICS.directionalSweep.activationThreshold) {
+        // sweepDirection: -1 = left bias, 0 = balanced, 1 = right bias
+        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness *
+                                  ADVANCED_PHYSICS.directionalSweep.maxCurlBias * lateCurlMultiplier;
         curlForce += directionalForce;
       }
 
