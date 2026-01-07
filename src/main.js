@@ -9096,8 +9096,8 @@ function getComputerShot() {
 
   // AI STRATEGY 4: HAMMER ADVANTAGE SCALING (stronger on hard mode)
   // Calculate score difference from AI's perspective
-  const aiScore = computerTeam === 'red' ? gameState.scores.red : gameState.scores.yellow;
-  const playerScore = computerTeam === 'red' ? gameState.scores.yellow : gameState.scores.red;
+  const aiScore = gameState.computerTeam === 'red' ? gameState.scores.red : gameState.scores.yellow;
+  const playerScore = gameState.computerTeam === 'red' ? gameState.scores.yellow : gameState.scores.red;
   const scoreDiff = aiScore - playerScore;  // Positive = AI leading
   const maxEnds = gameState.settings.gameLength || 8;
 
