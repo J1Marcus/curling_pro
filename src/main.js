@@ -16397,6 +16397,7 @@ function startNewEnd() {
   // Force update button visibility after state changes
   updateReturnButton();
   updateMarkerHint();
+  updateFastForwardButton();  // Show FFW button immediately when CPU throws first
 }
 
 function updateScoreDisplay() {
