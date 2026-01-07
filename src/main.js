@@ -9624,6 +9624,7 @@ function executeComputerShot() {
 // PHYSICS UPDATE
 // ============================================
 function updatePhysics() {
+  try {
   // Skip physics if game is paused (backgrounded) or tutorial is pausing
   if (gameState.isPaused || gameState.learnMode.tutorialPaused) {
     return;
@@ -9988,6 +9989,22 @@ function updatePhysics() {
   }
 
   updateSweeping();
+  } catch (err) {
+    // Log detailed error info to help diagnose RangeError
+    console.error('[PHYSICS ERROR]', err.name, err.message);
+    console.error('[PHYSICS STATE]', {
+      phase: gameState.phase,
+      cpuFastForward: gameState.cpuFastForward,
+      activeStone: gameState.activeStone ? {
+        pos: gameState.activeStone.body.position,
+        vel: gameState.activeStone.body.velocity,
+        angVel: gameState.activeStone.body.angularVelocity
+      } : null,
+      stonesCount: gameState.stones.length
+    });
+    // Re-throw to still report the error
+    throw err;
+  }
 }
 
 // ============================================
@@ -16970,6 +16987,7 @@ window.addEventListener('focus', () => {
 function animate() {
   requestAnimationFrame(animate);
 
+  try {
   // Frame-rate independent physics timing
   const now = performance.now();
   if (lastPhysicsTime === 0) {
@@ -17019,6 +17037,16 @@ function animate() {
   updateSkipFade();
 
   renderer.render(scene, camera);
+  } catch (err) {
+    // Log detailed error info to help diagnose RangeError in animate loop
+    console.error('[ANIMATE ERROR]', err.name, err.message);
+    console.error('[ANIMATE STATE]', {
+      phase: gameState.phase,
+      cpuFastForward: gameState.cpuFastForward,
+      cameraAnimation: !!cameraAnimation
+    });
+    throw err;
+  }
 }
 
 // ============================================
