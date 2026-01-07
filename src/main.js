@@ -13712,13 +13712,30 @@ function renderBracket() {
 
   // Calculate vertical offset for bracket alignment
   // Each round should start lower to center matches between previous round's matches
-  const matchHeight = 40;  // Approximate height of match card + base gap
+  const matchCardHeight = 95;  // Actual height of match card (~padding + 2 team rows + divider)
+  const baseGap = 16;          // Base gap between cards in first round
 
   container.innerHTML = bracket.rounds.map((round, roundIndex) => {
-    // Offset increases with each round to center between previous round's matches
-    const topOffset = roundIndex === 0 ? 0 : (Math.pow(2, roundIndex) - 1) * (matchHeight / 2);
-    // Gap between matches increases each round
-    const matchGap = 16 + (roundIndex * matchHeight);
+    // For each subsequent round, matches should be centered between pairs from previous round
+    // Round 0: no offset, base gap
+    // Round 1: offset to center between pairs, larger gap
+    // Round 2+: continue pattern
+
+    let topOffset = 0;
+    let matchGap = baseGap;
+
+    if (roundIndex > 0) {
+      // Each match in this round spans 2^roundIndex matches from round 0
+      // The offset should center this round's match between those matches
+      const prevMatchSpan = matchCardHeight + baseGap;
+      const matchesSpanned = Math.pow(2, roundIndex);
+
+      // Top offset: half the height of one "unit" from previous round
+      topOffset = (prevMatchSpan * (matchesSpanned - 1)) / 2;
+
+      // Gap: needs to span multiple previous round matches
+      matchGap = prevMatchSpan * matchesSpanned - matchCardHeight;
+    }
 
     return `
     <div style="display: flex; flex-direction: column; gap: ${matchGap}px; min-width: 180px; padding-top: ${topOffset}px;">
