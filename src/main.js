@@ -214,8 +214,8 @@ const ADVANCED_PHYSICS = {
       const stability = 1.0 - 0.3 * Math.min(absOmega / this.omegaRef, 1.0);
       return Math.max(0.7, stability);
     },
-    // Curl magnitude exponent (keep small - rotation shouldn't dominate curl)
-    curlOmegaExponent: 0.25          // Weak inverse relationship
+    // Curl magnitude exponent - higher = more difference between min/max handle
+    curlOmegaExponent: 0.6           // Stronger relationship for noticeable slider effect
   }
 };
 
@@ -409,10 +409,10 @@ const CURL_PHYSICS = {
   // Stone loses ~25% spin over full run
   SPIN_DAMP: 0.001,
   // Map handle slider (0-100) to angular velocity (rad/s)
-  // 0 = minimal rotation (0.1 rad/s) = maximum curl
-  // 100 = maximum rotation (0.5 rad/s) = straighter path
-  // Reduced for realistic visual spin speed
-  HANDLE_TO_OMEGA: (handle) => 0.1 + (handle / 100) * 0.4
+  // 0 = minimal rotation (0.2 rad/s) = maximum curl
+  // 100 = maximum rotation (1.8 rad/s) = straighter path
+  // Wider range for more noticeable curl difference
+  HANDLE_TO_OMEGA: (handle) => 0.2 + (handle / 100) * 1.6
 };
 
 function getShotType(effort) {
@@ -467,15 +467,13 @@ const gameState = {
   handleAmount: 0,  // Default to neutral (middle of slider)
   playerHandleAmount: 0,  // Remember player's preference
 
-  // Sweeping
+  // Sweeping - New model: speed = distance, diagonal bias = curl influence
   isSweeping: false,
-  sweepEffectiveness: 0,  // 0-1 based on swipe speed/intensity
-  sweepDirection: 0,      // -1 = left bias, 0 = balanced, 1 = right bias
+  sweepEffectiveness: 0,  // 0-1 based on swipe speed (affects distance/friction)
+  sweepCurlInfluence: 0,  // -1 to +1: negative = reduce curl, positive = let it curl more
   sweepTouches: [],       // Track recent touch positions for speed calc
   lastSweepTime: 0,
-  // Angle-based sweeping (0° = aligned with stone, 90° = perpendicular)
-  sweepAngle: 0,          // Current sweep angle relative to stone velocity
-  sweepAngleEffectiveness: 1, // cos(angle) - multiplier for sweep effect (1 = aligned, 0 = perpendicular)
+  sweepAngle: 0,          // Angle from vertical (0° = straight, 90° = horizontal)
   sweepVector: { x: 0, y: 0 }, // Normalized sweep direction vector
   activeStone: null,
 
@@ -5998,8 +5996,9 @@ function createStone(team) {
   mesh.add(footRight);
 
   // Scoring indicator - glowing ring under stone (hidden by default)
+  // Outer radius must match STONE_RADIUS so glow accurately shows scoring boundary
   const glowColor = team === 'red' ? 0xff4444 : 0xffdd44;
-  const glowGeometry = new THREE.RingGeometry(STONE_RADIUS * 0.9, STONE_RADIUS * 1.3, 32);
+  const glowGeometry = new THREE.RingGeometry(STONE_RADIUS * 0.7, STONE_RADIUS * 1.0, 32);
   const glowMaterial = new THREE.MeshBasicMaterial({
     color: glowColor,
     transparent: true,
@@ -8622,56 +8621,64 @@ function updateSweepFromMovement(x, y) {
     const timeSpan = now - gameState.sweepTouches[0].time;
     const speed = timeSpan > 0 ? totalDistance / timeSpan : 0;
 
-    // Map speed to base effectiveness (0-1)
+    // NEW SWEEP MODEL:
+    // - Speed determines distance effect (friction reduction)
+    // - Diagonal bias relative to curl direction affects curl
+    // - Direction does NOT affect distance effectiveness
+
+    // Distance effectiveness is based purely on speed
     const baseEffectiveness = Math.min(1, speed / 1.5);
 
-    // Calculate sweep vector (normalized direction of swipe)
-    const sweepMagnitude = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
-    if (sweepMagnitude > 5) {
-      gameState.sweepVector = {
-        x: totalDx / sweepMagnitude,
-        y: totalDy / sweepMagnitude
-      };
-
-      // Get stone velocity vector
-      const stoneVel = gameState.activeStone.body.velocity;
-      const stoneSpeed = Math.sqrt(stoneVel.x * stoneVel.x + stoneVel.y * stoneVel.y);
-
-      if (stoneSpeed > 0.01) {
-        // Normalize stone velocity
-        const stoneDir = {
-          x: stoneVel.x / stoneSpeed,
-          y: stoneVel.y / stoneSpeed
-        };
-
-        // Calculate angle between sweep direction and stone velocity
-        // Using dot product: cos(angle) = (sweep · stoneVel) / (|sweep| * |stoneVel|)
-        // Since both are normalized, just dot product
-        // Note: screen Y is inverted from physics Y, and we want forward sweep to match stone direction
-        // Sweep up on screen (-Y in screen coords) should align with stone moving forward (+Y in physics)
-        const dotProduct = gameState.sweepVector.x * stoneDir.x - gameState.sweepVector.y * stoneDir.y;
-
-        // Angle effectiveness: |cos(angle)|
-        // 0° or 180° sweep = 1.0 (aligned with or against stone motion)
-        // 90° sweep = 0.0 (perpendicular)
-        // We use absolute value because sweeping forward OR backward along the line is effective
-        gameState.sweepAngleEffectiveness = Math.abs(dotProduct);
-
-        // Calculate actual angle in degrees for display
-        gameState.sweepAngle = Math.acos(Math.abs(dotProduct)) * (180 / Math.PI);
-      }
-    }
-
-    // Final sweep effectiveness = base (speed) × angle factor
-    gameState.sweepEffectiveness = baseEffectiveness * gameState.sweepAngleEffectiveness;
+    // Sweep effectiveness for distance = just speed (direction doesn't matter)
+    gameState.sweepEffectiveness = baseEffectiveness;
 
     const wasSweeping = gameState.isSweeping;
     gameState.isSweeping = gameState.sweepEffectiveness > 0.1;
     gameState.lastSweepTime = now;
 
-    // Debug: log sweep detection with angle info
+    // Calculate sweep vector for curl influence
+    const sweepMagnitude = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+    if (sweepMagnitude > 5 && gameState.activeStone) {
+      gameState.sweepVector = {
+        x: totalDx / sweepMagnitude,
+        y: totalDy / sweepMagnitude
+      };
+
+      // Get stone's curl direction (which way it's curling)
+      // Positive angular velocity = curling right (+X), Negative = curling left (-X)
+      const omega = gameState.activeStone.body.angularVelocity;
+      const curlingSide = omega > 0 ? 1 : -1; // 1 = curling right, -1 = curling left
+
+      // Calculate horizontal bias of sweep (-1 = left, +1 = right)
+      // totalDx is the horizontal component of sweep direction
+      const horizontalBias = totalDx / sweepMagnitude;
+
+      // Diagonal sweep curl influence:
+      // - Sweeping toward the curl side (same direction stone is curling) = reduces curl
+      // - Sweeping away from curl side = allows more curl
+      // Value from -1 (max curl reduction) to +1 (max curl increase)
+      // Positive curlingSide + positive horizontalBias = sweeping toward curl = reduce curl
+      gameState.sweepCurlInfluence = -horizontalBias * curlingSide;
+
+      // Only apply curl influence if there's meaningful diagonal bias
+      // Pure vertical sweeping (up/down) has no curl effect
+      const diagonalAmount = Math.abs(horizontalBias);
+      if (diagonalAmount < 0.2) {
+        gameState.sweepCurlInfluence = 0; // Too vertical, no curl effect
+      } else {
+        // Scale influence by how diagonal the sweep is and effectiveness
+        gameState.sweepCurlInfluence *= diagonalAmount * baseEffectiveness;
+      }
+
+      // Store for display - angle from vertical (0 = straight up, 90 = horizontal)
+      gameState.sweepAngle = Math.asin(Math.abs(horizontalBias)) * (180 / Math.PI);
+    }
+
+    // Debug: log sweep detection
     if (gameState.isSweeping && !wasSweeping) {
-      console.log(`[DEBUG] Sweep started - base: ${(baseEffectiveness * 100).toFixed(0)}%, angle: ${gameState.sweepAngle.toFixed(0)}°, effective: ${(gameState.sweepEffectiveness * 100).toFixed(0)}%`);
+      const curlEffect = gameState.sweepCurlInfluence > 0.1 ? 'letting curl' :
+                         gameState.sweepCurlInfluence < -0.1 ? 'reducing curl' : 'neutral';
+      console.log(`[DEBUG] Sweep started - speed: ${(baseEffectiveness * 100).toFixed(0)}%, curl: ${curlEffect}`);
 
       // Interactive tutorial: detect sweep action
       onTutorialActionComplete('sweep');
@@ -8682,16 +8689,6 @@ function updateSweepFromMovement(x, y) {
       soundManager.startSweeping();
     } else if (!gameState.isSweeping && wasSweeping) {
       soundManager.stopSweeping();
-    }
-
-    // Calculate sweep direction bias (-1 to 1) for lateral effect
-    // Positive = sweeping more to the right, Negative = sweeping more to the left
-    if (totalDistance > 20) {
-      const directionBias = totalDx / totalDistance;
-      // Smooth the direction value
-      gameState.sweepDirection = gameState.sweepDirection * 0.7 + directionBias * 0.3;
-      // Clamp to -1 to 1
-      gameState.sweepDirection = Math.max(-1, Math.min(1, gameState.sweepDirection));
     }
   }
 }
@@ -8757,11 +8754,10 @@ function updateComputerSweeping() {
     const shouldDefensiveSweep = willStopInHouse && stoneNearButton && Math.random() < skillFactor * 0.8;
 
     if (shouldDefensiveSweep && speed > 0.5) {
-      // Computer sweeps to push stone through
+      // Computer sweeps to push stone through (neutral curl influence - just distance)
       gameState.isSweeping = true;
       gameState.sweepEffectiveness = 0.7 + Math.random() * 0.3; // 70-100%
-      gameState.sweepAngleEffectiveness = 0.9; // Computer sweeps at good angle
-      gameState.sweepAngle = 10;
+      gameState.sweepCurlInfluence = 0; // Computer uses neutral sweep
       gameState.lastSweepTime = Date.now();
 
       if (!gameState._computerSweepSoundStarted) {
@@ -8793,11 +8789,10 @@ function updateComputerSweeping() {
     const sweepDecision = (shouldSweepTakeout || shouldSweepDraw) && Math.random() < skillFactor * 0.9;
 
     if (sweepDecision) {
-      // Computer sweeps its own stone
+      // Computer sweeps its own stone (neutral curl influence - just distance)
       gameState.isSweeping = true;
       gameState.sweepEffectiveness = 0.6 + skillFactor * 0.4; // Better at higher levels
-      gameState.sweepAngleEffectiveness = 0.85 + skillFactor * 0.15; // Good angle
-      gameState.sweepAngle = 15 - skillFactor * 10; // Better angle at higher skill
+      gameState.sweepCurlInfluence = 0; // Computer uses neutral sweep for now
       gameState.lastSweepTime = Date.now();
 
       if (!gameState._computerSweepSoundStarted) {
@@ -8884,32 +8879,29 @@ function updateSweeping() {
       indicator.style.color = '#888';
     } else if (gameState.isSweeping && !computerIsSweeping) {
       indicator.style.display = 'block';
-      // Player is sweeping - show effectiveness with angle info
+      // Player is sweeping - show speed-based effectiveness and curl influence
       const intensity = Math.round(gameState.sweepEffectiveness * 100);
-      const angle = Math.round(gameState.sweepAngle);
-      const angleEff = Math.round(gameState.sweepAngleEffectiveness * 100);
+      const curlInfluence = gameState.sweepCurlInfluence;
 
-      // Angle quality indicator
-      let angleIndicator = '';
-      if (angle <= 20) {
-        angleIndicator = '▲'; // Great - nearly aligned
-      } else if (angle <= 45) {
-        angleIndicator = '◢'; // Good - diagonal
+      // Curl influence indicator
+      let curlIndicator = '';
+      let curlText = '';
+      if (curlInfluence < -0.15) {
+        curlIndicator = '⟨'; // Reducing curl (sweeping toward curl side)
+        curlText = ' hold';
+      } else if (curlInfluence > 0.15) {
+        curlIndicator = '⟩'; // Letting it curl (sweeping away from curl)
+        curlText = ' curl';
       } else {
-        angleIndicator = '►'; // Poor - too perpendicular
+        curlIndicator = '↑'; // Neutral/straight sweep
+        curlText = '';
       }
 
-      // Color based on effectiveness (green = good, yellow = ok, red = poor)
-      let color;
-      if (angleEff >= 70) {
-        color = `rgb(${74 + intensity}, 222, 128)`; // Green
-      } else if (angleEff >= 40) {
-        color = `rgb(255, ${180 + angleEff * 0.5}, 50)`; // Yellow-orange
-      } else {
-        color = `rgb(255, ${100 + angleEff}, ${100 + angleEff})`; // Red-ish
-      }
+      // Color based on speed effectiveness (brighter = faster sweep)
+      const greenIntensity = Math.min(255, 128 + intensity);
+      const color = `rgb(74, ${greenIntensity}, 128)`;
 
-      indicator.textContent = `${angleIndicator} ${intensity}% (${angle}°)`;
+      indicator.textContent = `${curlIndicator} ${intensity}%${curlText}`;
       indicator.style.color = color;
     } else {
       // No one is sweeping - show ready message
@@ -9781,23 +9773,26 @@ function updatePhysics() {
       let curlForce = curlDirection * 0.000004 * lateCurlMultiplier * iceRandomness * omegaFactor;
       curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
 
-      // Sweeping reduces curl (makes stone go straighter)
-      // In real curling, sweeping melts the pebbles, reducing friction differential
+      // NEW SWEEP MODEL:
+      // - Fast sweeping (any direction) carries the stone farther (handled in friction)
+      // - Diagonal sweeping toward curl side = reduces curl
+      // - Diagonal sweeping away from curl side = lets it curl more
+      // - Effect is subtle (centimeters, not steering)
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
-        // Reduce curl by 40-70% based on sweep effectiveness
-        const curlReduction = 0.4 + gameState.sweepEffectiveness * 0.3;
-        curlForce *= (1 - curlReduction);
-      }
+        // sweepCurlInfluence: -1 = reduce curl, +1 = let it curl
+        // Negative influence reduces curl force, positive allows more
+        // Base reduction from any sweeping (parallel sweeping gives distance but minimal curl change)
+        const baseCurlReduction = 0.15; // Small base reduction from friction smoothing
 
-      // ADVANCED PHYSICS 1B: ASYMMETRIC/DIRECTIONAL SWEEPING (HARD MODE ONLY)
-      // Player can slightly influence line by sweeping left or right side
-      const isHardMode = gameState.settings.difficulty === 'hard';
-      if (isHardMode && ADVANCED_PHYSICS.directionalSweep.enabled &&
-          gameState.isSweeping && gameState.sweepEffectiveness > ADVANCED_PHYSICS.directionalSweep.activationThreshold) {
-        // sweepDirection: -1 = left bias, 0 = balanced, 1 = right bias
-        const directionalForce = -gameState.sweepDirection * gameState.sweepEffectiveness *
-                                  ADVANCED_PHYSICS.directionalSweep.maxCurlBias * lateCurlMultiplier;
-        curlForce += directionalForce;
+        // Diagonal influence adds/subtracts from curl
+        // Max effect is ~40% curl modification at full diagonal sweep
+        const diagonalEffect = gameState.sweepCurlInfluence * 0.4;
+
+        // Combined effect: reduce by base amount, then apply diagonal influence
+        // Negative sweepCurlInfluence (sweeping toward curl) = more reduction
+        // Positive sweepCurlInfluence (sweeping away) = less reduction (or slight increase)
+        const curlModifier = 1 - baseCurlReduction + diagonalEffect;
+        curlForce *= Math.max(0.3, Math.min(1.3, curlModifier)); // Clamp to reasonable range
       }
 
       // Final cap to prevent any extreme cases
@@ -9928,10 +9923,9 @@ function updatePhysics() {
       gameState.activeStone = null;
       gameState.isSweeping = false;
       gameState.sweepEffectiveness = 0;
-      gameState.sweepDirection = 0;
+      gameState.sweepCurlInfluence = 0;
       gameState.sweepTouches = [];
       gameState.sweepAngle = 0;
-      gameState.sweepAngleEffectiveness = 1;
       gameState.sweepVector = { x: 0, y: 0 };
       gameState._computerSweepSoundStarted = false;
       gameState.computerShotTarget = null;
@@ -10291,7 +10285,30 @@ function calculateScore() {
 }
 
 // Update scoring indicators on stones (show which stones are currently counting)
+// Only shows glow when all stones have stopped moving
 function updateScoringIndicators() {
+  // First check if any stone is still moving - if so, hide all glows
+  const anyStoneMoving = gameState.stones.some(stone => {
+    if (stone.outOfPlay || !stone.body) return false;
+    const vel = stone.body.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+    return speed > 0.02; // Threshold for "at rest"
+  });
+
+  // If stones are moving, fade out all glows and return
+  if (anyStoneMoving) {
+    for (const stone of gameState.stones) {
+      const glow = stone.mesh.getObjectByName('scoringGlow');
+      if (glow && glow.material.opacity > 0) {
+        glow.material.opacity *= 0.8; // Fade out
+        if (glow.material.opacity < 0.05) {
+          glow.material.opacity = 0;
+        }
+      }
+    }
+    return;
+  }
+
   const buttonPos = { x: 0, z: TEE_LINE_FAR };
 
   // Calculate distances from button for all stones in the house
@@ -10308,7 +10325,8 @@ function updateScoringIndicators() {
     .filter(s => s.distance <= RING_12FT + STONE_RADIUS)
     .sort((a, b) => a.distance - b.distance);
 
-  // Determine scoring stones
+  // Determine scoring stones - only the team with the closest stone scores
+  // and only their stones that are closer than any opponent stone
   const scoringStones = new Set();
 
   if (stonesWithDist.length > 0) {
@@ -13780,35 +13798,65 @@ function renderBracket() {
   const bracket = seasonState.activeTournament.bracket;
   if (!bracket || !bracket.rounds) return;
 
-  // Calculate vertical offset for bracket alignment
-  // Each round should start lower to center matches between previous round's matches
-  const matchCardHeight = 95;  // Actual height of match card (~padding + 2 team rows + divider)
-  const baseGap = 16;          // Base gap between cards in first round
+  // For proper bracket alignment, each match in a round should be centered
+  // between the two matches from the previous round that feed into it
+  const matchCardHeight = 90;   // Height of match card
+  const baseGap = 20;           // Gap between cards in first round
+  const headerHeight = 30;      // Round name header height including margin
+
+  // Calculate first round dimensions
+  const firstRoundMatches = bracket.rounds[0].matchups.length;
+  const firstRoundContentHeight = (firstRoundMatches * matchCardHeight) + ((firstRoundMatches - 1) * baseGap);
+  const totalColumnHeight = headerHeight + firstRoundContentHeight;
 
   container.innerHTML = bracket.rounds.map((round, roundIndex) => {
-    // For each subsequent round, matches should be centered between pairs from previous round
-    // Round 0: no offset, base gap
-    // Round 1: offset to center between pairs, larger gap
-    // Round 2+: continue pattern
+    const numMatchesThisRound = round.matchups.length;
 
-    let topOffset = 0;
-    let matchGap = baseGap;
+    // First round: no special positioning needed
+    if (roundIndex === 0) {
+      return `
+      <div style="display: flex; flex-direction: column; gap: ${baseGap}px; min-width: 180px;">
+        <div style="
+          color: #64748b;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          margin-bottom: 8px;
+          text-align: center;
+          height: 20px;
+        ">${round.name}</div>
+        ${round.matchups.map(matchup => renderMatchupCard(matchup, roundIndex)).join('')}
+      </div>
+    `}
 
-    if (roundIndex > 0) {
-      // Each match in this round spans 2^roundIndex matches from round 0
-      // The offset should center this round's match between those matches
-      const prevMatchSpan = matchCardHeight + baseGap;
-      const matchesSpanned = Math.pow(2, roundIndex);
+    // For subsequent rounds, each match should be centered between its feeder matches
+    // In a standard bracket: round N has 2^N times fewer matches than round 0
+    // Each match in round N spans 2^N matches from round 0
 
-      // Top offset: half the height of one "unit" from previous round
-      topOffset = (prevMatchSpan * (matchesSpanned - 1)) / 2;
+    // Calculate the "unit height" - height of one match slot in round 0
+    const unitHeight = matchCardHeight + baseGap;
 
-      // Gap: needs to span multiple previous round matches
-      matchGap = prevMatchSpan * matchesSpanned - matchCardHeight;
-    }
+    // How many round-0 matches does each match in this round span?
+    const matchesPerSlot = Math.pow(2, roundIndex);
+
+    // Height that each match in this round spans (in terms of round 0 space)
+    const slotHeight = matchesPerSlot * unitHeight - baseGap;
+
+    // Top offset to center first match of this round
+    // It should be centered in the space of its feeder matches
+    const topOffset = (slotHeight - matchCardHeight) / 2;
+
+    // Gap between matches in this round
+    // Each subsequent match is centered in the next "slot" of feeder matches
+    const matchGap = slotHeight + baseGap - matchCardHeight;
 
     return `
-    <div style="display: flex; flex-direction: column; gap: ${matchGap}px; min-width: 180px; padding-top: ${topOffset}px;">
+    <div style="
+      display: flex;
+      flex-direction: column;
+      min-width: 180px;
+      height: ${totalColumnHeight}px;
+    ">
       <div style="
         color: #64748b;
         font-size: 12px;
@@ -13816,8 +13864,16 @@ function renderBracket() {
         letter-spacing: 1px;
         margin-bottom: 8px;
         text-align: center;
+        height: 20px;
       ">${round.name}</div>
-      ${round.matchups.map(matchup => renderMatchupCard(matchup, roundIndex)).join('')}
+      <div style="
+        display: flex;
+        flex-direction: column;
+        gap: ${matchGap}px;
+        padding-top: ${topOffset}px;
+      ">
+        ${round.matchups.map(matchup => renderMatchupCard(matchup, roundIndex)).join('')}
+      </div>
     </div>
   `}).join('');
 }
