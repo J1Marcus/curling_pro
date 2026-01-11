@@ -3897,33 +3897,41 @@
       </div>
     </div>
 
-    <!-- Privacy Policy Modal -->
-    <div id="privacy-overlay" onclick="if(event.target === this) window.closePrivacyPolicy()" style="
+    <!-- Privacy Policy Screen -->
+    <div id="privacy-overlay" style="
       display: none;
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.85);
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
       z-index: 9500;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
+      overflow-y: auto;
     ">
-      <div id="privacy-modal" onclick="event.stopPropagation()" style="
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 3px solid #4a5568;
-        border-radius: 16px;
-        padding: 30px;
-        width: 90%;
-        max-width: 500px;
-        max-height: 80vh;
-        overflow-y: auto;
+      <div style="
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
         font-family: 'Segoe UI', system-ui, sans-serif;
-        cursor: default;
       ">
-        <h2 style="color: white; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Privacy Policy</h2>
+        <!-- Back button -->
+        <button onclick="window.closePrivacyPolicy()" style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: none;
+          border: none;
+          color: #60a5fa;
+          font-size: 16px;
+          cursor: pointer;
+          padding: 10px 0;
+          margin-bottom: 20px;
+        ">
+          <span>←</span> Back
+        </button>
+
+        <h2 style="color: white; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Privacy Policy</h2>
 
         <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
           <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2026</p>
@@ -3966,50 +3974,44 @@
           </p>
         </div>
 
-        <button onclick="window.closePrivacyPolicy()" style="
-          width: 100%;
-          margin-top: 25px;
-          padding: 12px;
-          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-size: 16px;
-          font-weight: bold;
-          cursor: pointer;
-        ">Close</button>
       </div>
     </div>
 
-    <!-- Terms of Service Overlay -->
-    <div id="tos-overlay" onclick="window.closeTermsOfService()" style="
+    <!-- Terms of Service Screen -->
+    <div id="tos-overlay" style="
       display: none;
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.9);
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
       z-index: 9500;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-      box-sizing: border-box;
+      overflow-y: auto;
     ">
-      <div id="tos-modal" onclick="event.stopPropagation()" style="
-        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-        border: 3px solid #4a5568;
-        border-radius: 16px;
-        padding: 30px;
-        width: 90%;
+      <div style="
         max-width: 600px;
-        max-height: 80vh;
-        overflow-y: auto;
+        margin: 0 auto;
+        padding: 40px 20px;
         font-family: 'Segoe UI', system-ui, sans-serif;
-        cursor: default;
       ">
-        <h2 style="color: white; margin: 0 0 20px 0; font-size: 22px; text-align: center;">Terms of Service</h2>
+        <!-- Back button -->
+        <button onclick="window.closeTermsOfService()" style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: none;
+          border: none;
+          color: #60a5fa;
+          font-size: 16px;
+          cursor: pointer;
+          padding: 10px 0;
+          margin-bottom: 20px;
+        ">
+          <span>←</span> Back
+        </button>
+
+        <h2 style="color: white; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Terms of Service</h2>
 
         <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
           <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2026</p>
@@ -4069,18 +4071,6 @@
           </p>
         </div>
 
-        <button onclick="window.closeTermsOfService()" style="
-          width: 100%;
-          margin-top: 25px;
-          padding: 12px;
-          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
-          border: none;
-          border-radius: 8px;
-          color: white;
-          font-size: 16px;
-          font-weight: bold;
-          cursor: pointer;
-        ">Close</button>
       </div>
     </div>
 
