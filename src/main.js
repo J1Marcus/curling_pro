@@ -5324,7 +5324,7 @@ function createArena(level = 1) {
 // Update arena when career level changes
 function updateArenaForLevel() {
   // Use career level for Career mode, quickPlayLevel for Quick Play
-  const level = gameState.gameMode === '1player'
+  const level = gameState.selectedMode === 'career'
     ? gameState.career.level
     : gameState.settings.quickPlayLevel;
   createArena(level);
@@ -6924,9 +6924,10 @@ function startPull(x, y) {
   document.getElementById('phase-text').style.color = '#4ade80';
   document.getElementById('phase-text').textContent = 'Pull back to set effort...';
 
-  // Hide shot type on hard difficulty
+  // Hide shot type and effort text on hard difficulty
   const isHard = gameState.settings.difficulty === 'hard';
   document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+  document.getElementById('effort-text').style.display = isHard ? 'none' : 'block';
   document.getElementById('shot-type').textContent = 'Ultra Light Guard';
   document.getElementById('shot-type').style.color = '#60a5fa';
 }
@@ -7142,6 +7143,10 @@ function hogViolation() {
 // Phase 3: Click again = release the stone (continues at same speed)
 function releaseStone() {
   if (gameState.phase !== 'sliding') return;
+  if (!gameState.activeStone || !gameState.activeStone.body) {
+    console.error('[releaseStone] No active stone - aborting');
+    return;
+  }
 
   // Stop turn timer when shot is made
   stopTurnTimer();
@@ -8591,7 +8596,6 @@ function updateSweepFromMovement(x, y) {
     }
     // Debug: log when defensive sweep is allowed
     if (!gameState._debugDefensiveSweepLogged) {
-      console.log(`[DEBUG] Defensive sweep allowed - stone at ${stoneZ.toFixed(2)}m, T-line at ${TEE_LINE_FAR}m`);
       gameState._debugDefensiveSweepLogged = true;
     }
   }
@@ -8678,7 +8682,6 @@ function updateSweepFromMovement(x, y) {
     if (gameState.isSweeping && !wasSweeping) {
       const curlEffect = gameState.sweepCurlInfluence > 0.1 ? 'letting curl' :
                          gameState.sweepCurlInfluence < -0.1 ? 'reducing curl' : 'neutral';
-      console.log(`[DEBUG] Sweep started - speed: ${(baseEffectiveness * 100).toFixed(0)}%, curl: ${curlEffect}`);
 
       // Interactive tutorial: detect sweep action
       onTutorialActionComplete('sweep');
@@ -9443,7 +9446,11 @@ function getComputerShot() {
   const effortMeanError = (Math.random() - 0.5) * 3 * meanErrorMod;
 
   const finalEffort = Math.min(100, Math.max(30, effort + effortVariance + effortMeanError));  // Min 30% effort
-  const finalAimAngle = aimAngle + accuracyVariance + meanErrorBias;
+  let finalAimAngle = aimAngle + accuracyVariance + meanErrorBias;
+
+  // Safety clamp: max angle of ~4° prevents wall hits (sheet edge is ~3.3° from center)
+  const maxAimAngle = 0.07;  // ~4 degrees
+  finalAimAngle = Math.max(-maxAimAngle, Math.min(maxAimAngle, finalAimAngle));
 
   const opponentName = opponent ? `${opponent.firstName} ${opponent.lastName}` : 'Generic AI';
   console.log('[COMPUTER SHOT]', opponentName, '-', shotType,
@@ -9607,6 +9614,7 @@ function executeComputerShot() {
     document.getElementById('power-value').textContent = Math.round(shot.effort);
     document.getElementById('power-fill').style.width = shot.effort + '%';
     document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+    document.getElementById('effort-text').style.display = isHard ? 'none' : 'block';
     document.getElementById('shot-type').textContent = shotTypeInfo.name;
     document.getElementById('shot-type').style.color = shotTypeInfo.color;
 
@@ -11352,6 +11360,10 @@ function loadPracticeScenario(scenario) {
     slider.value = gameState.curlDirection * gameState.handleAmount;
     updateCurlDisplay();
   }
+
+  // Enable curl controls for practice mode
+  setCurlButtonsEnabled(true);
+  setCurlDisplayVisible(true);
 }
 
 // Show practice overlay UI
@@ -14595,6 +14607,9 @@ function startGame() {
   gameState.setupComplete = true;
   gameState.phase = 'aiming';  // Ensure phase is reset for new game
 
+  // Update arena for current level (Career uses career.level, Quick Play uses quickPlayLevel)
+  updateArenaForLevel();
+
   // Track game start
   const gameMode = gameState.selectedMode || 'quickplay';
   analytics.trackGameStart(gameMode, gameState.settings.difficulty, gameState.learnMode?.enabled || false);
@@ -17208,7 +17223,6 @@ function animate() {
 // Debug: Set up a match in the last end for testing end-of-match scenarios
 // Usage: In browser console, call: debugLastEnd() or debugLastEnd(5, 4) for custom scores
 window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
-  console.log('[DEBUG] Setting up last end scenario...');
 
   // Set up career mode
   gameState.selectedMode = 'career';
@@ -17285,13 +17299,10 @@ window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
   const canvas = document.getElementById('game-canvas');
   if (canvas) canvas.style.display = 'block';
 
-  console.log(`[DEBUG] Match set up: End ${totalEnds}/${totalEnds}, Score: ${playerScore}-${opponentScore}`);
-  console.log('[DEBUG] Play this end to trigger end-of-match logic');
 };
 
 // Debug: Skip to end of current end (all stones thrown)
 window.debugEndOfEnd = function() {
-  console.log('[DEBUG] Skipping to end of current end...');
   gameState.stonesThrown = { red: 8, yellow: 8 };
   gameState.phase = 'scoring';
   calculateScore();
@@ -17299,7 +17310,6 @@ window.debugEndOfEnd = function() {
 
 // Debug: Simulate winning current match
 window.debugWinMatch = function() {
-  console.log('[DEBUG] Simulating match win...');
   gameState.scores.red = 10;
   gameState.scores.yellow = 2;
   gameState.end = gameState.settings.gameLength || 8;
@@ -17307,88 +17317,7 @@ window.debugWinMatch = function() {
   calculateScore();
 };
 
-// Debug: Create floating debug button (TEMP - remove for production)
-(function createDebugButton() {
-  const btn = document.createElement('button');
-  btn.id = 'debug-btn';
-  btn.textContent = 'DEBUG';
-  btn.style.cssText = `
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 99999;
-    background: #ef4444;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-  `;
-
-  const menu = document.createElement('div');
-  menu.id = 'debug-menu';
-  menu.style.cssText = `
-    position: fixed;
-    bottom: 70px;
-    right: 20px;
-    z-index: 99999;
-    background: #1a1a2e;
-    border: 1px solid #ef4444;
-    border-radius: 8px;
-    padding: 8px;
-    display: none;
-    flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  `;
-
-  const options = [
-    { label: 'Last End (5-4)', action: () => window.debugLastEnd(5, 4) },
-    { label: 'Last End (Tied 4-4)', action: () => window.debugLastEnd(4, 4) },
-    { label: 'Last End (Losing 3-5)', action: () => window.debugLastEnd(3, 5) },
-    { label: 'End Current End', action: () => window.debugEndOfEnd() },
-    { label: 'Win Match Now', action: () => window.debugWinMatch() },
-    { label: '🗑️ Reset All Data', action: () => {
-      if (confirm('Clear all saved data? This will reset tutorials, career, settings, and reload the page.')) {
-        localStorage.clear();
-        location.reload();
-      }
-    }},
-  ];
-
-  options.forEach(opt => {
-    const optBtn = document.createElement('button');
-    optBtn.textContent = opt.label;
-    optBtn.style.cssText = `
-      background: #333;
-      color: white;
-      border: 1px solid #555;
-      border-radius: 4px;
-      padding: 8px 12px;
-      font-size: 11px;
-      cursor: pointer;
-      text-align: left;
-      white-space: nowrap;
-    `;
-    optBtn.onmouseover = () => optBtn.style.background = '#444';
-    optBtn.onmouseout = () => optBtn.style.background = '#333';
-    optBtn.onclick = () => {
-      opt.action();
-      menu.style.display = 'none';
-    };
-    menu.appendChild(optBtn);
-  });
-
-  btn.onclick = () => {
-    menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
-  };
-
-  document.body.appendChild(menu);
-  document.body.appendChild(btn);
-})();
+// Debug button removed for production
 
 // ============================================
 // CPU FAST FORWARD BUTTON
