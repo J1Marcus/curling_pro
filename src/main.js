@@ -7234,9 +7234,10 @@ function releaseStone() {
   // Stone continues at current velocity - NO speed change
   // Set angular velocity based on handle amount (for curl physics)
   // More handle = more rotation (rad/s) = straighter path
-  const omega = CURL_PHYSICS.HANDLE_TO_OMEGA(gameState.handleAmount);
+  const omega = CURL_PHYSICS.HANDLE_TO_OMEGA(gameState.handleAmount || 0);
   // Negate because: clockwise rotation (negative omega) = curl RIGHT, counterclockwise (positive) = curl LEFT
-  const finalOmega = -gameState.curlDirection * omega;
+  const safeDirection = gameState.curlDirection || 1;  // Default to 1 if null
+  const finalOmega = -safeDirection * omega;
 
   // VISUAL ROTATION: Inverted from handle - extremes = minimal rotation, middle = more rotation
   // Real curling: ~2-4 rotations over full travel for typical handle
@@ -7244,12 +7245,14 @@ function releaseStone() {
   // Extremes (handle=100) → minimal rotation (~1.5 rotations = ~0.5 rad/s over 18s)
   const visualOmegaMax = 2.1;   // rad/s at middle of slider
   const visualOmegaMin = 0.5;   // rad/s at extremes
-  const visualOmega = visualOmegaMax - (gameState.handleAmount / 100) * (visualOmegaMax - visualOmegaMin);
-  gameState.activeStone.visualOmega = -gameState.curlDirection * visualOmega;
+  const handleAmount = gameState.handleAmount || 0;
+  const curlDir = gameState.curlDirection || 1;  // Default to 1 if null
+  const visualOmega = visualOmegaMax - (handleAmount / 100) * (visualOmegaMax - visualOmegaMin);
+  gameState.activeStone.visualOmega = -curlDir * visualOmega;
   gameState.activeStone.visualAngle = 0;  // Track visual rotation separately
 
   // Debug logging for throw
-  console.log(`THROW: curlDirection=${gameState.curlDirection}, handleAmount=${gameState.handleAmount}, physicsOmega=${finalOmega.toFixed(2)}, visualOmega=${gameState.activeStone.visualOmega.toFixed(2)}`);
+  console.log(`THROW: curlDirection=${curlDir}, handleAmount=${handleAmount}, physicsOmega=${finalOmega.toFixed(2)}, visualOmega=${gameState.activeStone.visualOmega.toFixed(2)}`);
 
   // Clockwise (negative omega) curls right, counterclockwise (positive) curls left
   Matter.Body.setAngularVelocity(gameState.activeStone.body, finalOmega);
@@ -9715,7 +9718,7 @@ function updatePhysics() {
 
     // Visual rotation: use separate visual omega for realistic rotation speed
     // Active stone uses visual rotation (inverted from handle), stationary stones stay put
-    if (stone === gameState.activeStone && stone.visualOmega !== undefined) {
+    if (stone === gameState.activeStone && stone.visualOmega !== undefined && !isNaN(stone.visualOmega)) {
       // Update visual angle based on visual omega (frame rate independent)
       const vel = stone.body.velocity;
       const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
@@ -9725,11 +9728,11 @@ function updatePhysics() {
         stone.mesh.rotation.y = stone.visualAngle;
       }
       // When stopped, keep final rotation angle
-    } else if (stone.visualAngle !== undefined) {
+    } else if (stone.visualAngle !== undefined && !isNaN(stone.visualAngle)) {
       // Stone was thrown but now stopped - keep its final visual angle
       stone.mesh.rotation.y = stone.visualAngle;
     }
-    // Stationary stones that were never thrown keep their default rotation
+    // Stationary/practice stones keep default rotation (0)
   }
 
   // Host: broadcast stone positions periodically during movement
