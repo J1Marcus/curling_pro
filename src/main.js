@@ -173,24 +173,37 @@ const ADVANCED_PHYSICS = {
   },
 
   // ----------------------------------------
-  // 2: LATE CURL BEHAVIOR
-  // Curl increases as stone slows ("dive" at the end)
+  // 2: LATE CURL BEHAVIOR (Normalized Speed Model)
+  // Curl is continuous function of normalized speed (v/v0)
+  // Formula: g(v) = clamp((v_high - v_n) / (v_high - v_low), 0, 1)^p
   // ----------------------------------------
   lateCurl: {
-    // Speed threshold where late curl begins ramping
-    vLateThreshold: 1.5,             // Below this speed, curl ramps up
-    // Maximum multiplier for curl at very low speeds
-    lateCurlMultiplierMax: 3.5,      // Up to 3.5x curl at low speeds
-    // Curve function: more curl as speed drops
-    // f(v) returns multiplier (1.0 at high speed, up to max at low speed)
-    getCurlMultiplier: function(speed) {
-      // Clamp speed to non-negative (physics glitches can cause negative speeds)
-      const safeSpeed = Math.max(0, speed);
-      if (safeSpeed >= this.vLateThreshold) return 1.0;
-      // Ramp from 1.0 to max as speed goes from threshold to near-zero
-      const t = Math.max(0, Math.min(1, 1 - (safeSpeed / this.vLateThreshold)));  // Clamp 0-1
-      const ramp = 1 + (this.lateCurlMultiplierMax - 1) * Math.pow(t, 1.5);
-      return Math.min(ramp, this.lateCurlMultiplierMax);
+    // Normalized speed thresholds (relative to initial throw speed)
+    // v_high: above this, curl is minimal (stone traveling fast/straight)
+    // v_low: below this, curl is at maximum
+    vHighNorm: 0.75,                 // Curl starts becoming noticeable below 75% speed
+    vLowNorm: 0.25,                  // Maximum curl below 25% speed
+    // Exponent controls ramp shape: higher = curl "waits" longer then ramps faster
+    // 1.5-2.0 = realistic late curl, lower = more gradual/earlier
+    exponent: 1.6,                   // Slightly lower for earlier curl onset
+    // Maximum multiplier for curl at low speeds
+    lateCurlMultiplierMax: 4.0,      // Up to 4x curl at low speeds
+    // Curl gain function: returns 0-1 based on normalized speed
+    // 0 at high speed, 1 at low speed
+    getCurlGain: function(speed, initialSpeed) {
+      // Use fallback if no initial speed recorded
+      const v0 = initialSpeed > 0 ? initialSpeed : 3.5;
+      const vNorm = Math.max(0, speed) / v0;
+
+      // g(v) = clamp((v_high - v_n) / (v_high - v_low), 0, 1)^p
+      const rawGain = (this.vHighNorm - vNorm) / (this.vHighNorm - this.vLowNorm);
+      const clampedGain = Math.max(0, Math.min(1, rawGain));
+      return Math.pow(clampedGain, this.exponent);
+    },
+    // Full multiplier: 1.0 at high speed, up to max at low speed
+    getCurlMultiplier: function(speed, initialSpeed) {
+      const gain = this.getCurlGain(speed, initialSpeed);
+      return 1 + (this.lateCurlMultiplierMax - 1) * gain;
     }
   },
 
@@ -453,6 +466,7 @@ const gameState = {
   pullCurrent: null,
   maxPower: 0,
   slideStartTime: null,
+  initialThrowSpeed: 0,  // Store initial velocity for normalized curl calculation
   currentPower: 0,
   aimAngle: 0,
   baseAimAngle: 0,  // Base angle from target, mouse adjusts relative to this
@@ -7188,6 +7202,13 @@ function releaseStone() {
   capturePreThrowState();
 
   gameState.phase = 'throwing';
+
+  // Capture initial throw speed for normalized curl calculation
+  if (gameState.activeStone) {
+    const vel = gameState.activeStone.body.velocity;
+    gameState.initialThrowSpeed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+  }
+
   updateFastForwardButton();  // Show fast-forward button when stone starts moving
   document.getElementById('hold-warning').style.display = 'none';
   document.getElementById('power-display').style.display = 'none';
@@ -9757,9 +9778,10 @@ function updatePhysics() {
     if (speed > 0.3) {
       const normalizedSpeed = Math.min(speed, 5) / 5;
 
-      // ADVANCED PHYSICS 2: LATE CURL BEHAVIOR
-      // Curl increases dramatically as stone slows ("dive" at the end)
-      const lateCurlMultiplier = ADVANCED_PHYSICS.lateCurl.getCurlMultiplier(speed);
+      // ADVANCED PHYSICS 2: LATE CURL BEHAVIOR (Normalized Speed Model)
+      // Curl is continuous function of normalized speed (v/v0)
+      // Curl ramps up smoothly as stone slows, not just at threshold
+      const lateCurlMultiplier = ADVANCED_PHYSICS.lateCurl.getCurlMultiplier(speed, gameState.initialThrowSpeed);
 
       // Ice variability - slight random variation in curl
       // ADVANCED PHYSICS 3: Rotation affects stability/variance
@@ -9774,12 +9796,13 @@ function updatePhysics() {
       const curlDirection = omega < 0 ? -1 : 1;
 
       // Base curl force with late curl multiplier
-      // Uses weak omega exponent (0.25) so rotation doesn't dominate
+      // Uses weak omega exponent so rotation doesn't dominate
       // Ensure base is positive for Math.pow with fractional exponent
       const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
       const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
-      let curlForce = curlDirection * 0.000004 * lateCurlMultiplier * iceRandomness * omegaFactor;
-      curlForce = Math.max(-0.00015, Math.min(0.00015, curlForce));  // Cap max lateral force
+      // Base curl constant increased for more noticeable curl effect
+      let curlForce = curlDirection * 0.000006 * lateCurlMultiplier * iceRandomness * omegaFactor;
+      curlForce = Math.max(-0.0002, Math.min(0.0002, curlForce));  // Slightly higher cap for more curl
 
       // NEW SWEEP MODEL:
       // - Fast sweeping (any direction) carries the stone farther (handled in friction)
@@ -9803,8 +9826,8 @@ function updatePhysics() {
         curlForce *= Math.max(0.3, Math.min(1.3, curlModifier)); // Clamp to reasonable range
       }
 
-      // Final cap to prevent any extreme cases
-      curlForce = Math.max(-0.00005, Math.min(0.00005, curlForce));
+      // Final cap to prevent extreme cases while allowing meaningful curl
+      curlForce = Math.max(-0.00012, Math.min(0.00012, curlForce));
       Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
 
       // Update sliding sound volume based on speed
