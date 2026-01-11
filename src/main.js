@@ -10014,11 +10014,12 @@ function updatePhysics() {
         multiplayer.broadcastStonesSettled(positions);
       }
 
-      // Process shot feedback toast (only for the player who threw)
+      // Process shot feedback toast (only for human player shots, not CPU)
       const localTeam = gameState.selectedMode === 'online'
         ? multiplayer.multiplayerState.localPlayer.team
         : null;
-      const wasMyShot = gameState.selectedMode !== 'online' || gameState.currentTeam === localTeam;
+      const wasCpuShot = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+      const wasMyShot = !wasCpuShot && (gameState.selectedMode !== 'online' || gameState.currentTeam === localTeam);
       if (wasMyShot) {
         processShotFeedback();
       }
