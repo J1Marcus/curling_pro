@@ -4395,6 +4395,13 @@ mainLight.position.set(0, 25, SHEET_LENGTH / 2);
 mainLight.castShadow = true;
 mainLight.shadow.mapSize.width = 2048;
 mainLight.shadow.mapSize.height = 2048;
+// Configure shadow camera to cover entire sheet (including hack area)
+mainLight.shadow.camera.left = -SHEET_WIDTH;
+mainLight.shadow.camera.right = SHEET_WIDTH;
+mainLight.shadow.camera.top = SHEET_LENGTH;
+mainLight.shadow.camera.bottom = -5;  // Slightly past hack
+mainLight.shadow.camera.near = 1;
+mainLight.shadow.camera.far = 60;
 scene.add(mainLight);
 
 // Additional overhead lights along the sheet - high and wide for even coverage
