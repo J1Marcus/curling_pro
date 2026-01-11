@@ -512,6 +512,7 @@ const gameState = {
   lastMousePos: { x: window.innerWidth / 2, y: window.innerHeight / 2 },
   previewHeight: 0,  // 0 = thrower view, 1 = max height overhead
   previewLocked: false,  // When true, panning is disabled
+  targetViewZoom: 1,  // Pinch zoom level for target view (1 = default, 2 = max zoom in)
 
   // Target marker
   targetMarker: null,
@@ -6804,7 +6805,16 @@ function updatePreviewCamera(x, y, isMouseMove = true) {
   // Camera height: thrower's eye level to moderate overhead
   const minHeight = 1.5;
   const maxHeight = 12;
-  const targetHeight = minHeight + t * (maxHeight - minHeight);
+  let targetHeight = minHeight + t * (maxHeight - minHeight);
+
+  // Apply pinch zoom in target view (t > 0.5)
+  // Zoom > 1 brings camera closer for precision, zoom < 1 moves it farther
+  if (t > 0.5 && gameState.targetViewZoom !== 1) {
+    // At zoom=2, reduce height to 6m (half); at zoom=0.5, increase to 18m
+    targetHeight = targetHeight / gameState.targetViewZoom;
+    // Clamp to reasonable bounds
+    targetHeight = Math.max(5, Math.min(20, targetHeight));
+  }
 
   // Camera Z position - move forward toward far house when higher
   const minCamZ = -2;        // Behind hack at low view
@@ -8428,6 +8438,7 @@ window.returnToThrowView = function() {
     }
 
     gameState.previewHeight = 0;  // Animate to thrower view
+    gameState.targetViewZoom = 1;  // Reset zoom when leaving target view
     updateReturnButton();
     updateMarkerHint();
     updateScoreboardVisibility();  // Show scoreboard when returning to throw view
@@ -10221,6 +10232,7 @@ function nextTurn() {
     gameState.previewHeight = 1;  // Target view for player
     gameState.previewLocked = true;
   }
+  gameState.targetViewZoom = 1;  // Reset pinch-to-zoom at start of each turn
   clearTargetMarker();  // Remove target marker from previous turn
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for next turn
   updatePreviewStoneForTeam();  // Update preview stone color for new team
@@ -14788,6 +14800,7 @@ function startGame() {
       showFirstRunTutorial('fr_aim');
     }
   }
+  gameState.targetViewZoom = 1;  // Reset pinch-to-zoom at start of game
 
   // Trigger coach panel/tutorials
   updateCoachPanel();
@@ -16556,6 +16569,7 @@ function startNewEnd() {
     gameState.previewHeight = 1;  // Target view for player
     gameState.previewLocked = true;
   }
+  gameState.targetViewZoom = 1;  // Reset pinch-to-zoom at start of each end
 
   clearTargetMarker();  // Remove target marker
   setCurlButtonsEnabled(true);  // Re-enable curl buttons for new end
@@ -16809,6 +16823,17 @@ let touchStartedInAiming = false;
 let lastTapTime = 0;
 let lastTapPos = { x: 0, y: 0 };
 
+// Pinch-to-zoom for target view
+let pinchStartDistance = 0;
+let pinchStartZoom = 1;
+let isPinching = false;
+
+function getPinchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
 renderer.domElement.addEventListener('touchstart', (e) => {
   e.preventDefault();
 
@@ -16817,6 +16842,14 @@ renderer.domElement.addEventListener('touchstart', (e) => {
 
   // Block input during opponent's turn in multiplayer
   if (isInputBlocked()) return;
+
+  // Pinch-to-zoom detection for target view (two-finger touch)
+  if (e.touches.length === 2 && gameState.phase === 'aiming' && gameState.previewHeight > 0.5) {
+    isPinching = true;
+    pinchStartDistance = getPinchDistance(e.touches);
+    pinchStartZoom = gameState.targetViewZoom;
+    return;  // Don't process as single touch
+  }
 
   const touch = e.touches[0];
   const now = Date.now();
@@ -16884,6 +16917,17 @@ renderer.domElement.addEventListener('touchstart', (e) => {
 
 renderer.domElement.addEventListener('touchmove', (e) => {
   e.preventDefault();
+
+  // Handle pinch-to-zoom in target view
+  if (isPinching && e.touches.length === 2) {
+    const currentDistance = getPinchDistance(e.touches);
+    const scale = currentDistance / pinchStartDistance;
+    // Zoom in when pinching out, zoom out when pinching in
+    // Clamp between 0.5 (zoomed out) and 2 (zoomed in for precision)
+    gameState.targetViewZoom = Math.max(0.5, Math.min(2, pinchStartZoom * scale));
+    return;  // Don't process other touch actions while pinching
+  }
+
   const touch = e.touches[0];
   updatePull(touch.clientX, touch.clientY);
   updateSlidingAim(touch.clientX);  // Allow aiming during slide
@@ -16894,6 +16938,13 @@ renderer.domElement.addEventListener('touchmove', (e) => {
 
 renderer.domElement.addEventListener('touchend', (e) => {
   e.preventDefault();
+
+  // End pinch gesture
+  if (isPinching) {
+    isPinching = false;
+    return;
+  }
+
   if (gameState.phase === 'charging' && touchStartedInAiming) {
     pushOff();
     touchStartedInAiming = false;
