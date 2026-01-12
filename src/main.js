@@ -4617,17 +4617,17 @@ function completeTournament(tournament, result) {
     completedAt: Date.now()
   };
 
-  // Add to completed tournaments
-  seasonState.seasonCalendar.completed.push(tournamentResult);
-
-  // Remove from available
-  const availableIndex = seasonState.seasonCalendar.available.indexOf(definition.id);
-  if (availableIndex > -1) {
-    seasonState.seasonCalendar.available.splice(availableIndex, 1);
-  }
-
-  // Handle rewards for winning
+  // Handle based on whether player won or was eliminated
   if (result.isChampion) {
+    // Player won - mark tournament as completed (can't re-enter this season)
+    seasonState.seasonCalendar.completed.push(tournamentResult);
+
+    // Remove from available
+    const availableIndex = seasonState.seasonCalendar.available.indexOf(definition.id);
+    if (availableIndex > -1) {
+      seasonState.seasonCalendar.available.splice(availableIndex, 1);
+    }
+
     seasonState.stats.tournamentsWon++;
 
     // Grant qualification
@@ -4646,10 +4646,15 @@ function completeTournament(tournament, result) {
     // Refresh available tournaments (new ones may be unlocked)
     seasonState.seasonCalendar.available = getAvailableTournaments();
   }
+  // If eliminated, tournament stays available for retry from round 1
 
   // Store result in tournament
   tournament.result = result;
   tournament.phase = 'complete';
+
+  // Clear active tournament so player can enter a new one
+  // (they must start fresh if they want to re-enter, not replay from where they lost)
+  seasonState.activeTournament = null;
 
   saveSeasonState();
 
@@ -9004,6 +9009,10 @@ function processShotFeedback() {
   }
 
   // Crowd reactions based on shot outcome
+  // Scale reactions based on game intensity (bigger reactions in tense moments)
+  const gameIntensity = calculateGameIntensity();
+  const intensityMultiplier = 0.7 + gameIntensity * 0.3; // 0.7 to 1.0
+
   if (outcome.type === 'success') {
     // Map shot categories to crowd cheer intensity
     const cheerIntensity = {
@@ -9017,11 +9026,27 @@ function processShotFeedback() {
       freeze: 0.75,         // Precision shot
       guard: 0.4            // Strategic shot
     };
-    const intensity = cheerIntensity[outcome.category] || 0.5;
+    let intensity = cheerIntensity[outcome.category] || 0.5;
+    intensity = Math.min(1, intensity * intensityMultiplier);
     soundManager.playCrowdCheer(intensity);
+
+    // Big shots in tense moments get extra excitement
+    if (gameIntensity > 0.6 && intensity > 0.7) {
+      setTimeout(() => soundManager.playCrowdMurmur(), 800);
+    }
   } else if (outcome.type === 'nearMiss') {
     // Sympathetic reaction from crowd
     soundManager.playCrowdOoh();
+
+    // Dramatic near-miss in tense moment = gasp first
+    if (gameIntensity > 0.5) {
+      soundManager.playCrowdGasp();
+    }
+  } else if (outcome.type === 'miss') {
+    // Stone went out of play or missed badly
+    if (gameIntensity > 0.4) {
+      soundManager.playCrowdGroan();
+    }
   }
 }
 
@@ -10860,6 +10885,56 @@ function handleTurnTimeout() {
 // ============================================
 // GAME FLOW
 // ============================================
+
+// Calculate game intensity for crowd atmosphere (0 = calm, 1 = very tense)
+function calculateGameIntensity() {
+  // Practice mode - low intensity
+  if (gameState.practiceMode?.active) return 0.2;
+
+  const totalEnds = gameState.settings?.gameLength || 8;
+  const currentEnd = gameState.end || 1;
+  const stonesThrown = (gameState.stonesThrown?.red || 0) + (gameState.stonesThrown?.yellow || 0);
+  const scoreDiff = Math.abs((gameState.score?.red || 0) - (gameState.score?.yellow || 0));
+
+  // Base intensity from game progress
+  let intensity = 0;
+
+  // End progress factor (later ends = more intense)
+  const endProgress = currentEnd / totalEnds;
+  intensity += endProgress * 0.3; // Up to 0.3 for final end
+
+  // Stone progress within end (later stones = more intense)
+  const stoneProgress = stonesThrown / 16;
+  intensity += stoneProgress * 0.25; // Up to 0.25 for last stones
+
+  // Close game factor (closer score = more intense)
+  if (scoreDiff <= 1) {
+    intensity += 0.25; // Tied or 1 point game
+  } else if (scoreDiff <= 2) {
+    intensity += 0.15; // 2 point game
+  } else if (scoreDiff <= 3) {
+    intensity += 0.05; // 3 point game
+  }
+
+  // Final end, last few stones, close game = maximum intensity
+  if (currentEnd === totalEnds && stonesThrown >= 12 && scoreDiff <= 2) {
+    intensity += 0.2; // Crunch time bonus
+  }
+
+  // Last stone of the game
+  if (currentEnd === totalEnds && stonesThrown >= 15) {
+    intensity = Math.max(intensity, 0.9);
+  }
+
+  return Math.min(1, intensity);
+}
+
+// Update crowd atmosphere based on game state
+function updateCrowdAtmosphere() {
+  const intensity = calculateGameIntensity();
+  soundManager.setGameIntensity(intensity);
+}
+
 function nextTurn() {
   // Skip during interactive tutorial - no turn progression
   if (gameState.interactiveTutorialMode) {
@@ -10971,6 +11046,9 @@ function nextTurn() {
 
   // Update fast-forward button visibility
   updateFastForwardButton();
+
+  // Update crowd atmosphere based on game intensity
+  updateCrowdAtmosphere();
 }
 
 function calculateScore() {

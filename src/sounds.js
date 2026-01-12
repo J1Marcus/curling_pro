@@ -515,6 +515,156 @@ class SoundManager {
     }
   }
 
+  // Set crowd intensity based on game situation (0 = calm, 1 = very tense)
+  // Affects ambient volume and adds excitement murmur
+  setGameIntensity(intensity) {
+    if (!this.enabled || !this.audioContext || !this.ambientNodes) return;
+
+    intensity = Math.max(0, Math.min(1, intensity));
+
+    // Base ambient volume increases with intensity
+    const baseVolume = 0.12;
+    const intensityBonus = intensity * 0.15; // Up to 0.27 total
+    const targetVolume = baseVolume + intensityBonus;
+
+    this.ambientNodes.masterGain.gain.setTargetAtTime(
+      targetVolume,
+      this.audioContext.currentTime,
+      0.5 // Slower transition for natural feel
+    );
+
+    // At high intensity, add subtle anticipation murmur
+    if (intensity > 0.7 && !this.anticipationActive) {
+      this.startAnticipationMurmur(intensity);
+    } else if (intensity <= 0.5 && this.anticipationActive) {
+      this.stopAnticipationMurmur();
+    }
+  }
+
+  startAnticipationMurmur(intensity) {
+    if (!this.audioContext || this.anticipationActive) return;
+
+    const now = this.audioContext.currentTime;
+
+    // Rising tension sound - subtle tonal element
+    const noiseBuffer = this.getNoiseBuffer(10);
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 350;
+    bandpass.Q.value = 2;
+
+    // Subtle pulsing via LFO
+    const lfo = this.audioContext.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.5; // Heartbeat-like pulse
+
+    const lfoGain = this.audioContext.createGain();
+    lfoGain.gain.value = 0.03;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.08 * intensity, now + 1);
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+
+    noise.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start();
+    lfo.start();
+
+    this.anticipationActive = true;
+    this.anticipationNodes = { noise, lfo, gain };
+  }
+
+  stopAnticipationMurmur() {
+    if (!this.anticipationNodes) return;
+
+    const now = this.audioContext.currentTime;
+    this.anticipationNodes.gain.gain.setTargetAtTime(0, now, 0.3);
+
+    setTimeout(() => {
+      if (this.anticipationNodes) {
+        try { this.anticipationNodes.noise.stop(); } catch(e) {}
+        try { this.anticipationNodes.lfo.stop(); } catch(e) {}
+        this.anticipationNodes = null;
+        this.anticipationActive = false;
+      }
+    }, 500);
+  }
+
+  // Quick gasp for dramatic moments (close calls, near misses)
+  playCrowdGasp() {
+    if (!this.enabled || !this.audioContext) return;
+
+    const now = this.audioContext.currentTime;
+    const duration = 0.35;
+
+    // Sharp inhale sound
+    const noiseBuffer = this.getNoiseBuffer(duration);
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const highpass = this.audioContext.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 800;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(2000, now);
+    bandpass.frequency.linearRampToValueAtTime(1200, now + duration);
+    bandpass.Q.value = 1.5;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.12, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+    noise.connect(highpass);
+    highpass.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start(now);
+    noise.stop(now + duration);
+  }
+
+  // Excited buzz when something interesting is developing
+  playCrowdMurmur() {
+    if (!this.enabled || !this.audioContext) return;
+
+    const now = this.audioContext.currentTime;
+    const duration = 1.2;
+
+    const noiseBuffer = this.getNoiseBuffer(duration);
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 350;
+    bandpass.Q.value = 0.8;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.1, now + 0.2);
+    gain.gain.setValueAtTime(0.08, now + 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+    noise.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start(now);
+    noise.stop(now + duration);
+  }
+
   // ============================================
   // CROWD REACTIONS
   // ============================================
