@@ -18915,21 +18915,34 @@ const loadEndTime = Date.now();
 const elapsed = loadEndTime - (window.splashStartTime || loadEndTime);
 const remainingTime = Math.max(0, splashMinTime - elapsed);
 
+// CRITICAL: Initialize sound on first user interaction (iOS requires this BEFORE setTimeout)
+// This must be registered immediately so any tap on splash screen activates audio
+const enableSoundOnInteraction = (e) => {
+  console.log('[SOUND] First interaction detected:', e.type);
+  if (gameState.settings.soundEnabled) {
+    // Initialize audio context immediately in gesture handler
+    soundManager.init();
+    soundManager.enabled = true;
+    // Resume must happen synchronously in gesture
+    if (soundManager.audioContext) {
+      console.log('[SOUND] AudioContext state before resume:', soundManager.audioContext.state);
+      soundManager.audioContext.resume().then(() => {
+        console.log('[SOUND] AudioContext resumed, state:', soundManager.audioContext.state);
+      });
+    }
+  }
+  document.removeEventListener('click', enableSoundOnInteraction);
+  document.removeEventListener('touchstart', enableSoundOnInteraction);
+  document.removeEventListener('touchend', enableSoundOnInteraction);
+};
+document.addEventListener('click', enableSoundOnInteraction);
+document.addEventListener('touchstart', enableSoundOnInteraction);
+document.addEventListener('touchend', enableSoundOnInteraction);
+
 setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
-
-  // Initialize sound on first user interaction (browser autoplay policy)
-  const enableSoundOnInteraction = () => {
-    if (gameState.settings.soundEnabled) {
-      soundManager.setEnabled(true);
-    }
-    document.removeEventListener('click', enableSoundOnInteraction);
-    document.removeEventListener('touchstart', enableSoundOnInteraction);
-  };
-  document.addEventListener('click', enableSoundOnInteraction);
-  document.addEventListener('touchstart', enableSoundOnInteraction);
 
   // Check if first-time user needs interactive tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
