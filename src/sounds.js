@@ -293,6 +293,37 @@ class SoundManager {
   // ============================================
   // UI SOUNDS
   // ============================================
+
+  // Loud test beep to verify audio is working
+  playTestBeep() {
+    console.log('[SOUND] playTestBeep called');
+    if (!this.audioContext) {
+      console.log('[SOUND] No audioContext, creating one');
+      this.init();
+    }
+    if (this.audioContext.state === 'suspended') {
+      console.log('[SOUND] Context suspended, resuming...');
+      this.audioContext.resume();
+    }
+
+    const now = this.audioContext.currentTime;
+    const osc = this.audioContext.createOscillator();
+    const gain = this.audioContext.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = 440;  // A4 note
+
+    gain.gain.setValueAtTime(0.5, now);  // Loud!
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+
+    osc.connect(gain);
+    gain.connect(this.audioContext.destination);  // Direct to output, bypass masterGain
+
+    osc.start(now);
+    osc.stop(now + 0.3);
+    console.log('[SOUND] Test beep should be playing now');
+  }
+
   playClick() {
     if (!this.enabled || !this.audioContext) return;
 

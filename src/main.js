@@ -16063,6 +16063,10 @@ function startGame() {
     soundManager.setEnabled(true);  // Re-enable in case it wasn't initialized
   }
   soundManager.ensureAudioResumed();
+
+  // TEST: Play a beep when game starts to verify audio works
+  soundManager.playTestBeep();
+
   soundManager.startAmbientCrowd();
 
   // Update scoreboard with flags and configure for game length
