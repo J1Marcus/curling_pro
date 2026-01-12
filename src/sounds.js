@@ -396,15 +396,22 @@ class SoundManager {
     return this.noiseBuffer;
   }
 
-  startAmbientCrowd() {
+  // Start ambient crowd sound
+  // crowdSize: 'arena' (default, full crowd), 'club' (quiet practice environment)
+  startAmbientCrowd(crowdSize = 'arena') {
     if (!this.enabled || !this.audioContext || this.ambientNodes) return;
 
     const now = this.audioContext.currentTime;
 
+    // Set volume based on crowd size
+    // Club level is very quiet - just subtle HVAC/building ambience
+    const volumeMultiplier = crowdSize === 'club' ? 0.15 : 1.0;
+    this.crowdSize = crowdSize; // Store for reference in reactions
+
     // Master gain for ambient crowd
     const masterAmbientGain = this.audioContext.createGain();
     masterAmbientGain.gain.setValueAtTime(0, now);
-    masterAmbientGain.gain.linearRampToValueAtTime(this.ambientVolume, now + 1.5);
+    masterAmbientGain.gain.linearRampToValueAtTime(this.ambientVolume * volumeMultiplier, now + 1.5);
     masterAmbientGain.connect(this.masterGain);
 
     // Layer 1: Low rumble base (filtered noise)
@@ -519,6 +526,8 @@ class SoundManager {
   // Affects ambient volume and adds excitement murmur
   setGameIntensity(intensity) {
     if (!this.enabled || !this.audioContext || !this.ambientNodes) return;
+    // Skip intensity changes for club/practice environment (keep it quiet)
+    if (this.crowdSize === 'club') return;
 
     intensity = Math.max(0, Math.min(1, intensity));
 
@@ -602,6 +611,8 @@ class SoundManager {
   // Quick gasp for dramatic moments (close calls, near misses)
   playCrowdGasp() {
     if (!this.enabled || !this.audioContext) return;
+    // Skip crowd reactions in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     const duration = 0.35;
@@ -638,6 +649,8 @@ class SoundManager {
   // Excited buzz when something interesting is developing
   playCrowdMurmur() {
     if (!this.enabled || !this.audioContext) return;
+    // Skip crowd reactions in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     const duration = 1.2;
@@ -671,6 +684,8 @@ class SoundManager {
 
   playCrowdCheer(intensity = 0.5) {
     if (!this.enabled || !this.audioContext) return;
+    // Skip crowd cheers in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     intensity = Math.max(0.1, Math.min(1, intensity));
@@ -749,6 +764,8 @@ class SoundManager {
 
   playCrowdOoh() {
     if (!this.enabled || !this.audioContext) return;
+    // Skip crowd reactions in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     const duration = 0.6;
@@ -802,6 +819,8 @@ class SoundManager {
 
   playCrowdApplause(duration = 1.5) {
     if (!this.enabled || !this.audioContext) return;
+    // Skip applause in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     duration = Math.max(0.5, Math.min(4, duration));
@@ -859,6 +878,8 @@ class SoundManager {
 
   playCrowdGroan() {
     if (!this.enabled || !this.audioContext) return;
+    // Skip crowd reactions in club/practice environment
+    if (this.crowdSize === 'club') return;
 
     const now = this.audioContext.currentTime;
     const duration = 0.8;

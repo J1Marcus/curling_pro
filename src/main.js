@@ -12023,8 +12023,8 @@ window.startPracticeScenario = function(drillId, scenarioId) {
   // Show practice UI overlay
   showPracticeOverlay(scenario);
 
-  // Start ambient crowd for practice arena
-  soundManager.startAmbientCrowd();
+  // Start quiet club ambience for practice (no large crowd)
+  soundManager.startAmbientCrowd('club');
 
   // Start the game
   gameState.phase = 'aiming';
@@ -12137,8 +12137,8 @@ window.startCustomScenario = function(scenarioId) {
     target: null  // No success criteria for custom
   });
 
-  // Start ambient crowd
-  soundManager.startAmbientCrowd();
+  // Start quiet club ambience for practice (no large crowd)
+  soundManager.startAmbientCrowd('club');
 
   // Start the game
   gameState.phase = 'aiming';
