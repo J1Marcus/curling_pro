@@ -7529,7 +7529,8 @@ function pushOff() {
   setCurlDisplayVisible(false);  // Hide curl slider during throw
   gameState.slideStartTime = Date.now();
 
-  // Play throw sound
+  // Play throw sound - ensure audio context is resumed first
+  soundManager.ensureAudioResumed();
   soundManager.playThrow();
   gameState.currentPower = gameState.maxPower;
   gameState.tLineCrossTime = null;  // Reset timing
@@ -16057,7 +16058,11 @@ function startGame() {
     }
   }
 
-  // Start ambient crowd sound
+  // Start ambient crowd sound - ensure sound is enabled and audio context is resumed
+  if (gameState.settings.soundEnabled) {
+    soundManager.setEnabled(true);  // Re-enable in case it wasn't initialized
+  }
+  soundManager.ensureAudioResumed();
   soundManager.startAmbientCrowd();
 
   // Update scoreboard with flags and configure for game length

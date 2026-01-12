@@ -18,21 +18,33 @@ class SoundManager {
   }
 
   init() {
-    if (this.audioContext) return;
+    if (this.audioContext) {
+      console.log('[SOUND] init: AudioContext already exists');
+      return;
+    }
 
+    console.log('[SOUND] init: Creating new AudioContext');
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     this.masterGain = this.audioContext.createGain();
     this.masterGain.gain.value = 0.75;  // Increased from 0.5 for better mobile audibility
     this.masterGain.connect(this.audioContext.destination);
+    console.log('[SOUND] init complete, state:', this.audioContext.state);
   }
 
   setEnabled(enabled) {
+    console.log('[SOUND] setEnabled called:', enabled);
     this.enabled = enabled;
     if (enabled) {
       this.init();
+      console.log('[SOUND] AudioContext state:', this.audioContext?.state);
       // Resume audio context if suspended (browser autoplay policy)
       if (this.audioContext && this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
+        console.log('[SOUND] Resuming suspended AudioContext...');
+        this.audioContext.resume().then(() => {
+          console.log('[SOUND] AudioContext resumed, state:', this.audioContext.state);
+        }).catch(err => {
+          console.error('[SOUND] Failed to resume AudioContext:', err);
+        });
       }
     } else {
       this.stopAllSounds();
@@ -43,6 +55,15 @@ class SoundManager {
     this.stopSliding();
     this.stopSweeping();
     this.stopAmbientCrowd();
+  }
+
+  // Call this on any user interaction to ensure audio is working
+  ensureAudioResumed() {
+    if (!this.enabled || !this.audioContext) return;
+    if (this.audioContext.state === 'suspended') {
+      console.log('[SOUND] ensureAudioResumed: Resuming suspended context');
+      this.audioContext.resume();
+    }
   }
 
   // ============================================
@@ -98,6 +119,7 @@ class SoundManager {
   // STONE SLIDING
   // ============================================
   startSliding() {
+    console.log('[SOUND] startSliding called, enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.slidingOscillator) return;
 
     // Create noise for sliding sound
@@ -150,6 +172,7 @@ class SoundManager {
   // COLLISION
   // ============================================
   playCollision(intensity = 0.5) {
+    console.log('[SOUND] playCollision called, enabled:', this.enabled, 'intensity:', intensity);
     if (!this.enabled || !this.audioContext) return;
 
     const now = this.audioContext.currentTime;
@@ -218,6 +241,7 @@ class SoundManager {
   // SWEEPING
   // ============================================
   startSweeping() {
+    console.log('[SOUND] startSweeping called, enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.sweepingInterval) return;
 
     // Rhythmic brushing sound
@@ -400,6 +424,7 @@ class SoundManager {
   // Start ambient crowd sound
   // crowdSize: 'arena' (default, full crowd), 'club' (quiet practice environment)
   startAmbientCrowd(crowdSize = 'arena') {
+    console.log('[SOUND] startAmbientCrowd called, crowdSize:', crowdSize, 'enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.ambientNodes) return;
 
     const now = this.audioContext.currentTime;
