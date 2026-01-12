@@ -12,32 +12,28 @@ class SoundManager {
     this.sweepingInterval = null;
     // Ambient crowd system
     this.ambientNodes = null;
-    this.ambientVolume = 0.2;  // Increased from 0.12 for better audibility
+    this.ambientVolume = 0.12;
     this.noiseBuffer = null;  // Reusable noise buffer
-    this.crowdSize = 'arena';  // Default to arena, 'club' for practice mode
   }
 
   init() {
-    if (this.audioContext) {
-      console.log('[SOUND] init: AudioContext already exists');
-      return;
-    }
+    if (this.audioContext) return;
 
-    console.log('[SOUND] init: Creating new AudioContext');
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     this.masterGain = this.audioContext.createGain();
-    this.masterGain.gain.value = 0.75;  // Increased from 0.5 for better mobile audibility
+    this.masterGain.gain.value = 0.5;
     this.masterGain.connect(this.audioContext.destination);
-    console.log('[SOUND] init complete, state:', this.audioContext.state);
   }
 
   setEnabled(enabled) {
-    console.log('[SOUND] setEnabled called:', enabled);
+    this.enabled = enabled;
     if (enabled) {
-      // Use unlockAudio for robust iOS support
-      this.unlockAudio();
+      this.init();
+      // Resume audio context if suspended (browser autoplay policy)
+      if (this.audioContext && this.audioContext.state === 'suspended') {
+        this.audioContext.resume();
+      }
     } else {
-      this.enabled = false;
       this.stopAllSounds();
     }
   }
@@ -46,65 +42,6 @@ class SoundManager {
     this.stopSliding();
     this.stopSweeping();
     this.stopAmbientCrowd();
-  }
-
-  // Call this on any user interaction to ensure audio is working
-  ensureAudioResumed() {
-    if (!this.enabled || !this.audioContext) return;
-    if (this.audioContext.state === 'suspended') {
-      console.log('[SOUND] ensureAudioResumed: Resuming suspended context');
-      this.audioContext.resume();
-    }
-  }
-
-  // Unlock audio on iOS by playing a silent buffer
-  // Must be called directly from a user gesture handler
-  // Safe to call multiple times
-  unlockAudio() {
-    // Skip if already running
-    if (this.audioContext?.state === 'running') {
-      this.enabled = true;
-      return;
-    }
-
-    console.log('[SOUND] unlockAudio called, current state:', this.audioContext?.state);
-
-    if (!this.audioContext) {
-      try {
-        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        this.masterGain = this.audioContext.createGain();
-        this.masterGain.gain.value = 0.75;
-        this.masterGain.connect(this.audioContext.destination);
-        console.log('[SOUND] Created new AudioContext, state:', this.audioContext.state);
-      } catch (e) {
-        console.error('[SOUND] Failed to create AudioContext:', e);
-        return;
-      }
-    }
-
-    // Create and play a silent buffer to unlock iOS audio
-    try {
-      const buffer = this.audioContext.createBuffer(1, 1, 22050);
-      const source = this.audioContext.createBufferSource();
-      source.buffer = buffer;
-      source.connect(this.audioContext.destination);
-      source.start(0);
-      console.log('[SOUND] Played silent buffer');
-    } catch (e) {
-      console.error('[SOUND] Failed to play silent buffer:', e);
-    }
-
-    // Resume if suspended
-    if (this.audioContext.state === 'suspended') {
-      this.audioContext.resume().then(() => {
-        console.log('[SOUND] AudioContext resumed, state:', this.audioContext.state);
-        this.enabled = true;
-      }).catch(e => {
-        console.error('[SOUND] Resume failed:', e);
-      });
-    } else {
-      this.enabled = true;
-    }
   }
 
   // ============================================
@@ -160,7 +97,6 @@ class SoundManager {
   // STONE SLIDING
   // ============================================
   startSliding() {
-    console.log('[SOUND] startSliding called, enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.slidingOscillator) return;
 
     // Create noise for sliding sound
@@ -182,7 +118,7 @@ class SoundManager {
     filter.frequency.value = 200;
 
     this.slidingGain = this.audioContext.createGain();
-    this.slidingGain.gain.value = 0.3;  // Increased from 0.15 for better audibility
+    this.slidingGain.gain.value = 0.15;
 
     noise.connect(filter);
     filter.connect(this.slidingGain);
@@ -195,7 +131,7 @@ class SoundManager {
   updateSlidingVolume(speed) {
     if (!this.slidingGain) return;
     // Volume based on speed (0-1 range)
-    const volume = Math.min(0.4, speed * 0.3);  // Increased for better audibility
+    const volume = Math.min(0.2, speed * 0.15);
     this.slidingGain.gain.setTargetAtTime(volume, this.audioContext.currentTime, 0.1);
   }
 
@@ -213,7 +149,6 @@ class SoundManager {
   // COLLISION
   // ============================================
   playCollision(intensity = 0.5) {
-    console.log('[SOUND] playCollision called, enabled:', this.enabled, 'intensity:', intensity);
     if (!this.enabled || !this.audioContext) return;
 
     const now = this.audioContext.currentTime;
@@ -237,7 +172,7 @@ class SoundManager {
     gain2.gain.setValueAtTime(0.1 * intensity, now);
     gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
 
-    gain.gain.setValueAtTime(0.5 * intensity, now);  // Increased from 0.4
+    gain.gain.setValueAtTime(0.4 * intensity, now);
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
 
     osc1.connect(gain);
@@ -282,7 +217,6 @@ class SoundManager {
   // SWEEPING
   // ============================================
   startSweeping() {
-    console.log('[SOUND] startSweeping called, enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.sweepingInterval) return;
 
     // Rhythmic brushing sound
@@ -312,11 +246,11 @@ class SoundManager {
 
     const filter = this.audioContext.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.value = 1500;  // Lower frequency for better mobile speaker response
-    filter.Q.value = 0.4;
+    filter.frequency.value = 2000;
+    filter.Q.value = 0.5;
 
     const gain = this.audioContext.createGain();
-    gain.gain.value = 0.45;  // Increased for better audibility on mobile
+    gain.gain.value = 0.15;
 
     noise.connect(filter);
     filter.connect(gain);
@@ -334,37 +268,6 @@ class SoundManager {
   // ============================================
   // UI SOUNDS
   // ============================================
-
-  // Loud test beep to verify audio is working
-  playTestBeep() {
-    console.log('[SOUND] playTestBeep called');
-    if (!this.audioContext) {
-      console.log('[SOUND] No audioContext, creating one');
-      this.init();
-    }
-    if (this.audioContext.state === 'suspended') {
-      console.log('[SOUND] Context suspended, resuming...');
-      this.audioContext.resume();
-    }
-
-    const now = this.audioContext.currentTime;
-    const osc = this.audioContext.createOscillator();
-    const gain = this.audioContext.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.value = 440;  // A4 note
-
-    gain.gain.setValueAtTime(0.5, now);  // Loud!
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-
-    osc.connect(gain);
-    gain.connect(this.audioContext.destination);  // Direct to output, bypass masterGain
-
-    osc.start(now);
-    osc.stop(now + 0.3);
-    console.log('[SOUND] Test beep should be playing now');
-  }
-
   playClick() {
     if (!this.enabled || !this.audioContext) return;
 
@@ -496,7 +399,6 @@ class SoundManager {
   // Start ambient crowd sound
   // crowdSize: 'arena' (default, full crowd), 'club' (quiet practice environment)
   startAmbientCrowd(crowdSize = 'arena') {
-    console.log('[SOUND] startAmbientCrowd called, crowdSize:', crowdSize, 'enabled:', this.enabled);
     if (!this.enabled || !this.audioContext || this.ambientNodes) return;
 
     const now = this.audioContext.currentTime;
@@ -630,8 +532,8 @@ class SoundManager {
     intensity = Math.max(0, Math.min(1, intensity));
 
     // Base ambient volume increases with intensity
-    const baseVolume = 0.2;  // Match updated ambientVolume
-    const intensityBonus = intensity * 0.15; // Up to 0.35 total
+    const baseVolume = 0.12;
+    const intensityBonus = intensity * 0.15; // Up to 0.27 total
     const targetVolume = baseVolume + intensityBonus;
 
     this.ambientNodes.masterGain.gain.setTargetAtTime(

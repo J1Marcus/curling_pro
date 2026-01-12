@@ -7529,8 +7529,7 @@ function pushOff() {
   setCurlDisplayVisible(false);  // Hide curl slider during throw
   gameState.slideStartTime = Date.now();
 
-  // Play throw sound - ensure audio context is resumed first
-  soundManager.ensureAudioResumed();
+  // Play throw sound
   soundManager.playThrow();
   gameState.currentPower = gameState.maxPower;
   gameState.tLineCrossTime = null;  // Reset timing
@@ -7968,11 +7967,6 @@ window.setCurl = setCurlDirection;
 
 // Game mode toggle
 window.setGameMode = function(mode) {
-  // Unlock audio on user tap (iOS requires this)
-  if (gameState.settings.soundEnabled) {
-    soundManager.unlockAudio();
-  }
-
   // Handle online mode - close settings and show multiplayer lobby
   if (mode === 'online') {
     window.closeSettings();
@@ -15526,11 +15520,6 @@ function getPersonalityType(opponent) {
 
 // Start tournament match (transition to actual game)
 window.startTournamentMatch = function() {
-  // Unlock audio on user tap (iOS requires this)
-  if (gameState.settings.soundEnabled) {
-    soundManager.unlockAudio();
-  }
-
   // Hide pre-match screen
   document.getElementById('pre-match-screen').style.display = 'none';
 
@@ -15850,13 +15839,6 @@ const PRE_TOSS_TUTORIALS = ['scoring', 'hammer'];
 
 // Start pre-toss tutorials or coin toss
 window.startCoinToss = function() {
-  // CRITICAL: Unlock audio on PLAY button tap (iOS requires direct user gesture)
-  if (gameState.settings.soundEnabled) {
-    soundManager.unlockAudio();
-    // Play test beep to verify audio
-    setTimeout(() => soundManager.playTestBeep(), 100);
-  }
-
   document.getElementById('settings-summary-screen').style.display = 'none';
 
   // Pre-toss tutorials are no longer needed since interactive tutorial runs at startup
@@ -15945,11 +15927,6 @@ function performCoinToss() {
 
 // Handle player's toss choice
 window.chooseTossOption = function(choice) {
-  // Unlock audio on user tap (iOS requires this)
-  if (gameState.settings.soundEnabled) {
-    soundManager.unlockAudio();
-  }
-
   // Check if we're in multiplayer mode
   if (gameState.selectedMode === 'online') {
     window.multiplayerChooseTossOption(choice);
@@ -16080,15 +16057,7 @@ function startGame() {
     }
   }
 
-  // Start ambient crowd sound - ensure sound is enabled and audio context is resumed
-  if (gameState.settings.soundEnabled) {
-    soundManager.setEnabled(true);  // Re-enable in case it wasn't initialized
-  }
-  soundManager.ensureAudioResumed();
-
-  // TEST: Play a beep when game starts to verify audio works
-  soundManager.playTestBeep();
-
+  // Start ambient crowd sound
   soundManager.startAmbientCrowd();
 
   // Update scoreboard with flags and configure for game length
@@ -18896,32 +18865,21 @@ const loadEndTime = Date.now();
 const elapsed = loadEndTime - (window.splashStartTime || loadEndTime);
 const remainingTime = Math.max(0, splashMinTime - elapsed);
 
-// CRITICAL: Initialize sound on user interaction (iOS requires this)
-// Keep trying until audio is actually running
-const enableSoundOnInteraction = (e) => {
-  if (!gameState.settings.soundEnabled) return;
-
-  // Try to unlock audio
-  soundManager.unlockAudio();
-
-  // Only remove listener once audio is actually running
-  if (soundManager.audioContext?.state === 'running') {
-    console.log('[SOUND] Audio unlocked successfully, removing listeners');
-    document.removeEventListener('click', enableSoundOnInteraction);
-    document.removeEventListener('touchstart', enableSoundOnInteraction);
-    document.removeEventListener('touchend', enableSoundOnInteraction);
-  } else {
-    console.log('[SOUND] Audio not yet running, will retry on next tap');
-  }
-};
-document.addEventListener('click', enableSoundOnInteraction);
-document.addEventListener('touchstart', enableSoundOnInteraction);
-document.addEventListener('touchend', enableSoundOnInteraction);
-
 setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
+
+  // Initialize sound on first user interaction (browser autoplay policy)
+  const enableSoundOnInteraction = () => {
+    if (gameState.settings.soundEnabled) {
+      soundManager.setEnabled(true);
+    }
+    document.removeEventListener('click', enableSoundOnInteraction);
+    document.removeEventListener('touchstart', enableSoundOnInteraction);
+  };
+  document.addEventListener('click', enableSoundOnInteraction);
+  document.addEventListener('touchstart', enableSoundOnInteraction);
 
   // Check if first-time user needs interactive tutorial
   const tutorialsShown = getFirstRunTutorialsShown();
