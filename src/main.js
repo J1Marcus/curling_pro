@@ -7968,13 +7968,9 @@ window.setCurl = setCurlDirection;
 
 // Game mode toggle
 window.setGameMode = function(mode) {
-  // Initialize audio on user tap (iOS requires this)
+  // Unlock audio on user tap (iOS requires this)
   if (gameState.settings.soundEnabled) {
-    soundManager.init();
-    if (soundManager.audioContext?.state === 'suspended') {
-      soundManager.audioContext.resume();
-    }
-    soundManager.enabled = true;
+    soundManager.unlockAudio();
   }
 
   // Handle online mode - close settings and show multiplayer lobby
@@ -15530,14 +15526,9 @@ function getPersonalityType(opponent) {
 
 // Start tournament match (transition to actual game)
 window.startTournamentMatch = function() {
-  // CRITICAL: Initialize audio immediately on user tap (iOS requires this)
+  // Unlock audio on user tap (iOS requires this)
   if (gameState.settings.soundEnabled) {
-    soundManager.init();  // Create AudioContext
-    if (soundManager.audioContext && soundManager.audioContext.state === 'suspended') {
-      soundManager.audioContext.resume();
-    }
-    soundManager.enabled = true;
-    console.log('[SOUND] Initialized on startTournamentMatch tap, state:', soundManager.audioContext?.state);
+    soundManager.unlockAudio();
   }
 
   // Hide pre-match screen
@@ -15954,14 +15945,9 @@ function performCoinToss() {
 
 // Handle player's toss choice
 window.chooseTossOption = function(choice) {
-  // CRITICAL: Initialize audio on user tap (iOS requires this)
+  // Unlock audio on user tap (iOS requires this)
   if (gameState.settings.soundEnabled) {
-    soundManager.init();
-    if (soundManager.audioContext?.state === 'suspended') {
-      soundManager.audioContext.resume();
-    }
-    soundManager.enabled = true;
-    console.log('[SOUND] Initialized on toss choice, state:', soundManager.audioContext?.state);
+    soundManager.unlockAudio();
   }
 
   // Check if we're in multiplayer mode
@@ -18910,17 +18896,23 @@ const loadEndTime = Date.now();
 const elapsed = loadEndTime - (window.splashStartTime || loadEndTime);
 const remainingTime = Math.max(0, splashMinTime - elapsed);
 
-// CRITICAL: Initialize sound on first user interaction (iOS requires this BEFORE setTimeout)
-// This must be registered immediately so any tap on splash screen activates audio
+// CRITICAL: Initialize sound on user interaction (iOS requires this)
+// Keep trying until audio is actually running
 const enableSoundOnInteraction = (e) => {
-  console.log('[SOUND] First interaction detected:', e.type);
-  if (gameState.settings.soundEnabled) {
-    // Use unlockAudio which plays a silent buffer to unlock iOS audio
-    soundManager.unlockAudio();
+  if (!gameState.settings.soundEnabled) return;
+
+  // Try to unlock audio
+  soundManager.unlockAudio();
+
+  // Only remove listener once audio is actually running
+  if (soundManager.audioContext?.state === 'running') {
+    console.log('[SOUND] Audio unlocked successfully, removing listeners');
+    document.removeEventListener('click', enableSoundOnInteraction);
+    document.removeEventListener('touchstart', enableSoundOnInteraction);
+    document.removeEventListener('touchend', enableSoundOnInteraction);
+  } else {
+    console.log('[SOUND] Audio not yet running, will retry on next tap');
   }
-  document.removeEventListener('click', enableSoundOnInteraction);
-  document.removeEventListener('touchstart', enableSoundOnInteraction);
-  document.removeEventListener('touchend', enableSoundOnInteraction);
 };
 document.addEventListener('click', enableSoundOnInteraction);
 document.addEventListener('touchstart', enableSoundOnInteraction);

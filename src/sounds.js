@@ -33,20 +33,11 @@ class SoundManager {
 
   setEnabled(enabled) {
     console.log('[SOUND] setEnabled called:', enabled);
-    this.enabled = enabled;
     if (enabled) {
-      this.init();
-      console.log('[SOUND] AudioContext state:', this.audioContext?.state);
-      // Resume audio context if suspended (browser autoplay policy)
-      if (this.audioContext && this.audioContext.state === 'suspended') {
-        console.log('[SOUND] Resuming suspended AudioContext...');
-        this.audioContext.resume().then(() => {
-          console.log('[SOUND] AudioContext resumed, state:', this.audioContext.state);
-        }).catch(err => {
-          console.error('[SOUND] Failed to resume AudioContext:', err);
-        });
-      }
+      // Use unlockAudio for robust iOS support
+      this.unlockAudio();
     } else {
+      this.enabled = false;
       this.stopAllSounds();
     }
   }
@@ -68,8 +59,15 @@ class SoundManager {
 
   // Unlock audio on iOS by playing a silent buffer
   // Must be called directly from a user gesture handler
+  // Safe to call multiple times
   unlockAudio() {
-    console.log('[SOUND] unlockAudio called');
+    // Skip if already running
+    if (this.audioContext?.state === 'running') {
+      this.enabled = true;
+      return;
+    }
+
+    console.log('[SOUND] unlockAudio called, current state:', this.audioContext?.state);
 
     if (!this.audioContext) {
       try {
@@ -77,7 +75,7 @@ class SoundManager {
         this.masterGain = this.audioContext.createGain();
         this.masterGain.gain.value = 0.75;
         this.masterGain.connect(this.audioContext.destination);
-        console.log('[SOUND] Created new AudioContext');
+        console.log('[SOUND] Created new AudioContext, state:', this.audioContext.state);
       } catch (e) {
         console.error('[SOUND] Failed to create AudioContext:', e);
         return;
@@ -96,16 +94,17 @@ class SoundManager {
       console.error('[SOUND] Failed to play silent buffer:', e);
     }
 
-    // Also try to resume
+    // Resume if suspended
     if (this.audioContext.state === 'suspended') {
       this.audioContext.resume().then(() => {
-        console.log('[SOUND] AudioContext resumed after unlock');
+        console.log('[SOUND] AudioContext resumed, state:', this.audioContext.state);
+        this.enabled = true;
       }).catch(e => {
         console.error('[SOUND] Resume failed:', e);
       });
+    } else {
+      this.enabled = true;
     }
-
-    this.enabled = true;
   }
 
   // ============================================
