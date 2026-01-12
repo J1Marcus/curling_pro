@@ -8150,6 +8150,139 @@ function capturePlayerShotIntent(targetX, targetZ, shotType, effort) {
   lastShotInfo.effort = effort;
 }
 
+// Evaluate practice mode shot outcome based on intended shot type
+function evaluatePracticeShotOutcome(thrownStone) {
+  const drillType = gameState.practiceMode.currentDrill;
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+  const preState = lastShotInfo.preThrowState;
+  const throwingTeam = lastShotInfo.team;
+
+  // Stone position
+  const stoneX = thrownStone.mesh.position.x;
+  const stoneZ = thrownStone.mesh.position.z;
+  const distFromButton = Math.sqrt(
+    Math.pow(stoneX - buttonPos.x, 2) + Math.pow(stoneZ - buttonPos.z, 2)
+  );
+
+  // Position zones
+  const isInHouse = distFromButton <= RING_12FT + STONE_RADIUS;
+  const isInFourFoot = distFromButton <= RING_4FT + STONE_RADIUS;
+  const isOnButton = distFromButton <= BUTTON_RADIUS + STONE_RADIUS;
+  const isGuardPosition = stoneZ >= HOG_LINE_FAR && stoneZ < TEE_LINE_FAR - RING_12FT && !thrownStone.outOfPlay;
+  const isShortOfHouse = stoneZ < TEE_LINE_FAR - RING_12FT && stoneZ >= HOG_LINE_FAR;
+
+  // Check for takeout
+  let removedOpponentStones = 0;
+  if (preState) {
+    const opponentTeam = throwingTeam === 'red' ? 'yellow' : 'red';
+    const preOpponentStones = preState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+    const currentOpponentStones = gameState.stones.filter(s => s.team === opponentTeam && !s.outOfPlay);
+    removedOpponentStones = preOpponentStones.length - currentOpponentStones.length;
+  }
+
+  // Check for freeze (touching another stone)
+  let isFreezing = false;
+  const ownStones = gameState.stones.filter(s => s.team === throwingTeam && s !== thrownStone && !s.outOfPlay);
+  for (const otherStone of ownStones) {
+    const dx = stoneX - otherStone.mesh.position.x;
+    const dz = stoneZ - otherStone.mesh.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < STONE_RADIUS * 2.5) {
+      isFreezing = true;
+      break;
+    }
+  }
+
+  // Evaluate based on drill type (intended shot)
+  switch (drillType) {
+    case 'draw':
+      // Draw should end in house
+      if (thrownStone.outOfPlay) {
+        return { type: 'nearMiss', category: 'justHeavy' };
+      }
+      if (isOnButton) {
+        return { type: 'success', category: 'button' };
+      }
+      if (isInFourFoot) {
+        return { type: 'success', category: 'fourFoot' };
+      }
+      if (isInHouse) {
+        return { type: 'success', category: 'eightFoot' };
+      }
+      if (isShortOfHouse) {
+        // Intended draw but ended up short - this is a miss, not a "great guard"
+        return { type: 'nearMiss', category: 'almostHouse' };
+      }
+      return null;
+
+    case 'guard':
+      // Guard should stop in front of house
+      if (thrownStone.outOfPlay) {
+        return { type: 'nearMiss', category: 'justHeavy' };
+      }
+      if (isGuardPosition) {
+        return { type: 'success', category: 'guard' };
+      }
+      if (isInHouse) {
+        // Intended guard but went into house - too heavy
+        return { type: 'nearMiss', category: 'justHeavy' };
+      }
+      if (stoneZ < HOG_LINE_FAR) {
+        // Didn't even make it to the hog line
+        return { type: 'nearMiss', category: 'almostHouse' };
+      }
+      return null;
+
+    case 'takeout':
+    case 'bump':
+    case 'hitroll':
+      // Takeout-type shots should remove opponent stones
+      if (removedOpponentStones > 1) {
+        return { type: 'success', category: 'doubleTakeout' };
+      }
+      if (removedOpponentStones === 1) {
+        if (drillType === 'hitroll' && isInHouse && !thrownStone.outOfPlay) {
+          return { type: 'success', category: 'hitAndStick' };
+        }
+        return { type: 'success', category: 'takeout' };
+      }
+      // Missed the takeout
+      if (isInHouse && !thrownStone.outOfPlay) {
+        // Ended up in house but didn't take out - wrong shot type executed
+        return { type: 'nearMiss', category: 'almostTakeout' };
+      }
+      if (isGuardPosition) {
+        // Ended as guard when trying to take out
+        return { type: 'nearMiss', category: 'almostTakeout' };
+      }
+      if (thrownStone.outOfPlay) {
+        return { type: 'nearMiss', category: 'justHeavy' };
+      }
+      return null;
+
+    case 'freeze':
+      // Freeze should touch own stone and stay in house
+      if (thrownStone.outOfPlay) {
+        return { type: 'nearMiss', category: 'justHeavy' };
+      }
+      if (isFreezing && isInHouse) {
+        return { type: 'success', category: 'freeze' };
+      }
+      if (isInHouse) {
+        // In house but not freezing
+        return { type: 'nearMiss', category: 'almostHouse' };
+      }
+      if (isShortOfHouse) {
+        return { type: 'nearMiss', category: 'almostHouse' };
+      }
+      return null;
+
+    default:
+      // For custom or unknown drills, fall through to regular evaluation
+      return null;
+  }
+}
+
 // Evaluate shot outcome and return feedback type
 function evaluateShotOutcome() {
   const buttonPos = { x: 0, z: TEE_LINE_FAR };
@@ -8161,6 +8294,11 @@ function evaluateShotOutcome() {
   const thrownStone = teamStones[teamStones.length - 1];
 
   if (!thrownStone) return null;
+
+  // In practice mode, evaluate based on intended shot type
+  if (gameState.practiceMode?.active) {
+    return evaluatePracticeShotOutcome(thrownStone);
+  }
 
   // Helper: Check if throwing team now has shot stone (closest to button)
   const allInPlayStones = gameState.stones.filter(s => !s.outOfPlay);
