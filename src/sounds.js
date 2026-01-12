@@ -247,11 +247,11 @@ class SoundManager {
 
     const filter = this.audioContext.createBiquadFilter();
     filter.type = 'bandpass';
-    filter.frequency.value = 2000;
-    filter.Q.value = 0.5;
+    filter.frequency.value = 1500;  // Lower frequency for better mobile speaker response
+    filter.Q.value = 0.4;
 
     const gain = this.audioContext.createGain();
-    gain.gain.value = 0.15;
+    gain.gain.value = 0.35;  // Increased from 0.15 for better audibility
 
     noise.connect(filter);
     filter.connect(gain);
