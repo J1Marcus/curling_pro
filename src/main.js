@@ -7968,6 +7968,15 @@ window.setCurl = setCurlDirection;
 
 // Game mode toggle
 window.setGameMode = function(mode) {
+  // Initialize audio on user tap (iOS requires this)
+  if (gameState.settings.soundEnabled) {
+    soundManager.init();
+    if (soundManager.audioContext?.state === 'suspended') {
+      soundManager.audioContext.resume();
+    }
+    soundManager.enabled = true;
+  }
+
   // Handle online mode - close settings and show multiplayer lobby
   if (mode === 'online') {
     window.closeSettings();
@@ -15521,6 +15530,16 @@ function getPersonalityType(opponent) {
 
 // Start tournament match (transition to actual game)
 window.startTournamentMatch = function() {
+  // CRITICAL: Initialize audio immediately on user tap (iOS requires this)
+  if (gameState.settings.soundEnabled) {
+    soundManager.init();  // Create AudioContext
+    if (soundManager.audioContext && soundManager.audioContext.state === 'suspended') {
+      soundManager.audioContext.resume();
+    }
+    soundManager.enabled = true;
+    console.log('[SOUND] Initialized on startTournamentMatch tap, state:', soundManager.audioContext?.state);
+  }
+
   // Hide pre-match screen
   document.getElementById('pre-match-screen').style.display = 'none';
 
@@ -15840,6 +15859,18 @@ const PRE_TOSS_TUTORIALS = ['scoring', 'hammer'];
 
 // Start pre-toss tutorials or coin toss
 window.startCoinToss = function() {
+  // CRITICAL: Initialize audio on PLAY button tap (iOS requires direct user gesture)
+  if (gameState.settings.soundEnabled) {
+    soundManager.init();
+    if (soundManager.audioContext?.state === 'suspended') {
+      soundManager.audioContext.resume();
+    }
+    soundManager.enabled = true;
+    console.log('[SOUND] Initialized on PLAY tap, state:', soundManager.audioContext?.state);
+    // Play test beep to verify audio
+    soundManager.playTestBeep();
+  }
+
   document.getElementById('settings-summary-screen').style.display = 'none';
 
   // Pre-toss tutorials are no longer needed since interactive tutorial runs at startup
@@ -15928,6 +15959,16 @@ function performCoinToss() {
 
 // Handle player's toss choice
 window.chooseTossOption = function(choice) {
+  // CRITICAL: Initialize audio on user tap (iOS requires this)
+  if (gameState.settings.soundEnabled) {
+    soundManager.init();
+    if (soundManager.audioContext?.state === 'suspended') {
+      soundManager.audioContext.resume();
+    }
+    soundManager.enabled = true;
+    console.log('[SOUND] Initialized on toss choice, state:', soundManager.audioContext?.state);
+  }
+
   // Check if we're in multiplayer mode
   if (gameState.selectedMode === 'online') {
     window.multiplayerChooseTossOption(choice);
