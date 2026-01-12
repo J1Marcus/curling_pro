@@ -6973,9 +6973,10 @@ function updateSkipSignalArm() {
     return;
   }
 
-  // Update beacon arrow direction
+  // Update beacon arrow direction (only visible in throw view, not target view)
   if (curlArrow) {
-    curlArrow.visible = true;
+    // Only show arrow in throw view (previewHeight < 0.5), hide in target view
+    curlArrow.visible = gameState.previewHeight < 0.5;
     curlArrow.rotation.z = direction > 0 ? -Math.PI / 2 : Math.PI / 2;
     curlArrow.position.x = direction * 0.5;
   }
@@ -11056,6 +11057,14 @@ function updateScoringIndicators() {
   if (stonesWithDist.length > 0) {
     const scoringTeam = stonesWithDist[0].stone.team;
 
+    // Debug: log scoring info periodically
+    if (Math.random() < 0.01) {
+      console.log('[Scoring Debug] Closest stone:', scoringTeam, 'at distance', stonesWithDist[0].distance.toFixed(3));
+      console.log('[Scoring Debug] All stones in house:', stonesWithDist.map(s =>
+        `${s.stone.team}: ${s.distance.toFixed(3)} at (${s.stone.mesh.position.x.toFixed(2)}, ${s.stone.mesh.position.z.toFixed(2)})`
+      ).join(', '));
+    }
+
     for (const entry of stonesWithDist) {
       if (entry.stone.team === scoringTeam) {
         // Check if closer than any opponent stone
@@ -12280,7 +12289,7 @@ function setupSkipModeUI(isSkipMode, scenario) {
   weightSelector.innerHTML = `
     <div style="
       position: fixed;
-      bottom: 180px;
+      bottom: 220px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(0, 0, 0, 0.85);
