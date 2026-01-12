@@ -884,6 +884,32 @@ const FAQ_DATA = [
         a: 'During a game, when stones have stopped moving, a 💾 button appears in the top-right. Tap it to save the current stone positions. Saved scenarios appear in Practice Mode under "Custom" - perfect for practicing tricky situations you encounter!'
       }
     ]
+  },
+  {
+    category: 'Practice Mode',
+    icon: '🎯',
+    questions: [
+      {
+        q: 'What is Practice Mode?',
+        a: 'Practice Mode lets you train specific shots without playing a full game. Choose from Takeouts, Draws, Guards, Freezes, Hit & Rolls, Bumps, and Skip Calls. Each drill has multiple scenarios with increasing difficulty.'
+      },
+      {
+        q: 'What is Skip Calls mode?',
+        a: 'Skip Calls is a strategic training mode where you make decisions like a real skip. You\'re presented with a game scenario (stones on ice, score, end number) and must decide: where to aim, which curl direction, and what weight to use. After making your call, the system evaluates your decision against the optimal play and explains the reasoning.'
+      },
+      {
+        q: 'How do I make a Skip Call?',
+        a: 'In Skip Calls mode: 1) Tap on the ice to place your target, 2) Select your curl direction (left or right), 3) Choose your weight (Guard, Draw, Control, or Takeout), 4) Press "Make Call" to see how your decision compares to optimal strategy. You can then try executing your shot or move to the next scenario.'
+      },
+      {
+        q: 'What do the Skip Call ratings mean?',
+        a: 'Excellent Call: Your decision matches the optimal play. Good Call: Solid choice, close to optimal. Okay: Reasonable but not ideal for the situation. Consider This: The scenario called for a different approach - read the explanation to learn why.'
+      },
+      {
+        q: 'How do Custom scenarios work?',
+        a: 'During any game, save stone positions using the 💾 button. These appear in Practice Mode under "Custom". Perfect for recreating and practicing specific situations you encounter in games.'
+      }
+    ]
   }
 ];
 
