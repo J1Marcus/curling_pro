@@ -66,6 +66,48 @@ class SoundManager {
     }
   }
 
+  // Unlock audio on iOS by playing a silent buffer
+  // Must be called directly from a user gesture handler
+  unlockAudio() {
+    console.log('[SOUND] unlockAudio called');
+
+    if (!this.audioContext) {
+      try {
+        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        this.masterGain = this.audioContext.createGain();
+        this.masterGain.gain.value = 0.75;
+        this.masterGain.connect(this.audioContext.destination);
+        console.log('[SOUND] Created new AudioContext');
+      } catch (e) {
+        console.error('[SOUND] Failed to create AudioContext:', e);
+        return;
+      }
+    }
+
+    // Create and play a silent buffer to unlock iOS audio
+    try {
+      const buffer = this.audioContext.createBuffer(1, 1, 22050);
+      const source = this.audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.audioContext.destination);
+      source.start(0);
+      console.log('[SOUND] Played silent buffer');
+    } catch (e) {
+      console.error('[SOUND] Failed to play silent buffer:', e);
+    }
+
+    // Also try to resume
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume().then(() => {
+        console.log('[SOUND] AudioContext resumed after unlock');
+      }).catch(e => {
+        console.error('[SOUND] Resume failed:', e);
+      });
+    }
+
+    this.enabled = true;
+  }
+
   // ============================================
   // STONE THROW / RELEASE
   // ============================================

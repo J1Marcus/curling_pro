@@ -15859,16 +15859,11 @@ const PRE_TOSS_TUTORIALS = ['scoring', 'hammer'];
 
 // Start pre-toss tutorials or coin toss
 window.startCoinToss = function() {
-  // CRITICAL: Initialize audio on PLAY button tap (iOS requires direct user gesture)
+  // CRITICAL: Unlock audio on PLAY button tap (iOS requires direct user gesture)
   if (gameState.settings.soundEnabled) {
-    soundManager.init();
-    if (soundManager.audioContext?.state === 'suspended') {
-      soundManager.audioContext.resume();
-    }
-    soundManager.enabled = true;
-    console.log('[SOUND] Initialized on PLAY tap, state:', soundManager.audioContext?.state);
+    soundManager.unlockAudio();
     // Play test beep to verify audio
-    soundManager.playTestBeep();
+    setTimeout(() => soundManager.playTestBeep(), 100);
   }
 
   document.getElementById('settings-summary-screen').style.display = 'none';
@@ -18920,16 +18915,8 @@ const remainingTime = Math.max(0, splashMinTime - elapsed);
 const enableSoundOnInteraction = (e) => {
   console.log('[SOUND] First interaction detected:', e.type);
   if (gameState.settings.soundEnabled) {
-    // Initialize audio context immediately in gesture handler
-    soundManager.init();
-    soundManager.enabled = true;
-    // Resume must happen synchronously in gesture
-    if (soundManager.audioContext) {
-      console.log('[SOUND] AudioContext state before resume:', soundManager.audioContext.state);
-      soundManager.audioContext.resume().then(() => {
-        console.log('[SOUND] AudioContext resumed, state:', soundManager.audioContext.state);
-      });
-    }
+    // Use unlockAudio which plays a silent buffer to unlock iOS audio
+    soundManager.unlockAudio();
   }
   document.removeEventListener('click', enableSoundOnInteraction);
   document.removeEventListener('touchstart', enableSoundOnInteraction);
