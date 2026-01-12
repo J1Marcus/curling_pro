@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Matter from 'matter-js';
+import { Howler } from 'howler';
 import { soundManager } from './sounds.js';
 import * as multiplayer from './multiplayer.js';
 import * as analytics from './analytics.js';
@@ -18871,15 +18872,21 @@ setTimeout(() => {
   console.log('Curling game initialized!');
 
   // Initialize sound on first user interaction (browser autoplay policy)
+  // Howler handles iOS audio unlocking automatically
   const enableSoundOnInteraction = () => {
+    console.log('[SOUND] First interaction - unlocking audio');
+    // Touch Howler to trigger its internal unlock mechanism
+    Howler.volume(1.0);
     if (gameState.settings.soundEnabled) {
       soundManager.setEnabled(true);
     }
     document.removeEventListener('click', enableSoundOnInteraction);
     document.removeEventListener('touchstart', enableSoundOnInteraction);
+    document.removeEventListener('touchend', enableSoundOnInteraction);
   };
   document.addEventListener('click', enableSoundOnInteraction);
   document.addEventListener('touchstart', enableSoundOnInteraction);
+  document.addEventListener('touchend', enableSoundOnInteraction);
 
   // Check if first-time user needs interactive tutorial
   const tutorialsShown = getFirstRunTutorialsShown();

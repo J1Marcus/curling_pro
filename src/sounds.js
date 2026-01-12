@@ -2,6 +2,8 @@
 // SOUND MANAGER - Procedural Audio for Curling
 // ============================================
 
+import { Howler } from 'howler';
+
 class SoundManager {
   constructor() {
     this.enabled = false;
@@ -19,7 +21,13 @@ class SoundManager {
   init() {
     if (this.audioContext) return;
 
-    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Use Howler's audio context if available (it handles iOS unlocking)
+    if (Howler.ctx) {
+      this.audioContext = Howler.ctx;
+    } else {
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
     this.masterGain = this.audioContext.createGain();
     this.masterGain.gain.value = 0.5;
     this.masterGain.connect(this.audioContext.destination);
