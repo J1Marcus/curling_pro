@@ -12,7 +12,7 @@ class SoundManager {
     this.sweepingInterval = null;
     // Ambient crowd system
     this.ambientNodes = null;
-    this.ambientVolume = 0.12;
+    this.ambientVolume = 0.2;  // Increased from 0.12 for better audibility
     this.noiseBuffer = null;  // Reusable noise buffer
     this.crowdSize = 'arena';  // Default to arena, 'club' for practice mode
   }
@@ -22,7 +22,7 @@ class SoundManager {
 
     this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
     this.masterGain = this.audioContext.createGain();
-    this.masterGain.gain.value = 0.5;
+    this.masterGain.gain.value = 0.75;  // Increased from 0.5 for better mobile audibility
     this.masterGain.connect(this.audioContext.destination);
   }
 
@@ -119,7 +119,7 @@ class SoundManager {
     filter.frequency.value = 200;
 
     this.slidingGain = this.audioContext.createGain();
-    this.slidingGain.gain.value = 0.15;
+    this.slidingGain.gain.value = 0.3;  // Increased from 0.15 for better audibility
 
     noise.connect(filter);
     filter.connect(this.slidingGain);
@@ -132,7 +132,7 @@ class SoundManager {
   updateSlidingVolume(speed) {
     if (!this.slidingGain) return;
     // Volume based on speed (0-1 range)
-    const volume = Math.min(0.2, speed * 0.15);
+    const volume = Math.min(0.4, speed * 0.3);  // Increased for better audibility
     this.slidingGain.gain.setTargetAtTime(volume, this.audioContext.currentTime, 0.1);
   }
 
@@ -173,7 +173,7 @@ class SoundManager {
     gain2.gain.setValueAtTime(0.1 * intensity, now);
     gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
 
-    gain.gain.setValueAtTime(0.4 * intensity, now);
+    gain.gain.setValueAtTime(0.5 * intensity, now);  // Increased from 0.4
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
 
     osc1.connect(gain);
@@ -251,7 +251,7 @@ class SoundManager {
     filter.Q.value = 0.4;
 
     const gain = this.audioContext.createGain();
-    gain.gain.value = 0.35;  // Increased from 0.15 for better audibility
+    gain.gain.value = 0.45;  // Increased for better audibility on mobile
 
     noise.connect(filter);
     filter.connect(gain);
@@ -533,8 +533,8 @@ class SoundManager {
     intensity = Math.max(0, Math.min(1, intensity));
 
     // Base ambient volume increases with intensity
-    const baseVolume = 0.12;
-    const intensityBonus = intensity * 0.15; // Up to 0.27 total
+    const baseVolume = 0.2;  // Match updated ambientVolume
+    const intensityBonus = intensity * 0.15; // Up to 0.35 total
     const targetVolume = baseVolume + intensityBonus;
 
     this.ambientNodes.masterGain.gain.setTargetAtTime(
