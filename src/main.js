@@ -897,7 +897,8 @@ const PRACTICE_DRILLS = {
   draw: { name: 'Draws', icon: '🎯', description: 'Precision placement shots' },
   guard: { name: 'Guards', icon: '🛡️', description: 'Strategic protection shots' },
   freeze: { name: 'Freezes', icon: '❄️', description: 'Come to rest touching another stone' },
-  hitroll: { name: 'Hit & Roll', icon: '🎱', description: 'Takeout with controlled roll' }
+  hitroll: { name: 'Hit & Roll', icon: '🎱', description: 'Takeout with controlled roll' },
+  skip: { name: 'Skip Calls', icon: '🧠', description: 'Make strategic decisions like a skip', isStrategic: true }
 };
 
 // TEE_LINE_FAR = 41.07, BUTTON position is (0, 41.07)
@@ -1271,6 +1272,440 @@ const PRACTICE_SCENARIOS = {
       target: { type: 'hitroll', rollZone: 'behindGuard', guardIndex: 1 },
       hint: 'Hit the outside of the stone to roll toward the guard'
     }
+  ],
+
+  skip: [
+    {
+      id: 'skip_1',
+      name: 'First Stone with Hammer',
+      difficulty: 1,
+      description: 'Empty house, first stone of the end. You have hammer.',
+      stones: [],
+      context: {
+        end: 2,
+        totalEnds: 8,
+        redScore: 0,
+        yellowScore: 0,
+        hammer: 'red',
+        stonesRemaining: 8
+      },
+      solutions: [
+        {
+          type: 'guard',
+          rating: 'excellent',
+          target: { x: 0, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'With hammer in an early end, placing a center guard controls the house and sets up scoring opportunities. This is the standard play.'
+        },
+        {
+          type: 'draw',
+          rating: 'good',
+          target: { x: 0, z: 41 },
+          weight: 'draw',
+          curl: 'either',
+          explanation: 'Drawing to the button works but gives your opponent an easy target. You\'re not using your hammer advantage optimally.'
+        },
+        {
+          type: 'corner',
+          rating: 'okay',
+          target: { x: 0.8, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'A corner guard is less common but can work in some strategies. Center guard is usually preferred.'
+        }
+      ],
+      hint: 'Think about what having the hammer means for your strategy.'
+    },
+    {
+      id: 'skip_2',
+      name: 'First Stone without Hammer',
+      difficulty: 1,
+      description: 'Empty house, first stone. Opponent has hammer.',
+      stones: [],
+      context: {
+        end: 2,
+        totalEnds: 8,
+        redScore: 0,
+        yellowScore: 0,
+        hammer: 'yellow',
+        stonesRemaining: 8
+      },
+      solutions: [
+        {
+          type: 'draw',
+          rating: 'excellent',
+          target: { x: 0, z: 41 },
+          weight: 'draw',
+          curl: 'either',
+          explanation: 'Without hammer, drawing to the button puts pressure on your opponent. They must respond to your stone.'
+        },
+        {
+          type: 'guard',
+          rating: 'okay',
+          target: { x: 0, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'A guard without hammer is risky - it can help your opponent set up their offense. Usually better to draw.'
+        }
+      ],
+      hint: 'Without hammer, you want to put pressure on the opponent early.'
+    },
+    {
+      id: 'skip_3',
+      name: 'Opponent on Button',
+      difficulty: 2,
+      description: 'Opponent has a stone on the button. You have hammer.',
+      stones: [
+        { team: 'yellow', x: 0, z: 41.07 }
+      ],
+      context: {
+        end: 3,
+        totalEnds: 8,
+        redScore: 1,
+        yellowScore: 2,
+        hammer: 'red',
+        stonesRemaining: 6
+      },
+      solutions: [
+        {
+          type: 'draw',
+          rating: 'excellent',
+          target: { x: 0.6, z: 40.8 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Draw around to the 4-foot. This scores a point if they miss, and you still have hammer if they take it out.'
+        },
+        {
+          type: 'takeout',
+          rating: 'good',
+          target: { x: 0, z: 41.07 },
+          weight: 'takeout',
+          curl: 'either',
+          explanation: 'Taking it out clears the house but resets the end. With hammer, you usually want to build, not just clear.'
+        },
+        {
+          type: 'guard',
+          rating: 'okay',
+          target: { x: 0.5, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'A guard protects future draws but leaves their button stone counting. Riskier with them already scoring.'
+        }
+      ],
+      hint: 'With hammer, you want to score multiple points, not just one.'
+    },
+    {
+      id: 'skip_4',
+      name: 'Use Your Guard',
+      difficulty: 2,
+      description: 'You have a center guard. Opponent hasn\'t scored yet.',
+      stones: [
+        { team: 'red', x: 0, z: 38.5 }
+      ],
+      context: {
+        end: 3,
+        totalEnds: 8,
+        redScore: 2,
+        yellowScore: 1,
+        hammer: 'red',
+        stonesRemaining: 6
+      },
+      solutions: [
+        {
+          type: 'draw',
+          rating: 'excellent',
+          target: { x: 0.3, z: 41 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Come around your guard to hide behind it! This makes your stone very difficult to remove. Classic hammer strategy.'
+        },
+        {
+          type: 'guard',
+          rating: 'good',
+          target: { x: 0.5, z: 39.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'Stacking another guard adds protection, but you\'re not scoring yet. Good if you want to build more.'
+        },
+        {
+          type: 'draw',
+          rating: 'okay',
+          target: { x: 0.8, z: 41 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Drawing to the side ignores your guard\'s protection. The stone is more exposed to takeouts.'
+        }
+      ],
+      hint: 'Your guard is there for a reason - use it!'
+    },
+    {
+      id: 'skip_5',
+      name: 'Down Two, Final End',
+      difficulty: 3,
+      description: 'Down 2 points in the final end. You have hammer.',
+      stones: [],
+      context: {
+        end: 8,
+        totalEnds: 8,
+        redScore: 3,
+        yellowScore: 5,
+        hammer: 'red',
+        stonesRemaining: 8
+      },
+      solutions: [
+        {
+          type: 'guard',
+          rating: 'excellent',
+          target: { x: 0, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'You MUST score 3 to win! Center guard is essential to build a big end. Aggressive guards give you a chance at multiple points.'
+        },
+        {
+          type: 'corner',
+          rating: 'good',
+          target: { x: 0.8, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'Corner guards can work too. You need protection for come-around attempts. Any guard is better than drawing.'
+        },
+        {
+          type: 'draw',
+          rating: 'poor',
+          target: { x: 0, z: 41 },
+          weight: 'draw',
+          curl: 'either',
+          explanation: 'Drawing to the button only scores 1 at best - you need 3! Without guards, opponent will pick you apart.'
+        }
+      ],
+      hint: 'You need 3 points to win. Think about what gives you the best chance.'
+    },
+    {
+      id: 'skip_6',
+      name: 'Up Two, Final End',
+      difficulty: 3,
+      description: 'Up 2 points in the final end. Opponent has hammer.',
+      stones: [],
+      context: {
+        end: 8,
+        totalEnds: 8,
+        redScore: 5,
+        yellowScore: 3,
+        hammer: 'yellow',
+        stonesRemaining: 8
+      },
+      solutions: [
+        {
+          type: 'draw',
+          rating: 'excellent',
+          target: { x: 0, z: 41 },
+          weight: 'draw',
+          curl: 'either',
+          explanation: 'Put stones in play! They need 3 points - make them work for it. Occupying the house forces difficult decisions.'
+        },
+        {
+          type: 'guard',
+          rating: 'poor',
+          target: { x: 0, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'NO guards when defending! Guards help the team with hammer build a big end. You\'re helping them score 3.'
+        },
+        {
+          type: 'corner',
+          rating: 'okay',
+          target: { x: 1.0, z: 40.5 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Drawing to the side is okay but center is better. You want to be in their way, not off to the side.'
+        }
+      ],
+      hint: 'They need 3 points to tie. How do you prevent a big end?'
+    },
+    {
+      id: 'skip_7',
+      name: 'Steal Opportunity',
+      difficulty: 4,
+      description: 'Opponent has hammer but you have shot stone. 4 stones left.',
+      stones: [
+        { team: 'red', x: 0.2, z: 40.8 },
+        { team: 'yellow', x: -0.5, z: 41.2 }
+      ],
+      context: {
+        end: 5,
+        totalEnds: 8,
+        redScore: 3,
+        yellowScore: 3,
+        hammer: 'yellow',
+        stonesRemaining: 4
+      },
+      solutions: [
+        {
+          type: 'guard',
+          rating: 'excellent',
+          target: { x: 0.2, z: 38.5 },
+          weight: 'guard',
+          curl: 'either',
+          explanation: 'Protect your shot stone! A guard makes it harder for them to score. If they can\'t remove you, you steal a point!'
+        },
+        {
+          type: 'draw',
+          rating: 'good',
+          target: { x: 0.5, z: 40.5 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Adding another stone in the house is good, but it\'s not protected. They might take out both with a double.'
+        },
+        {
+          type: 'takeout',
+          rating: 'poor',
+          target: { x: -0.5, z: 41.2 },
+          weight: 'takeout',
+          curl: 'left',
+          explanation: 'Taking out their stone removes the threat but also removes your guard opportunity. You likely roll out and waste the steal chance.'
+        }
+      ],
+      hint: 'You have a chance to steal. How do you protect it?'
+    },
+    {
+      id: 'skip_8',
+      name: 'Buried Stone Problem',
+      difficulty: 4,
+      description: 'Opponent\'s stone is buried behind guards. You need to score.',
+      stones: [
+        { team: 'yellow', x: 0, z: 40.8 },
+        { team: 'yellow', x: 0.3, z: 38.5 },
+        { team: 'yellow', x: -0.3, z: 38.2 }
+      ],
+      context: {
+        end: 6,
+        totalEnds: 8,
+        redScore: 2,
+        yellowScore: 4,
+        hammer: 'red',
+        stonesRemaining: 4
+      },
+      solutions: [
+        {
+          type: 'peel',
+          rating: 'excellent',
+          target: { x: 0.3, z: 38.5 },
+          weight: 'takeout',
+          curl: 'right',
+          explanation: 'Peel the guards! Remove their protection first. Once guards are gone, you can access the shot stone. Patience wins.'
+        },
+        {
+          type: 'draw',
+          rating: 'good',
+          target: { x: -0.7, z: 40.5 },
+          weight: 'draw',
+          curl: 'left',
+          explanation: 'Drawing around to score is possible but risky. If you\'re light, you give them another guard. If heavy, you miss entirely.'
+        },
+        {
+          type: 'runback',
+          rating: 'okay',
+          target: { x: -0.3, z: 38.2 },
+          weight: 'control',
+          curl: 'left',
+          explanation: 'A runback through a guard to the buried stone is spectacular but low percentage. High risk, high reward.'
+        }
+      ],
+      hint: 'Their stone is protected. What\'s the safest way to get to it?'
+    },
+    {
+      id: 'skip_9',
+      name: 'Last Rock Decision',
+      difficulty: 5,
+      description: 'Last rock of end. Draw for 1 or attempt for 2?',
+      stones: [
+        { team: 'red', x: 0.5, z: 40.6 },
+        { team: 'yellow', x: 0, z: 41.07 },
+        { team: 'red', x: -0.6, z: 41.3 }
+      ],
+      context: {
+        end: 6,
+        totalEnds: 8,
+        redScore: 3,
+        yellowScore: 3,
+        hammer: 'red',
+        stonesRemaining: 1
+      },
+      solutions: [
+        {
+          type: 'draw',
+          rating: 'excellent',
+          target: { x: 0.1, z: 40.9 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Take the sure point! Draw to the 4-foot beside your stone. You score 1 and keep hammer equivalent going into late ends.'
+        },
+        {
+          type: 'takeout',
+          rating: 'okay',
+          target: { x: 0, z: 41.07 },
+          weight: 'control',
+          curl: 'either',
+          explanation: 'Trying to hit-and-roll for 2 is tempting but risky. If you roll out, you blank and give up the chance to score.'
+        },
+        {
+          type: 'draw',
+          rating: 'poor',
+          target: { x: -0.3, z: 40.5 },
+          weight: 'draw',
+          curl: 'left',
+          explanation: 'Drawing to an exposed position risks giving up a steal if you\'re light. The safe play is better here.'
+        }
+      ],
+      hint: 'Tied game, late ends. Is it worth the risk for an extra point?'
+    },
+    {
+      id: 'skip_10',
+      name: 'Strategic Blank',
+      difficulty: 5,
+      description: 'You have hammer but only see 1 point. Take it or blank?',
+      stones: [
+        { team: 'yellow', x: 0.3, z: 41 },
+        { team: 'yellow', x: -0.3, z: 40.8 },
+        { team: 'red', x: 0, z: 40.5 }
+      ],
+      context: {
+        end: 5,
+        totalEnds: 8,
+        redScore: 3,
+        yellowScore: 2,
+        hammer: 'red',
+        stonesRemaining: 1
+      },
+      solutions: [
+        {
+          type: 'takeout',
+          rating: 'excellent',
+          target: { x: 0, z: 40.5 },
+          weight: 'takeout',
+          curl: 'either',
+          explanation: 'Blank the end! Hit your own stone out to score 0 and KEEP hammer. With 3 ends left, hammer is worth more than 1 point.'
+        },
+        {
+          type: 'draw',
+          rating: 'good',
+          target: { x: 0.1, z: 40.9 },
+          weight: 'draw',
+          curl: 'right',
+          explanation: 'Taking 1 point is safe and extends your lead. But you give up hammer - they might score 2 or more next end.'
+        },
+        {
+          type: 'takeout',
+          rating: 'poor',
+          target: { x: 0.3, z: 41 },
+          weight: 'takeout',
+          curl: 'right',
+          explanation: 'Trying to remove their stones is risky - you might stick and score 1 anyway, losing hammer for nothing.'
+        }
+      ],
+      hint: 'Sometimes scoring 0 with hammer is better than scoring 1. When?'
+    }
   ]
 };
 
@@ -1281,7 +1716,8 @@ let practiceStats = {
   draw: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
   guard: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
   freeze: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
-  hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
+  hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+  skip: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
 };
 
 // ============================================
@@ -2868,7 +3304,8 @@ function resetPracticeStats() {
     draw: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
     guard: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
     freeze: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
-    hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
+    hitroll: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} },
+    skip: { attempts: 0, successes: 0, unlocked: 1, scenarios: {} }
   };
   localStorage.removeItem('curlingpro_practice');
 }
@@ -7394,6 +7831,11 @@ window.updateCurlSlider = function(value) {
 
   // Broadcast aim state to opponent in multiplayer
   broadcastAimStateThrottled();
+
+  // Update Make Call button state in Skip mode
+  if (gameState.practiceMode?.currentDrill === 'skip') {
+    updateReturnButton();
+  }
 };
 
 // Legacy function for compatibility (used by computer shots)
@@ -8617,6 +9059,13 @@ window.returnToThrowView = function() {
       return;
     }
 
+    // Handle Skip mode differently - evaluate the call instead of throwing
+    if (gameState.practiceMode?.currentDrill === 'skip') {
+      if (handleSkipMakeCall()) {
+        return;  // Skip mode handled the call
+      }
+    }
+
     gameState.previewHeight = 0;  // Animate to thrower view
     gameState.targetViewZoom = 1;  // Reset zoom when leaving target view
     updateReturnButton();
@@ -8721,6 +9170,20 @@ function updateReturnButton() {
   // Show button when locked at far view (marker optional), but NOT for computer or opponent's turn
   if (gameState.phase === 'aiming' && gameState.previewLocked && gameState.previewHeight > 0.5 && !isInputBlocked()) {
     btn.style.display = 'block';
+
+    // In Skip mode, change button text and behavior
+    if (gameState.practiceMode?.currentDrill === 'skip') {
+      btn.textContent = 'MAKE CALL';
+      // Check if all requirements are met
+      const hasTarget = gameState.targetPosition !== null;
+      const hasCurl = gameState.curlDirection !== null;
+      const hasWeight = gameState.skipCallWeight !== null;
+      const isReady = hasTarget && hasCurl && hasWeight;
+      btn.style.opacity = isReady ? '1' : '0.5';
+    } else {
+      btn.textContent = 'READY';
+      btn.style.opacity = '1';
+    }
   } else {
     btn.style.display = 'none';
   }
@@ -11780,8 +12243,553 @@ function showPracticeOverlay(scenario) {
     curlDisplay.style.top = 'max(100px, calc(env(safe-area-inset-top) + 80px))';
   }
 
+  // Add Skip-specific UI elements
+  const isSkipMode = gameState.practiceMode?.currentDrill === 'skip';
+  setupSkipModeUI(isSkipMode, scenario);
+
   overlay.style.display = 'block';
 }
+
+// ============================================
+// SKIP MODE - Strategic Decision Training
+// ============================================
+
+// Setup Skip mode UI (weight selector, context display, make call button)
+function setupSkipModeUI(isSkipMode, scenario) {
+  // Remove existing Skip UI if present
+  const existingWeightSelector = document.getElementById('skip-weight-selector');
+  const existingContext = document.getElementById('skip-context-display');
+  const existingFeedback = document.getElementById('skip-feedback-overlay');
+  if (existingWeightSelector) existingWeightSelector.remove();
+  if (existingContext) existingContext.remove();
+  if (existingFeedback) existingFeedback.remove();
+
+  if (!isSkipMode) {
+    // Reset Skip state
+    gameState.skipCallWeight = null;
+    return;
+  }
+
+  // Initialize Skip state
+  gameState.skipCallWeight = null;
+  gameState.skipCallMade = false;
+
+  // Create weight selector
+  const weightSelector = document.createElement('div');
+  weightSelector.id = 'skip-weight-selector';
+  weightSelector.innerHTML = `
+    <div style="
+      position: fixed;
+      bottom: 180px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.85);
+      border: 2px solid rgba(139, 92, 246, 0.6);
+      border-radius: 12px;
+      padding: 12px 16px;
+      z-index: 160;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    ">
+      <div style="color: #c4b5fd; font-size: 12px; font-weight: 600;">SELECT WEIGHT</div>
+      <div style="display: flex; gap: 8px;">
+        <button onclick="window.selectSkipWeight('guard')" data-weight="guard" style="
+          background: rgba(74, 222, 128, 0.3);
+          border: 2px solid transparent;
+          border-radius: 8px;
+          color: #4ade80;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 8px 12px;
+          cursor: pointer;
+        ">Guard</button>
+        <button onclick="window.selectSkipWeight('draw')" data-weight="draw" style="
+          background: rgba(59, 130, 246, 0.3);
+          border: 2px solid transparent;
+          border-radius: 8px;
+          color: #3b82f6;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 8px 12px;
+          cursor: pointer;
+        ">Draw</button>
+        <button onclick="window.selectSkipWeight('control')" data-weight="control" style="
+          background: rgba(251, 191, 36, 0.3);
+          border: 2px solid transparent;
+          border-radius: 8px;
+          color: #fbbf24;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 8px 12px;
+          cursor: pointer;
+        ">Control</button>
+        <button onclick="window.selectSkipWeight('takeout')" data-weight="takeout" style="
+          background: rgba(239, 68, 68, 0.3);
+          border: 2px solid transparent;
+          border-radius: 8px;
+          color: #ef4444;
+          font-size: 12px;
+          font-weight: 600;
+          padding: 8px 12px;
+          cursor: pointer;
+        ">Takeout</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(weightSelector);
+
+  // Create context display (score, end, hammer)
+  if (scenario.context) {
+    const ctx = scenario.context;
+    const contextDisplay = document.createElement('div');
+    contextDisplay.id = 'skip-context-display';
+    const hammerText = ctx.hammer === 'red' ? 'You have hammer' : 'Opponent has hammer';
+    const hammerColor = ctx.hammer === 'red' ? '#4ade80' : '#f87171';
+    contextDisplay.innerHTML = `
+      <div style="
+        position: fixed;
+        top: max(80px, calc(env(safe-area-inset-top) + 60px));
+        right: max(20px, env(safe-area-inset-right));
+        background: rgba(0, 0, 0, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+        padding: 10px 14px;
+        z-index: 155;
+        text-align: right;
+      ">
+        <div style="color: white; font-size: 14px; font-weight: 600;">End ${ctx.end} of ${ctx.totalEnds}</div>
+        <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;">
+          Score: <span style="color: #ef4444;">${ctx.redScore}</span> - <span style="color: #facc15;">${ctx.yellowScore}</span>
+        </div>
+        <div style="color: ${hammerColor}; font-size: 12px; margin-top: 4px; font-weight: 500;">${hammerText}</div>
+        <div style="color: #94a3b8; font-size: 11px; margin-top: 2px;">${ctx.stonesRemaining} stones left</div>
+      </div>
+    `;
+    document.body.appendChild(contextDisplay);
+  }
+
+  // Create feedback overlay (hidden initially)
+  const feedbackOverlay = document.createElement('div');
+  feedbackOverlay.id = 'skip-feedback-overlay';
+  feedbackOverlay.style.display = 'none';
+  feedbackOverlay.innerHTML = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    ">
+      <div style="
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%);
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        border-radius: 16px;
+        padding: 24px;
+        max-width: 400px;
+        width: 100%;
+        max-height: 80vh;
+        overflow-y: auto;
+      ">
+        <div id="skip-rating-badge" style="
+          text-align: center;
+          font-size: 24px;
+          font-weight: bold;
+          margin-bottom: 16px;
+          padding: 8px 16px;
+          border-radius: 8px;
+        "></div>
+
+        <div style="margin-bottom: 16px;">
+          <div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px;">YOUR CALL</div>
+          <div id="skip-your-call" style="color: white; font-size: 14px;"></div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div style="color: #94a3b8; font-size: 12px; margin-bottom: 4px;">ANALYSIS</div>
+          <div id="skip-explanation" style="color: #e2e8f0; font-size: 14px; line-height: 1.5;"></div>
+        </div>
+
+        <div id="skip-optimal-section" style="margin-bottom: 20px; display: none;">
+          <div style="color: #4ade80; font-size: 12px; margin-bottom: 4px;">OPTIMAL PLAY</div>
+          <div id="skip-optimal-call" style="color: #4ade80; font-size: 14px;"></div>
+          <div id="skip-optimal-reason" style="color: #86efac; font-size: 13px; margin-top: 4px; font-style: italic;"></div>
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button onclick="window.trySkipCall()" style="
+            background: rgba(139, 92, 246, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 24px;
+            cursor: pointer;
+          ">Try It</button>
+          <button onclick="window.nextSkipScenario()" style="
+            background: rgba(74, 222, 128, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 12px 24px;
+            cursor: pointer;
+          ">Next</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(feedbackOverlay);
+}
+
+// Select weight for Skip call
+window.selectSkipWeight = function(weight) {
+  gameState.skipCallWeight = weight;
+
+  // Update button visual states
+  const buttons = document.querySelectorAll('#skip-weight-selector button[data-weight]');
+  buttons.forEach(btn => {
+    if (btn.dataset.weight === weight) {
+      btn.style.borderColor = 'white';
+      btn.style.transform = 'scale(1.05)';
+    } else {
+      btn.style.borderColor = 'transparent';
+      btn.style.transform = 'scale(1)';
+    }
+  });
+
+  // Check if ready to make call (target + curl + weight)
+  updateMakeCallButton();
+};
+
+// Update Make Call button state
+function updateMakeCallButton() {
+  const readyBtn = document.getElementById('ready-btn');
+  if (!readyBtn) return;
+
+  const isSkipMode = gameState.practiceMode?.currentDrill === 'skip';
+  if (!isSkipMode) return;
+
+  const hasTarget = gameState.targetPosition !== null;
+  const hasCurl = gameState.curlDirection !== null;
+  const hasWeight = gameState.skipCallWeight !== null;
+
+  const isReady = hasTarget && hasCurl && hasWeight;
+
+  readyBtn.textContent = 'MAKE CALL';
+  readyBtn.style.opacity = isReady ? '1' : '0.5';
+  readyBtn.disabled = !isReady;
+}
+
+// Handle Make Call button press in Skip mode
+function handleSkipMakeCall() {
+  if (gameState.skipCallMade) return;
+
+  const hasTarget = gameState.targetPosition !== null;
+  const hasCurl = gameState.curlDirection !== null;
+  const hasWeight = gameState.skipCallWeight !== null;
+
+  if (!hasTarget || !hasCurl || !hasWeight) {
+    console.log('[Skip] Not ready to make call');
+    return false;
+  }
+
+  gameState.skipCallMade = true;
+  const feedback = evaluateSkipCall();
+  showSkipFeedback(feedback);
+  return true;
+}
+
+// Evaluate the player's skip call
+function evaluateSkipCall() {
+  const scenario = PRACTICE_SCENARIOS.skip.find(s => s.id === gameState.practiceMode.currentScenario);
+  if (!scenario || !scenario.solutions) {
+    return { rating: 'okay', explanation: 'No evaluation available for this scenario.' };
+  }
+
+  const playerCall = {
+    target: gameState.targetPosition,
+    curl: gameState.curlDirection,
+    weight: gameState.skipCallWeight
+  };
+
+  // Find best matching solution
+  let bestMatch = null;
+  let bestScore = -1;
+
+  for (const solution of scenario.solutions) {
+    let score = 0;
+
+    // Weight match (40% of score)
+    if (solution.weight === playerCall.weight) {
+      score += 40;
+    } else if (
+      (solution.weight === 'guard' && playerCall.weight === 'draw') ||
+      (solution.weight === 'draw' && playerCall.weight === 'guard') ||
+      (solution.weight === 'control' && playerCall.weight === 'takeout') ||
+      (solution.weight === 'takeout' && playerCall.weight === 'control')
+    ) {
+      score += 20; // Close but not exact
+    }
+
+    // Target proximity (30% of score) - if solution has a target
+    if (solution.target && playerCall.target) {
+      const dx = solution.target.x - playerCall.target.x;
+      const dz = solution.target.z - playerCall.target.z;
+      const dist = Math.sqrt(dx * dx + dz * dz);
+
+      if (dist < 0.5) score += 30;
+      else if (dist < 1.0) score += 20;
+      else if (dist < 2.0) score += 10;
+    } else if (!solution.target) {
+      // No target required for this solution
+      score += 15;
+    }
+
+    // Shot type inference (20% of score)
+    const playerShotType = inferShotType(playerCall);
+    if (solution.type === playerShotType) {
+      score += 20;
+    } else if (
+      (solution.type === 'draw' && playerShotType === 'guard') ||
+      (solution.type === 'guard' && playerShotType === 'draw')
+    ) {
+      score += 10;
+    }
+
+    // Curl direction (10% of score)
+    if (solution.curl === 'either' || solution.curl === playerCall.curl ||
+        (solution.curl === 'right' && playerCall.curl === 1) ||
+        (solution.curl === 'left' && playerCall.curl === -1)) {
+      score += 10;
+    }
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = solution;
+    }
+  }
+
+  // Determine rating based on best match
+  let rating, ratingColor;
+  if (bestMatch && bestMatch.rating === 'excellent' && bestScore >= 70) {
+    rating = 'EXCELLENT CALL!';
+    ratingColor = '#4ade80';
+  } else if (bestMatch && (bestMatch.rating === 'excellent' || bestMatch.rating === 'good') && bestScore >= 50) {
+    rating = 'GOOD CALL';
+    ratingColor = '#60a5fa';
+  } else if (bestScore >= 30) {
+    rating = 'OKAY, BUT...';
+    ratingColor = '#fbbf24';
+  } else {
+    rating = 'CONSIDER THIS';
+    ratingColor = '#f87171';
+  }
+
+  // Get the optimal solution (first one is always optimal)
+  const optimal = scenario.solutions[0];
+  const isOptimal = bestMatch === optimal && bestScore >= 70;
+
+  return {
+    rating,
+    ratingColor,
+    playerCall: describeCall(playerCall),
+    explanation: bestMatch ? bestMatch.explanation : 'Try a different approach.',
+    showOptimal: !isOptimal,
+    optimalCall: describeCall({
+      target: optimal.target,
+      curl: optimal.curl,
+      weight: optimal.weight
+    }),
+    optimalReason: optimal.explanation
+  };
+}
+
+// Infer shot type from player call
+function inferShotType(call) {
+  if (!call.target) return 'unknown';
+
+  const targetZ = call.target.z;
+  const inHouse = targetZ >= (TEE_LINE_FAR - RING_12FT) && targetZ <= (TEE_LINE_FAR + RING_12FT);
+  const inGuardZone = targetZ >= HOG_LINE_FAR && targetZ < (TEE_LINE_FAR - RING_12FT);
+
+  if (call.weight === 'takeout' || call.weight === 'control') {
+    return 'takeout';
+  } else if (call.weight === 'guard' || inGuardZone) {
+    return 'guard';
+  } else if (inHouse) {
+    return 'draw';
+  }
+  return 'draw';
+}
+
+// Describe a call in human-readable terms
+function describeCall(call) {
+  if (!call) return 'No call';
+
+  const weightNames = {
+    'guard': 'Guard weight',
+    'draw': 'Draw weight',
+    'control': 'Control weight',
+    'takeout': 'Takeout weight'
+  };
+
+  const curlNames = {
+    1: 'clockwise',
+    '-1': 'counter-clockwise',
+    'right': 'clockwise',
+    'left': 'counter-clockwise',
+    'either': 'either turn'
+  };
+
+  const weight = weightNames[call.weight] || call.weight || 'Unknown weight';
+  const curl = curlNames[call.curl] || 'unknown curl';
+
+  let location = '';
+  if (call.target) {
+    const z = call.target.z;
+    if (z < HOG_LINE_FAR) {
+      location = 'short of hog line';
+    } else if (z < TEE_LINE_FAR - RING_12FT) {
+      location = 'guard position';
+    } else if (z < TEE_LINE_FAR - RING_4FT) {
+      location = 'front of house';
+    } else if (z < TEE_LINE_FAR + BUTTON_RADIUS) {
+      location = 'near button';
+    } else {
+      location = 'back of house';
+    }
+  }
+
+  return `${weight}, ${curl}${location ? ', ' + location : ''}`;
+}
+
+// Show Skip feedback overlay
+function showSkipFeedback(feedback) {
+  const overlay = document.getElementById('skip-feedback-overlay');
+  if (!overlay) return;
+
+  // Update rating badge
+  const badge = document.getElementById('skip-rating-badge');
+  badge.textContent = feedback.rating;
+  badge.style.color = feedback.ratingColor;
+  badge.style.background = feedback.ratingColor + '20';
+  badge.style.border = `2px solid ${feedback.ratingColor}`;
+
+  // Update content
+  document.getElementById('skip-your-call').textContent = feedback.playerCall;
+  document.getElementById('skip-explanation').textContent = feedback.explanation;
+
+  // Show optimal if different from player's choice
+  const optimalSection = document.getElementById('skip-optimal-section');
+  if (feedback.showOptimal) {
+    optimalSection.style.display = 'block';
+    document.getElementById('skip-optimal-call').textContent = feedback.optimalCall;
+    document.getElementById('skip-optimal-reason').textContent = feedback.optimalReason;
+  } else {
+    optimalSection.style.display = 'none';
+  }
+
+  // Update stats
+  gameState.practiceMode.attempts++;
+  const isSuccess = feedback.rating === 'EXCELLENT CALL!' || feedback.rating === 'GOOD CALL';
+  if (isSuccess) {
+    gameState.practiceMode.successes++;
+  }
+
+  // Update practice stats
+  const drillId = gameState.practiceMode.currentDrill;
+  const scenarioId = gameState.practiceMode.currentScenario;
+  practiceStats[drillId].attempts++;
+  if (isSuccess) practiceStats[drillId].successes++;
+  if (!practiceStats[drillId].scenarios[scenarioId]) {
+    practiceStats[drillId].scenarios[scenarioId] = { attempts: 0, successes: 0 };
+  }
+  practiceStats[drillId].scenarios[scenarioId].attempts++;
+  if (isSuccess) practiceStats[drillId].scenarios[scenarioId].successes++;
+  savePracticeStats();
+
+  // Update UI counters
+  document.getElementById('practice-attempts').textContent = gameState.practiceMode.attempts;
+  document.getElementById('practice-successes').textContent = gameState.practiceMode.successes;
+
+  overlay.style.display = 'block';
+}
+
+// Try executing the Skip call
+window.trySkipCall = function() {
+  const overlay = document.getElementById('skip-feedback-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Convert weight to effort percentage
+  const effortMap = {
+    'guard': 40,
+    'draw': 55,
+    'control': 70,
+    'takeout': 85
+  };
+  gameState.currentPower = effortMap[gameState.skipCallWeight] || 55;
+  gameState.maxPower = gameState.currentPower;
+
+  // Reset Skip call state for next attempt
+  gameState.skipCallMade = false;
+
+  // Trigger throw sequence
+  gameState.phase = 'aiming';
+  gameState.previewHeight = 0;  // Go to throw view
+  gameState.previewLocked = false;
+
+  // Short delay then auto-throw
+  setTimeout(() => {
+    // Simulate throw with player's settings
+    gameState.phase = 'charging';
+    startPull(window.innerWidth / 2, window.innerHeight / 2);
+    updatePull(window.innerWidth / 2, window.innerHeight / 2 + gameState.currentPower * 2);
+    pushOff();
+
+    setTimeout(() => {
+      if (gameState.phase === 'sliding') {
+        releaseStone();
+      }
+    }, 800);
+  }, 500);
+};
+
+// Move to next Skip scenario
+window.nextSkipScenario = function() {
+  const overlay = document.getElementById('skip-feedback-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  const scenarios = PRACTICE_SCENARIOS.skip;
+  const currentIdx = scenarios.findIndex(s => s.id === gameState.practiceMode.currentScenario);
+  const nextIdx = (currentIdx + 1) % scenarios.length;
+
+  if (nextIdx === 0) {
+    // Completed all scenarios, return to selection
+    window.backFromPractice();
+  } else {
+    const nextScenario = scenarios[nextIdx];
+    gameState.practiceMode.currentScenario = nextScenario.id;
+    gameState.practiceMode.difficulty = nextScenario.difficulty;
+    gameState.practiceMode.attempts = 0;
+    gameState.practiceMode.successes = 0;
+    gameState.skipCallWeight = null;
+    gameState.skipCallMade = false;
+
+    // Reload scenario
+    loadPracticeScenario(nextScenario);
+    showPracticeOverlay(nextScenario);
+  }
+};
 
 // Update practice reset button state (grey out in target view before throwing)
 function updatePracticeResetButton() {
