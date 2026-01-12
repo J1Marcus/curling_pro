@@ -11161,14 +11161,6 @@ function updateScoringIndicators() {
   if (stonesWithDist.length > 0) {
     const scoringTeam = stonesWithDist[0].stone.team;
 
-    // Debug: log scoring info periodically
-    if (Math.random() < 0.01) {
-      console.log('[Scoring Debug] Closest stone:', scoringTeam, 'at distance', stonesWithDist[0].distance.toFixed(3));
-      console.log('[Scoring Debug] All stones in house:', stonesWithDist.map(s =>
-        `${s.stone.team}: ${s.distance.toFixed(3)} at (${s.stone.mesh.position.x.toFixed(2)}, ${s.stone.mesh.position.z.toFixed(2)})`
-      ).join(', '));
-    }
-
     for (const entry of stonesWithDist) {
       if (entry.stone.team === scoringTeam) {
         // Check if closer than any opponent stone
@@ -11181,6 +11173,18 @@ function updateScoringIndicators() {
           break;
         }
       }
+    }
+
+    // Debug: check for potential glow mismatch every 60 frames (~1 sec)
+    if (gameState._glowDebugCounter === undefined) gameState._glowDebugCounter = 0;
+    gameState._glowDebugCounter++;
+    if (gameState._glowDebugCounter >= 60) {
+      gameState._glowDebugCounter = 0;
+      // Log current scoring state
+      console.log('[Glow Debug] Scoring team:', scoringTeam,
+        '| Scoring stones:', scoringStones.size,
+        '| All in house:', stonesWithDist.map(s =>
+          `${s.stone.team}:${s.distance.toFixed(2)}`).join(', '));
     }
   }
 
@@ -11195,6 +11199,13 @@ function updateScoringIndicators() {
       // Snap to zero when very small to avoid lingering glow
       if (glow.material.opacity < 0.05) {
         glow.material.opacity = 0;
+      }
+
+      // Debug: detect if wrong team's glow is visible
+      if (glow.material.opacity > 0.1 && !isScoring) {
+        console.warn('[Glow Bug] Non-scoring stone has visible glow!',
+          'Team:', stone.team, 'Opacity:', glow.material.opacity.toFixed(2),
+          'ScoringTeam:', scoringStones.size > 0 ? [...scoringStones][0]?.team : 'none');
       }
     }
   }
