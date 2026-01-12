@@ -9225,7 +9225,9 @@ function updateReturnButton() {
 
     // In Skip mode, change button text and behavior
     if (gameState.practiceMode?.currentDrill === 'skip') {
-      btn.textContent = 'MAKE CALL';
+      btn.textContent = 'CALL';
+      btn.style.fontSize = '28px';  // Slightly smaller to fit
+      btn.style.padding = '16px 40px';  // Smaller padding
       // Check if all requirements are met
       const hasTarget = gameState.targetPosition !== null;
       const hasCurl = gameState.curlDirection !== null;
@@ -9234,6 +9236,8 @@ function updateReturnButton() {
       btn.style.opacity = isReady ? '1' : '0.5';
     } else {
       btn.textContent = 'READY';
+      btn.style.fontSize = '32px';  // Reset to default
+      btn.style.padding = '20px 50px';  // Reset to default
       btn.style.opacity = '1';
     }
   } else {
@@ -9593,9 +9597,11 @@ function updateSweeping() {
   const friction = currentIceFriction - (effectiveSweep * (currentIceFriction - currentSweepFriction));
   gameState.activeStone.body.frictionAir = friction;
 
-  // Update sweep indicator
+  // Update sweep indicator (hide in Skip practice mode - no sweeping in strategic calls)
   const indicator = document.getElementById('sweep-indicator');
-  if (indicator && gameState.phase === 'sweeping') {
+  if (gameState.practiceMode?.currentDrill === 'skip') {
+    if (indicator) indicator.style.display = 'none';
+  } else if (indicator && gameState.phase === 'sweeping') {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
     // Check stone ownership - works for both 1-player and multiplayer
     let isOpponentStone = false;
@@ -12597,8 +12603,8 @@ window.selectSkipWeight = function(weight) {
 
 // Update Make Call button state
 function updateMakeCallButton() {
-  const readyBtn = document.getElementById('ready-btn');
-  if (!readyBtn) return;
+  const btn = document.getElementById('return-to-throw');
+  if (!btn) return;
 
   const isSkipMode = gameState.practiceMode?.currentDrill === 'skip';
   if (!isSkipMode) return;
@@ -12609,9 +12615,11 @@ function updateMakeCallButton() {
 
   const isReady = hasTarget && hasCurl && hasWeight;
 
-  readyBtn.textContent = 'MAKE CALL';
-  readyBtn.style.opacity = isReady ? '1' : '0.5';
-  readyBtn.disabled = !isReady;
+  btn.textContent = 'CALL';
+  btn.style.fontSize = '28px';
+  btn.style.padding = '16px 40px';
+  btn.style.opacity = isReady ? '1' : '0.5';
+  btn.disabled = !isReady;
 }
 
 // Handle Make Call button press in Skip mode
@@ -18783,6 +18791,12 @@ window.debugWinMatch = function() {
 function updateFastForwardButton() {
   const btn = document.getElementById('cpu-fastforward-btn');
   if (!btn) return;
+
+  // Never show in Skip practice mode (player is just making strategic calls)
+  if (gameState.practiceMode?.currentDrill === 'skip') {
+    btn.style.display = 'none';
+    return;
+  }
 
   // Show during stone movement phases, except in online mode
   const isStoneMoving = (gameState.phase === 'throwing' || gameState.phase === 'sweeping') &&

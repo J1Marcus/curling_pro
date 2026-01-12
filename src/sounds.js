@@ -14,6 +14,7 @@ class SoundManager {
     this.ambientNodes = null;
     this.ambientVolume = 0.12;
     this.noiseBuffer = null;  // Reusable noise buffer
+    this.crowdSize = 'arena';  // Default to arena, 'club' for practice mode
   }
 
   init() {
