@@ -1074,48 +1074,90 @@ const PRACTICE_SCENARIOS = {
       id: 'draw_1',
       name: 'Open Draw',
       difficulty: 1,
-      description: 'Draw to the 12-foot ring with an empty house',
+      description: 'Draw to the button with an empty house',
       stones: [],  // Empty house
-      target: { type: 'draw', ring: 'twelveFoot' },
+      target: { type: 'draw', ring: 'fourFoot' },
       hint: 'Aim for the button, use 50-60% power'
     },
     {
       id: 'draw_2',
-      name: 'Draw to 8-foot',
+      name: 'Draw Around Guard',
       difficulty: 2,
-      description: 'Tighter placement in the 8-foot ring',
-      stones: [],
+      description: 'Navigate around a center guard to score',
+      stones: [
+        { team: 'yellow', x: 0, z: 38.5 }  // Opponent center guard
+      ],
       target: { type: 'draw', ring: 'eightFoot' },
-      hint: 'Focus on weight control, aim for the rings'
+      hint: 'Use curl to swing wide around the guard'
     },
     {
       id: 'draw_3',
-      name: 'Draw to 4-foot',
-      difficulty: 3,
-      description: 'Precision draw to the 4-foot ring',
-      stones: [],
-      target: { type: 'draw', ring: 'fourFoot' },
-      hint: 'Light weight with good line'
+      name: 'Draw to the Side',
+      difficulty: 2,
+      description: 'Draw to the left side of the house away from opponent',
+      stones: [
+        { team: 'yellow', x: 0.8, z: 41.0 }  // Opponent stone on right side
+      ],
+      target: { type: 'draw', ring: 'eightFoot', side: 'left' },
+      hint: 'Draw to the open side to score without contact'
     },
     {
       id: 'draw_4',
-      name: 'Draw to Button',
-      difficulty: 4,
-      description: 'Perfect draw to the button',
-      stones: [],
-      target: { type: 'draw', ring: 'button' },
-      hint: 'Perfect weight and perfect line'
+      name: 'Come Around',
+      difficulty: 3,
+      description: 'Curl behind your own guard for protection',
+      stones: [
+        { team: 'red', x: 0.5, z: 38.0 }  // Own guard for cover
+      ],
+      target: { type: 'draw', ring: 'fourFoot', behindGuard: true },
+      hint: 'Curl behind your guard to hide from takeouts'
     },
     {
       id: 'draw_5',
-      name: 'Draw Behind Cover',
-      difficulty: 5,
-      description: 'Navigate around a guard to score',
+      name: 'Split the House',
+      difficulty: 3,
+      description: 'Draw between two opponent stones to score',
       stones: [
-        { team: 'red', x: 0.4, z: 38.0 }  // Own guard for cover
+        { team: 'yellow', x: -0.7, z: 40.8 },  // Opponent stone left
+        { team: 'yellow', x: 0.7, z: 41.2 }    // Opponent stone right
       ],
-      target: { type: 'draw', ring: 'eightFoot', behindGuard: true },
-      hint: 'Use curl to wrap behind the guard'
+      target: { type: 'draw', ring: 'fourFoot' },
+      hint: 'Thread the needle between the two stones'
+    },
+    {
+      id: 'draw_6',
+      name: 'Back of House',
+      difficulty: 4,
+      description: 'Draw to the back of the house behind opponents',
+      stones: [
+        { team: 'yellow', x: 0, z: 40.5 }  // Opponent in front of button
+      ],
+      target: { type: 'draw', ring: 'eightFoot', zone: 'back' },
+      hint: 'Use more weight to get behind their stone'
+    },
+    {
+      id: 'draw_7',
+      name: 'Tight Port',
+      difficulty: 4,
+      description: 'Navigate through a narrow gap to score',
+      stones: [
+        { team: 'yellow', x: -0.4, z: 38.2 },  // Guard left
+        { team: 'yellow', x: 0.5, z: 38.8 }    // Guard right
+      ],
+      target: { type: 'draw', ring: 'fourFoot' },
+      hint: 'Find the port between the guards'
+    },
+    {
+      id: 'draw_8',
+      name: 'Buried Draw',
+      difficulty: 5,
+      description: 'Hide completely behind multiple guards',
+      stones: [
+        { team: 'red', x: 0.3, z: 38.0 },   // Own guard
+        { team: 'red', x: 0.5, z: 39.5 }    // Second own guard
+      ],
+      target: { type: 'draw', ring: 'button', behindGuard: true },
+      hint: 'Curl around both guards to bury on the button'
     }
   ],
 
