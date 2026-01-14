@@ -6082,6 +6082,14 @@ function createSheet() {
     console.warn('Could not load curlingpro.png - please add it to the public folder');
   });
 
+  // Load thrower silhouette texture for release prompt
+  textureLoader.load('/thrower.png', (throwerTexture) => {
+    gameState.throwerTexture = throwerTexture;
+    console.log('Thrower silhouette loaded');
+  }, undefined, (error) => {
+    console.warn('Could not load thrower.png');
+  });
+
   // === FAR HOUSE (target end) ===
   createHouse(TEE_LINE_FAR);
 
@@ -7582,6 +7590,24 @@ function pushOff() {
   gameState.stones.push(stone);
   gameState.activeStone = stone;
 
+  // Add thrower sprite behind stone (helps novice users understand release mechanic)
+  if (gameState.throwerTexture && !isComputer) {
+    const throwerMaterial = new THREE.SpriteMaterial({
+      map: gameState.throwerTexture,
+      transparent: true,
+      opacity: 0.7,
+      alphaTest: 0.1,  // Discard pixels with low alpha to avoid white box artifacts
+      depthWrite: false  // Prevent z-fighting issues
+    });
+    const throwerSprite = new THREE.Sprite(throwerMaterial);
+    // Position behind the stone, facing forward
+    throwerSprite.scale.set(0.8, 0.8, 1);  // Adjust size as needed
+    throwerSprite.position.set(0.25, 0.3, -0.5);  // Behind and slightly above stone, offset right
+    throwerSprite.renderOrder = 999;  // Render last to avoid depth issues
+    stone.mesh.add(throwerSprite);
+    stone.throwerSprite = throwerSprite;  // Store reference for removal
+  }
+
   // Get shot type for display
   const shotType = getShotType(gameState.maxPower);
 
@@ -7731,6 +7757,13 @@ function releaseStone() {
   capturePreThrowState();
 
   gameState.phase = 'throwing';
+
+  // Remove thrower sprite when stone is released
+  if (gameState.activeStone && gameState.activeStone.throwerSprite) {
+    gameState.activeStone.mesh.remove(gameState.activeStone.throwerSprite);
+    gameState.activeStone.throwerSprite.material.dispose();
+    gameState.activeStone.throwerSprite = null;
+  }
 
   // Capture initial throw speed for normalized curl calculation
   if (gameState.activeStone) {
@@ -14348,7 +14381,18 @@ function showLevelSelection() {
 
 // Handle level selection
 window.selectLevel = function(level) {
-  gameState.careerLevel = level;
+  // Map string level to numeric for arena
+  const levelMap = {
+    'club': 1,
+    'regionals': 2,
+    'nationals': 4,
+    'worlds': 6,
+    'olympics': 8
+  };
+
+  gameState.careerLevel = level;  // Keep string for display
+  gameState.settings.quickPlayLevel = levelMap[level] || 1;  // Set numeric for arena
+
   document.getElementById('level-select-screen').style.display = 'none';
   showCountrySelection();
 };
@@ -18473,6 +18517,8 @@ function pauseGame() {
   if (gameState.isPaused) return;
 
   // Don't pause if we're in menus/setup
+  if (!gameState.setupComplete) return;
+
   const activePhases = ['aiming', 'charging', 'sliding', 'throwing', 'sweeping', 'waiting'];
   if (!activePhases.includes(gameState.phase)) return;
 
@@ -18546,6 +18592,8 @@ window.manualPause = function() {
   if (gameState.isPaused) return;
 
   // Don't pause during menus or setup
+  if (!gameState.setupComplete) return;
+
   const activePhases = ['aiming', 'charging', 'sliding', 'throwing', 'sweeping', 'waiting'];
   if (!activePhases.includes(gameState.phase)) return;
 
