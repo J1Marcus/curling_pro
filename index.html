@@ -1720,6 +1720,14 @@
         padding: 40px 20px;
         font-family: 'Segoe UI', system-ui, sans-serif;
       ">
+        <button onclick="window.goBackFromCountrySelect()" style="
+          background: none;
+          border: none;
+          color: #64748b;
+          font-size: 14px;
+          cursor: pointer;
+          margin-bottom: 16px;
+        ">← Back</button>
         <h1 style="
           text-align: center;
           color: white;
@@ -1759,9 +1767,16 @@
         margin: 0 auto;
         padding: 40px 20px;
         font-family: 'Segoe UI', system-ui, sans-serif;
-        text-align: center;
       ">
-        <h1 style="color: white; font-size: 28px; margin-bottom: 30px;">Match Setup</h1>
+        <button onclick="window.goBackFromSettingsSummary()" style="
+          background: none;
+          border: none;
+          color: #64748b;
+          font-size: 14px;
+          cursor: pointer;
+          margin-bottom: 16px;
+        ">← Back</button>
+        <h1 style="color: white; font-size: 28px; margin-bottom: 30px; text-align: center;">Match Setup</h1>
 
         <div style="
           background: rgba(255,255,255,0.05);
@@ -1783,29 +1798,84 @@
             </div>
           </div>
 
-          <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+          <div style="border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px; text-align: center;">
             <div style="color: #94a3b8; font-size: 13px; margin-bottom: 8px;">
               <span id="summary-mode">Career Mode</span> • <span id="summary-level">Club Level</span>
             </div>
           </div>
         </div>
 
-        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px;">
+        <!-- Game Length Selector (Quick Play only) -->
+        <div id="summary-ends-section" style="
+          display: none;
+          background: rgba(255,255,255,0.05);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 24px;
+          text-align: center;
+        ">
+          <div style="color: #a0aec0; font-size: 14px; font-weight: bold; margin-bottom: 12px;">Game Length</div>
+          <div style="display: flex; gap: 8px; justify-content: center;">
+            <button class="summary-ends-btn" data-ends="4" onclick="window.setSummaryEnds(4)" style="
+              flex: 1;
+              max-width: 80px;
+              padding: 12px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: bold;
+              transition: all 0.2s;
+            ">4 Ends</button>
+            <button class="summary-ends-btn" data-ends="8" onclick="window.setSummaryEnds(8)" style="
+              flex: 1;
+              max-width: 80px;
+              padding: 12px 8px;
+              border: 2px solid #4ade80;
+              background: #2d5a3d;
+              color: white;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: bold;
+              transition: all 0.2s;
+            ">8 Ends</button>
+            <button class="summary-ends-btn" data-ends="10" onclick="window.setSummaryEnds(10)" style="
+              flex: 1;
+              max-width: 80px;
+              padding: 12px 8px;
+              border: 2px solid #666;
+              background: #333;
+              color: white;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 14px;
+              font-weight: bold;
+              transition: all 0.2s;
+            ">10 Ends</button>
+          </div>
+        </div>
+
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 24px; text-align: center;">
           Tap ⚙️ during the game to change settings
         </p>
 
-        <button id="play-button" onclick="window.startCoinToss()" style="
-          background: linear-gradient(135deg, #22c55e, #16a34a);
-          border: none;
-          color: white;
-          font-size: 20px;
-          font-weight: bold;
-          padding: 16px 48px;
-          border-radius: 12px;
-          cursor: pointer;
-          box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
-          transition: transform 0.2s, box-shadow 0.2s;
-        ">PLAY</button>
+        <div style="text-align: center;">
+          <button id="play-button" onclick="window.startCoinToss()" style="
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border: none;
+            color: white;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 16px 48px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+          ">PLAY</button>
+        </div>
       </div>
     </div>
 
@@ -2536,157 +2606,6 @@
             padding: 0;
             line-height: 1;
           ">&times;</button>
-        </div>
-
-        <!-- Game Mode Setting -->
-        <div style="margin-bottom: 25px;">
-          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
-            Game Mode
-          </label>
-          <div style="display: flex; flex-direction: column; gap: 8px;">
-            <button class="mode-btn" id="mode-career" data-mode="career" onclick="window.setGameMode('1player')" style="
-              padding: 12px;
-              border: 2px solid #4ade80;
-              background: #2d5a3d;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 14px;
-              transition: all 0.2s;
-              text-align: left;
-            ">
-              <div style="font-weight: bold;">🏆 Career Mode</div>
-              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Start at Club level and work your way to the Olympics</div>
-            </button>
-            <button class="mode-btn" id="mode-quickplay" data-mode="quickplay" onclick="window.setGameMode('2player')" style="
-              padding: 12px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 14px;
-              transition: all 0.2s;
-              text-align: left;
-            ">
-              <div style="font-weight: bold;">🎮 Quick Play</div>
-              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Jump into a game at any difficulty level</div>
-            </button>
-            <button class="mode-btn" id="mode-online" onclick="window.setGameMode('online')" style="
-              padding: 12px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 14px;
-              text-align: left;
-              transition: all 0.2s;
-            ">
-              <div style="font-weight: bold;">🌐 Online Multiplayer</div>
-              <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Challenge players worldwide</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Quick Play Level Selector (only shown in Quick Play mode) -->
-        <div id="quickplay-level-section" style="margin-bottom: 25px; display: none;">
-          <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #a0aec0;">
-            Select Level
-          </label>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
-            <button class="level-btn" data-level="1" onclick="window.setQuickPlayLevel(1)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #6b7280;">●</span> Club</button>
-            <button class="level-btn" data-level="2" onclick="window.setQuickPlayLevel(2)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #3b82f6;">●</span> Regional</button>
-            <button class="level-btn" data-level="3" onclick="window.setQuickPlayLevel(3)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #8b5cf6;">●</span> Provincial</button>
-            <button class="level-btn" data-level="4" onclick="window.setQuickPlayLevel(4)" style="
-              padding: 10px 8px;
-              border: 2px solid #4ade80;
-              background: #2d5a3d;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #ef4444;">●</span> National</button>
-            <button class="level-btn" data-level="5" onclick="window.setQuickPlayLevel(5)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #f59e0b;">●</span> International</button>
-            <button class="level-btn" data-level="6" onclick="window.setQuickPlayLevel(6)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #10b981;">●</span> World Champ</button>
-            <button class="level-btn" data-level="7" onclick="window.setQuickPlayLevel(7)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #ec4899;">●</span> Olympic Trials</button>
-            <button class="level-btn" data-level="8" onclick="window.setQuickPlayLevel(8)" style="
-              padding: 10px 8px;
-              border: 2px solid #666;
-              background: #333;
-              color: white;
-              border-radius: 6px;
-              cursor: pointer;
-              font-size: 12px;
-              transition: all 0.2s;
-              text-align: left;
-            "><span style="color: #ffd700;">●</span> Olympics</button>
-          </div>
-          <p id="quickplay-level-description" style="margin: 10px 0 0 0; font-size: 12px; color: #718096;">
-            National level - Medium difficulty
-          </p>
         </div>
 
         <!-- Game Length Setting -->
@@ -3783,7 +3702,7 @@
             font-size: 14px;
             font-weight: bold;
             cursor: pointer;
-          ">Career</button>
+          ">Solo</button>
         </div>
 
         <!-- Ranked Stats Panel -->
@@ -3834,32 +3753,18 @@
           </div>
         </div>
 
-        <!-- Career Stats Panel -->
+        <!-- Solo Stats Panel (Career + Quick Play) -->
         <div id="stats-panel-career" style="display: none;">
-          <!-- Level Card -->
-          <div style="
-            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(34, 197, 94, 0.2) 100%);
-            border: 1px solid rgba(59, 130, 246, 0.4);
-            border-radius: 12px;
-            padding: 24px;
-            text-align: center;
-            margin-bottom: 16px;
-          ">
-            <div style="color: #93c5fd; font-size: 14px; margin-bottom: 8px;">Current Level</div>
-            <div id="stats-career-level" style="font-size: 32px; font-weight: bold; color: white;">Club</div>
-            <div id="stats-career-progress" style="color: #94a3b8; font-size: 14px; margin-top: 4px;">0/3 wins to advance</div>
-          </div>
-
-          <!-- Stats Grid -->
-          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px;">
+          <!-- Total Stats Grid -->
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
             <div style="
               background: rgba(0, 0, 0, 0.3);
               border-radius: 8px;
               padding: 16px;
               text-align: center;
             ">
-              <div id="stats-career-games" style="font-size: 28px; font-weight: bold; color: white;">0</div>
-              <div style="color: #64748b; font-size: 12px;">Games</div>
+              <div id="stats-solo-games" style="font-size: 28px; font-weight: bold; color: white;">0</div>
+              <div style="color: #64748b; font-size: 12px;">Total Games</div>
             </div>
             <div style="
               background: rgba(0, 0, 0, 0.3);
@@ -3867,7 +3772,7 @@
               padding: 16px;
               text-align: center;
             ">
-              <div id="stats-career-wins" style="font-size: 28px; font-weight: bold; color: #4ade80;">0</div>
+              <div id="stats-solo-wins" style="font-size: 28px; font-weight: bold; color: #4ade80;">0</div>
               <div style="color: #64748b; font-size: 12px;">Wins</div>
             </div>
             <div style="
@@ -3876,8 +3781,40 @@
               padding: 16px;
               text-align: center;
             ">
-              <div id="stats-career-winrate" style="font-size: 28px; font-weight: bold; color: #60a5fa;">0%</div>
+              <div id="stats-solo-winrate" style="font-size: 28px; font-weight: bold; color: #60a5fa;">0%</div>
               <div style="color: #64748b; font-size: 12px;">Win Rate</div>
+            </div>
+          </div>
+
+          <!-- Mode Breakdown -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+            <!-- Career Card -->
+            <div style="
+              background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%);
+              border: 1px solid rgba(34, 197, 94, 0.3);
+              border-radius: 12px;
+              padding: 16px;
+            ">
+              <div style="color: #4ade80; font-size: 12px; font-weight: bold; margin-bottom: 8px;">CAREER</div>
+              <div id="stats-career-level" style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 4px;">Club</div>
+              <div id="stats-career-progress" style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">0/3 wins to advance</div>
+              <div style="color: #64748b; font-size: 12px;">
+                <span id="stats-career-wins" style="color: #4ade80;">0</span> wins / <span id="stats-career-games">0</span> games
+              </div>
+            </div>
+            <!-- Quick Play Card -->
+            <div style="
+              background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%);
+              border: 1px solid rgba(59, 130, 246, 0.3);
+              border-radius: 12px;
+              padding: 16px;
+            ">
+              <div style="color: #60a5fa; font-size: 12px; font-weight: bold; margin-bottom: 8px;">QUICK PLAY</div>
+              <div style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 4px;">vs CPU</div>
+              <div style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">Any level, any time</div>
+              <div style="color: #64748b; font-size: 12px;">
+                <span id="stats-quickplay-wins" style="color: #4ade80;">0</span> wins / <span id="stats-quickplay-games">0</span> games
+              </div>
             </div>
           </div>
         </div>

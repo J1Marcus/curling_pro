@@ -11,11 +11,25 @@ class SoundManager {
     this.masterGain = null;
     this.slidingOscillator = null;
     this.slidingGain = null;
-    this.sweepingInterval = null;
+    // Sweeping sound (looping source instead of interval)
+    this.sweepingSource = null;
+    this.sweepingFilter = null;
+    this.sweepingGain = null;
+    this.sweepBuffer = null;  // Reusable sweep buffer
+    this.sweepingActive = false;
+    this.isFastForward = false;  // Track FFW state
     // Ambient crowd system
     this.ambientNodes = null;
     this.ambientVolume = 0.12;
     this.noiseBuffer = null;  // Reusable noise buffer
+
+    // Live crowd reaction state (cooldowns to prevent spam)
+    this.lastReactionTime = 0;
+    this.lastGaspTime = 0;
+    this.lastMurmurTime = 0;
+    this.lastAnticipationUpdate = 0;
+    this.crowdAnticipation = 0;  // 0-1 builds as stone approaches house
+    this.anticipationOsc = null;
   }
 
   init() {
@@ -31,6 +45,35 @@ class SoundManager {
     this.masterGain = this.audioContext.createGain();
     this.masterGain.gain.value = 0.5;
     this.masterGain.connect(this.audioContext.destination);
+
+    // Handle iOS audio interruptions (notifications, phone calls, etc.)
+    this.audioContext.addEventListener('statechange', () => {
+      console.log('[Sound] AudioContext state changed:', this.audioContext.state);
+      if (this.audioContext.state === 'interrupted' || this.audioContext.state === 'suspended') {
+        // Try to resume after a brief delay (iOS needs user gesture sometimes)
+        setTimeout(() => {
+          if (this.enabled && this.audioContext.state !== 'running') {
+            this.audioContext.resume().then(() => {
+              console.log('[Sound] AudioContext resumed after interruption');
+            }).catch(e => {
+              console.log('[Sound] Could not resume AudioContext:', e);
+            });
+          }
+        }, 100);
+      }
+    });
+
+    // Also listen for page visibility changes (switching apps on iOS)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && this.enabled) {
+        // Page became visible again - resume audio if needed
+        if (this.audioContext && this.audioContext.state !== 'running') {
+          this.audioContext.resume().then(() => {
+            console.log('[Sound] AudioContext resumed on visibility change');
+          }).catch(() => {});
+        }
+      }
+    });
   }
 
   setEnabled(enabled) {
@@ -46,9 +89,37 @@ class SoundManager {
     }
   }
 
+  // Lower volume during fast-forward (CPU shots)
+  setFastForward(active) {
+    this.isFastForward = active;
+
+    if (!this.masterGain) return;
+
+    // Set directly - avoid setTargetAtTime which can cause iOS issues
+    try {
+      this.masterGain.gain.value = active ? 0.1 : 0.5;
+    } catch(e) {
+      // If that fails, try cancelScheduledValues first
+      try {
+        this.masterGain.gain.cancelScheduledValues(0);
+        this.masterGain.gain.value = active ? 0.1 : 0.5;
+      } catch(e2) {}
+    }
+  }
+
+  // Ensure volume is at normal level (call after any potential issue)
+  restoreVolume() {
+    if (!this.masterGain) return;
+    this.isFastForward = false;
+    try {
+      this.masterGain.gain.cancelScheduledValues(0);
+      this.masterGain.gain.value = 0.5;
+    } catch(e) {}
+  }
+
   stopAllSounds() {
     this.stopSliding();
-    this.stopSweeping();
+    this.cleanupSweeping();
     this.stopAmbientCrowd();
   }
 
@@ -222,55 +293,78 @@ class SoundManager {
   }
 
   // ============================================
-  // SWEEPING
+  // SWEEPING (minimal nodes, pre-filtered buffer)
   // ============================================
   startSweeping() {
-    if (!this.enabled || !this.audioContext || this.sweepingInterval) return;
+    if (!this.enabled || !this.audioContext) return;
+    if (this.sweepingActive) return;
 
-    // Rhythmic brushing sound
-    this.sweepingInterval = setInterval(() => {
-      this.playBrushStroke();
-    }, 150);
-
-    this.playBrushStroke();
-  }
-
-  playBrushStroke() {
-    if (!this.audioContext) return;
-
-    const now = this.audioContext.currentTime;
-    const bufferSize = this.audioContext.sampleRate * 0.12;
-    const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
-    const output = noiseBuffer.getChannelData(0);
-
-    // Shaped noise for brush sound
-    for (let i = 0; i < bufferSize; i++) {
-      const envelope = Math.sin((i / bufferSize) * Math.PI);
-      output[i] = (Math.random() * 2 - 1) * envelope;
+    // Check audio context health
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+    if (this.audioContext.state === 'closed') {
+      console.log('[Sound] AudioContext closed, reinitializing');
+      this.audioContext = null;
+      this.masterGain = null;
+      this.init();
+      if (!this.audioContext) return;
     }
 
-    const noise = this.audioContext.createBufferSource();
-    noise.buffer = noiseBuffer;
+    // Create pre-filtered buffer once (no filter node needed at runtime)
+    if (!this.sweepBuffer) {
+      const duration = 0.2;
+      const sampleRate = this.audioContext.sampleRate;
+      const bufferSize = Math.floor(sampleRate * duration);
+      this.sweepBuffer = this.audioContext.createBuffer(1, bufferSize, sampleRate);
+      const output = this.sweepBuffer.getChannelData(0);
 
-    const filter = this.audioContext.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.value = 2000;
-    filter.Q.value = 0.5;
+      // Generate bandpass-filtered noise directly in buffer
+      for (let i = 0; i < bufferSize; i++) {
+        const envelope = Math.sin((i / bufferSize) * Math.PI);
+        // Simple high-frequency bias for brush sound
+        const noise = (Math.random() - 0.5) + (Math.random() - 0.5) * 0.5;
+        output[i] = noise * envelope * 0.6;
+      }
+    }
 
-    const gain = this.audioContext.createGain();
-    gain.gain.value = 0.15;
+    // Only 2 nodes: source + gain (no filter)
+    try {
+      this.sweepingSource = this.audioContext.createBufferSource();
+      this.sweepingSource.buffer = this.sweepBuffer;
+      this.sweepingSource.loop = true;
 
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-    noise.start(now);
+      this.sweepingGain = this.audioContext.createGain();
+      this.sweepingGain.gain.value = 0.18;
+
+      this.sweepingSource.connect(this.sweepingGain);
+      this.sweepingGain.connect(this.masterGain);
+      this.sweepingSource.start();
+      this.sweepingActive = true;
+    } catch(e) {
+      console.log('[Sound] Error starting sweep:', e);
+      this.sweepingActive = false;
+    }
   }
 
   stopSweeping() {
-    if (this.sweepingInterval) {
-      clearInterval(this.sweepingInterval);
-      this.sweepingInterval = null;
+    if (!this.sweepingActive) return;
+    this.cleanupSweeping();
+  }
+
+  cleanupSweeping() {
+    if (this.sweepingSource) {
+      try {
+        this.sweepingSource.stop();
+        this.sweepingSource.disconnect();
+      } catch(e) {}
     }
+    if (this.sweepingGain) {
+      try { this.sweepingGain.disconnect(); } catch(e) {}
+    }
+    this.sweepingSource = null;
+    this.sweepingGain = null;
+    this.sweepingActive = false;
   }
 
   // ============================================
@@ -499,6 +593,7 @@ class SoundManager {
 
   stopAmbientCrowd() {
     if (!this.ambientNodes) return;
+    if (!this.audioContext) return;
 
     const now = this.audioContext.currentTime;
 
@@ -935,6 +1030,224 @@ class SoundManager {
 
     noise.start(now);
     noise.stop(now + duration);
+  }
+
+  // ============================================
+  // LIVE CROWD REACTIONS (during stone movement)
+  // ============================================
+
+  // Call this every frame during stone movement
+  // stoneInfo: { x, z, speed, distFromButton, distFromNearestStone, isInHouse, isHeadingToHouse }
+  updateLiveCrowdReaction(stoneInfo) {
+    if (!this.enabled || !this.audioContext) return;
+    if (this.crowdSize === 'club') return;  // Skip in practice mode
+
+    const now = Date.now();
+
+    // Update anticipation based on stone position
+    this.updateAnticipation(stoneInfo, now);
+
+    // Check for gasp-worthy moments (near collision, close to edge)
+    this.checkForGaspMoment(stoneInfo, now);
+
+    // Murmur when something interesting is developing
+    this.checkForMurmurMoment(stoneInfo, now);
+  }
+
+  updateAnticipation(stoneInfo, now) {
+    // Only update every 200ms to avoid too much processing
+    if (now - this.lastAnticipationUpdate < 200) return;
+    this.lastAnticipationUpdate = now;
+
+    const { z, speed, distFromButton, isHeadingToHouse } = stoneInfo;
+
+    // Build anticipation as stone approaches scoring area
+    let targetAnticipation = 0;
+
+    if (isHeadingToHouse && speed > 0.5) {
+      // Stone is moving toward the house
+      // Anticipation builds based on how close and how fast
+      const distanceFactor = Math.max(0, 1 - (distFromButton / 20));  // 20m = full sheet
+      const speedFactor = Math.min(1, speed / 3);  // Normalize speed
+      targetAnticipation = distanceFactor * speedFactor * 0.7;
+
+      // Extra anticipation if stone is in the critical zone (near house)
+      if (distFromButton < 5) {
+        targetAnticipation = Math.min(1, targetAnticipation + 0.3);
+      }
+    }
+
+    // Smooth transition
+    const transitionSpeed = targetAnticipation > this.crowdAnticipation ? 0.15 : 0.1;
+    this.crowdAnticipation += (targetAnticipation - this.crowdAnticipation) * transitionSpeed;
+
+    // Update ambient intensity based on anticipation
+    if (this.ambientNodes && this.ambientNodes.masterGain) {
+      const baseVolume = this.ambientVolume;
+      const anticipationBonus = this.crowdAnticipation * 0.15;
+      this.ambientNodes.masterGain.gain.setTargetAtTime(
+        baseVolume + anticipationBonus,
+        this.audioContext.currentTime,
+        0.2
+      );
+    }
+
+    // Add subtle rising tone at high anticipation
+    if (this.crowdAnticipation > 0.6 && !this.anticipationOsc) {
+      this.startLiveAnticipationTone();
+    } else if (this.crowdAnticipation < 0.4 && this.anticipationOsc) {
+      this.stopLiveAnticipationTone();
+    }
+  }
+
+  startLiveAnticipationTone() {
+    if (!this.audioContext || this.anticipationOsc) return;
+
+    const now = this.audioContext.currentTime;
+
+    // Subtle filtered noise that rises with tension
+    const noiseBuffer = this.getNoiseBuffer(5);
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+    noise.loop = true;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 400;
+    bandpass.Q.value = 2;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.04, now + 0.5);
+
+    noise.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start();
+
+    this.anticipationOsc = { noise, gain, bandpass };
+  }
+
+  stopLiveAnticipationTone() {
+    if (!this.anticipationOsc) return;
+    if (!this.audioContext) {
+      this.anticipationOsc = null;
+      return;
+    }
+
+    try {
+      const now = this.audioContext.currentTime;
+      this.anticipationOsc.gain.gain.setTargetAtTime(0, now, 0.2);
+
+      const nodes = this.anticipationOsc;
+      setTimeout(() => {
+        try { nodes.noise.stop(); } catch(e) {}
+      }, 400);
+    } catch(e) {
+      // Ignore errors during cleanup
+    }
+
+    this.anticipationOsc = null;
+  }
+
+  checkForGaspMoment(stoneInfo, now) {
+    // Cooldown: at least 2 seconds between gasps
+    if (now - this.lastGaspTime < 2000) return;
+
+    const { speed, distFromNearestStone, distFromButton, isInHouse } = stoneInfo;
+
+    // Gasp when stone is about to hit another stone
+    if (distFromNearestStone !== null && distFromNearestStone < 0.4 && speed > 1) {
+      this.playCrowdGasp();
+      this.lastGaspTime = now;
+      return;
+    }
+
+    // Gasp when stone is barely going to make it to the house
+    if (speed < 0.8 && speed > 0.3 && distFromButton < 3 && distFromButton > 1.5) {
+      this.playCrowdGasp();
+      this.lastGaspTime = now;
+      return;
+    }
+
+    // Gasp when a fast stone is heading right for the button
+    if (speed > 2 && distFromButton < 2 && isInHouse) {
+      this.playCrowdGasp();
+      this.lastGaspTime = now;
+      return;
+    }
+  }
+
+  checkForMurmurMoment(stoneInfo, now) {
+    // Cooldown: at least 3 seconds between murmurs
+    if (now - this.lastMurmurTime < 3000) return;
+
+    const { speed, distFromButton, isInHouse, distFromNearestStone } = stoneInfo;
+
+    // Murmur when stone enters the house
+    if (isInHouse && speed > 0.5 && speed < 2) {
+      this.playCrowdMurmur();
+      this.lastMurmurTime = now;
+      return;
+    }
+
+    // Murmur when stone is perfectly on line for button
+    if (distFromButton < 0.5 && speed > 0.3 && speed < 1.5) {
+      this.playCrowdMurmur();
+      this.lastMurmurTime = now;
+      return;
+    }
+
+    // Excited murmur when stones are about to collide
+    if (distFromNearestStone !== null && distFromNearestStone < 1 && speed > 1.5) {
+      this.playCrowdMurmur();
+      this.lastMurmurTime = now;
+      return;
+    }
+  }
+
+  // Quick excited noise when stone enters scoring position
+  playQuickCheer() {
+    if (!this.enabled || !this.audioContext) return;
+    if (this.crowdSize === 'club') return;
+
+    const now = this.audioContext.currentTime;
+    const duration = 0.4;
+
+    const noiseBuffer = this.getNoiseBuffer(duration);
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 600;
+    bandpass.Q.value = 0.8;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.08, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+    noise.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.masterGain);
+
+    noise.start(now);
+    noise.stop(now + duration);
+  }
+
+  // Reset live reaction state (call when stone stops or new throw starts)
+  resetLiveReactions() {
+    try {
+      this.crowdAnticipation = 0;
+      this.stopLiveAnticipationTone();
+      this.lastReactionTime = 0;
+      this.lastGaspTime = 0;
+      this.lastMurmurTime = 0;
+    } catch(e) {
+      // Ignore errors during reset
+    }
   }
 }
 

@@ -7966,11 +7966,10 @@ function setCurlDisplayVisible(visible) {
 // Expose to window for HTML button onclick
 window.setCurl = setCurlDirection;
 
-// Game mode toggle
+// Game mode toggle (used programmatically - mode selection moved to menu)
 window.setGameMode = function(mode) {
-  // Handle online mode - close settings and show multiplayer lobby
+  // Handle online mode - show multiplayer lobby
   if (mode === 'online') {
-    window.closeSettings();
     showMultiplayerLobby();
     return;
   }
@@ -7986,48 +7985,6 @@ window.setGameMode = function(mode) {
     gameState.learnMode.enabled = false;
   }
 
-  // Update button styles for new UI
-  const btnCareer = document.getElementById('mode-career');
-  const btnQuickplay = document.getElementById('mode-quickplay');
-  const btnLearn = document.getElementById('learn-mode-btn');
-  const quickPlayLevelSection = document.getElementById('quickplay-level-section');
-  const learnLevelSection = document.getElementById('learn-level-section');
-  const learnBadge = document.getElementById('learn-mode-badge');
-
-  // Reset all buttons
-  btnCareer.style.background = '#333';
-  btnCareer.style.borderColor = '#666';
-  btnQuickplay.style.background = '#333';
-  btnQuickplay.style.borderColor = '#666';
-  if (btnLearn) {
-    btnLearn.style.background = '#333';
-    btnLearn.style.borderColor = '#666';
-  }
-
-  // Hide all level sections
-  if (quickPlayLevelSection) quickPlayLevelSection.style.display = 'none';
-  if (learnLevelSection) learnLevelSection.style.display = 'none';
-  if (learnBadge) learnBadge.style.display = 'none';
-
-  if (mode === '1player') {
-    // Career mode selected
-    btnCareer.style.background = '#2d5a3d';
-    btnCareer.style.borderColor = '#4ade80';
-  } else if (mode === '2player') {
-    // Quick play selected
-    btnQuickplay.style.background = '#2d5a3d';
-    btnQuickplay.style.borderColor = '#4ade80';
-    if (quickPlayLevelSection) quickPlayLevelSection.style.display = 'block';
-  } else if (mode === 'learn') {
-    // Learn mode selected
-    if (btnLearn) {
-      btnLearn.style.background = '#2d5a3d';
-      btnLearn.style.borderColor = '#4ade80';
-    }
-    if (learnBadge) learnBadge.style.display = 'inline';
-    if (learnLevelSection) learnLevelSection.style.display = 'block';
-  }
-
   // Update coach panel visibility
   updateCoachPanel();
 
@@ -8035,29 +7992,9 @@ window.setGameMode = function(mode) {
   updateArenaForLevel();
 };
 
-// Quick Play level selector
+// Quick Play level selector (used programmatically - level selection moved to menu)
 window.setQuickPlayLevel = function(level) {
   gameState.settings.quickPlayLevel = level;
-
-  // Update button styles
-  const levelBtns = document.querySelectorAll('.level-btn');
-  levelBtns.forEach(btn => {
-    const btnLevel = parseInt(btn.dataset.level);
-    if (btnLevel === level) {
-      btn.style.background = '#2d5a3d';
-      btn.style.borderColor = '#4ade80';
-    } else {
-      btn.style.background = '#333';
-      btn.style.borderColor = '#666';
-    }
-  });
-
-  // Update description
-  const levelInfo = CAREER_LEVELS[level - 1];
-  const desc = document.getElementById('quickplay-level-description');
-  if (desc && levelInfo) {
-    desc.textContent = `${levelInfo.name} level - ${levelInfo.difficultyLabel} difficulty`;
-  }
 
   // Update arena for the new level
   updateArenaForLevel();
@@ -8961,6 +8898,40 @@ function getRandomMessage(type, category) {
   return messages[Math.floor(Math.random() * messages.length)];
 }
 
+// Generic toast notification (for info, warnings, etc.)
+function showToast(message, type = 'info') {
+  // Use the shot feedback toast element for general messages
+  const toast = document.getElementById('shot-feedback-toast');
+  if (!toast) {
+    console.log(`[Toast] ${type}: ${message}`);
+    return;
+  }
+
+  // Reset and set message
+  toast.textContent = message;
+  toast.className = 'shot-feedback-toast';
+
+  // Trigger reflow
+  void toast.offsetWidth;
+
+  // Apply type styling
+  toast.classList.add(type === 'warning' ? 'near-miss' : 'success');
+  toast.style.display = 'block';
+
+  // Auto-dismiss after 2 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translate(-50%, -50%) scale(0.8)';
+    toast.style.transition = 'all 0.4s ease-out';
+    setTimeout(() => {
+      toast.style.display = 'none';
+      toast.style.transform = '';
+      toast.style.opacity = '';
+      toast.style.transition = '';
+    }, 400);
+  }, 2000);
+}
+
 // Show shot feedback toast
 function showShotFeedbackToast(message, type) {
   const toast = document.getElementById('shot-feedback-toast');
@@ -8993,8 +8964,8 @@ function showShotFeedbackToast(message, type) {
   }, SHOT_FEEDBACK_CONFIG.displayDuration);
 }
 
-// Main function to evaluate and show feedback
-function processShotFeedback() {
+// Show toast feedback for player shots only
+function processShotFeedbackToast() {
   // Skip during interactive tutorial
   if (gameState.interactiveTutorialMode) return;
 
@@ -9008,6 +8979,15 @@ function processShotFeedback() {
   if (message) {
     showShotFeedbackToast(message, outcome.type);
   }
+}
+
+// Crowd reactions for ALL shots (player and CPU)
+function processCrowdReaction() {
+  // Skip during interactive tutorial
+  if (gameState.interactiveTutorialMode) return;
+
+  const outcome = evaluateShotOutcome();
+  if (!outcome) return;  // No reaction for clear misses
 
   // Crowd reactions based on shot outcome
   // Scale reactions based on game intensity (bigger reactions in tense moments)
@@ -9661,12 +9641,12 @@ function updateSweeping() {
       indicator.textContent = `${curlIndicator} ${intensity}%${curlText}`;
       indicator.style.color = color;
     } else {
-      // No one is sweeping - show ready message
+      // No one is sweeping - show hint message
       indicator.style.display = 'block';
       if (isOpponentStone) {
-        indicator.textContent = canPlayerSweep ? 'SWEEP NOW!' : 'Waiting...';
+        indicator.textContent = canPlayerSweep ? 'Swipe to sweep' : 'Waiting...';
       } else {
-        indicator.textContent = 'SWEEP!';
+        indicator.textContent = 'Swipe to sweep';
       }
       indicator.style.color = '#4ade80';
     }
@@ -10582,6 +10562,14 @@ function updatePhysics() {
 
       // Update sliding sound volume based on speed
       soundManager.updateSlidingVolume(normalizedSpeed);
+
+      // Update live crowd reactions based on stone position/trajectory
+      // DISABLED - testing if this breaks iOS audio
+      // try {
+      //   updateLiveCrowdReactions(body, speed);
+      // } catch(e) {
+      //   // Don't let crowd reactions break physics
+      // }
     }
   }
 
@@ -10711,9 +10699,11 @@ function updatePhysics() {
       gameState._computerSweepSoundStarted = false;
       gameState.computerShotTarget = null;
 
-      // Stop all sounds when stone comes to rest
+      // Stop all sounds when stone comes to rest and restore volume
       soundManager.stopSliding();
-      soundManager.stopSweeping();
+      soundManager.cleanupSweeping();
+      soundManager.restoreVolume();  // Ensure volume is restored
+      gameState.cpuFastForward = false;
 
       // Hide sweep indicator
       const indicator = document.getElementById('sweep-indicator');
@@ -10734,14 +10724,22 @@ function updatePhysics() {
         multiplayer.broadcastStonesSettled(positions);
       }
 
-      // Process shot feedback toast (only for human player shots, not CPU)
+      // Reset live crowd reactions now that stone has stopped
+      // soundManager.resetLiveReactions();  // DISABLED - may be breaking iOS audio
+
+      // Process shot feedback - crowd reacts to ALL shots, toast only for player shots
       const localTeam = gameState.selectedMode === 'online'
         ? multiplayer.multiplayerState.localPlayer.team
         : null;
       const wasCpuShot = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
       const wasMyShot = !wasCpuShot && (gameState.selectedMode !== 'online' || gameState.currentTeam === localTeam);
+
+      // Crowd reactions for ALL shots (player and CPU)
+      processCrowdReaction();
+
+      // Toast feedback only for player shots
       if (wasMyShot) {
-        processShotFeedback();
+        processShotFeedbackToast();
       }
 
       // Interactive tutorial: complete sweep step when stone stops (even if user didn't sweep)
@@ -10940,6 +10938,52 @@ function calculateGameIntensity() {
 function updateCrowdAtmosphere() {
   const intensity = calculateGameIntensity();
   soundManager.setGameIntensity(intensity);
+}
+
+// Update live crowd reactions during stone movement
+function updateLiveCrowdReactions(body, speed) {
+  if (!gameState.activeStone) return;
+
+  const stoneX = body.position.x / PHYSICS_SCALE;
+  const stoneZ = body.position.y / PHYSICS_SCALE;
+  const buttonPos = { x: 0, z: TEE_LINE_FAR };
+
+  // Calculate distance from button
+  const dx = stoneX - buttonPos.x;
+  const dz = stoneZ - buttonPos.z;
+  const distFromButton = Math.sqrt(dx * dx + dz * dz);
+
+  // Check if stone is in the house
+  const isInHouse = distFromButton <= RING_12FT + STONE_RADIUS;
+
+  // Check if stone is heading toward the house (positive Z velocity)
+  const vel = body.velocity;
+  const isHeadingToHouse = vel.y > 0 && stoneZ < TEE_LINE_FAR + RING_12FT;
+
+  // Find distance to nearest other stone
+  let distFromNearestStone = null;
+  for (const otherStone of gameState.stones) {
+    if (otherStone === gameState.activeStone || otherStone.outOfPlay) continue;
+    const otherX = otherStone.mesh.position.x;
+    const otherZ = otherStone.mesh.position.z;
+    const stoneDist = Math.sqrt(
+      Math.pow(stoneX - otherX, 2) + Math.pow(stoneZ - otherZ, 2)
+    ) - STONE_RADIUS * 2;  // Subtract radii to get gap distance
+    if (distFromNearestStone === null || stoneDist < distFromNearestStone) {
+      distFromNearestStone = stoneDist;
+    }
+  }
+
+  // Call sound manager with stone info
+  soundManager.updateLiveCrowdReaction({
+    x: stoneX,
+    z: stoneZ,
+    speed: speed,
+    distFromButton: distFromButton,
+    distFromNearestStone: distFromNearestStone,
+    isInHouse: isInHouse,
+    isHeadingToHouse: isHeadingToHouse
+  });
 }
 
 function nextTurn() {
@@ -11665,22 +11709,6 @@ window.openSettings = function() {
     if (soundToggle) soundToggle.checked = gameState.settings.soundEnabled;
     updateDifficultyButtons(gameState.settings.difficulty);
     updateEndsButtons(gameState.settings.gameLength);
-    // Sync game mode buttons
-    const btn1p = document.getElementById('mode-1p');
-    const btn2p = document.getElementById('mode-2p');
-    if (btn1p && btn2p) {
-      if (gameState.gameMode === '1player') {
-        btn1p.style.borderColor = '#4ade80';
-        btn1p.style.background = '#2d5a3d';
-        btn2p.style.borderColor = '#666';
-        btn2p.style.background = '#333';
-      } else {
-        btn2p.style.borderColor = '#4ade80';
-        btn2p.style.background = '#2d5a3d';
-        btn1p.style.borderColor = '#666';
-        btn1p.style.background = '#333';
-      }
-    }
 
     // Update country settings button state
     updateCountrySettingsButton();
@@ -14339,6 +14367,23 @@ window.goBackToModeSelect = function() {
   showModeSelection();
 };
 
+// Go back from country selection
+window.goBackFromCountrySelect = function() {
+  document.getElementById('country-select-screen').style.display = 'none';
+  // Go back to level select for Quick Play, club select for Career
+  if (gameState.selectedMode === 'quickplay') {
+    showLevelSelection();
+  } else {
+    showClubSelection();
+  }
+};
+
+// Go back from settings summary (Match Setup)
+window.goBackFromSettingsSummary = function() {
+  document.getElementById('settings-summary-screen').style.display = 'none';
+  showCountrySelection();
+};
+
 // Show restart career confirmation
 window.showRestartCareerConfirm = function() {
   const overlay = document.getElementById('restart-career-confirm');
@@ -15831,8 +15876,41 @@ function showSettingsSummary() {
   document.getElementById('summary-mode').textContent = modeText;
   document.getElementById('summary-level').textContent = level.name + ' Level';
 
+  // Show game length selector for Quick Play only
+  const endsSection = document.getElementById('summary-ends-section');
+  if (endsSection) {
+    if (gameState.selectedMode === 'quickplay') {
+      endsSection.style.display = 'block';
+      // Update button states to match current setting
+      updateSummaryEndsButtons(gameState.settings.gameLength);
+    } else {
+      endsSection.style.display = 'none';
+    }
+  }
+
   screen.style.display = 'block';
 }
+
+// Update ends button styles on summary screen
+function updateSummaryEndsButtons(ends) {
+  const btns = document.querySelectorAll('.summary-ends-btn');
+  btns.forEach(btn => {
+    const btnEnds = parseInt(btn.dataset.ends);
+    if (btnEnds === ends) {
+      btn.style.background = '#2d5a3d';
+      btn.style.borderColor = '#4ade80';
+    } else {
+      btn.style.background = '#333';
+      btn.style.borderColor = '#666';
+    }
+  });
+}
+
+// Set game length from summary screen
+window.setSummaryEnds = function(ends) {
+  gameState.settings.gameLength = ends;
+  updateSummaryEndsButtons(ends);
+};
 
 // Pre-toss tutorials for Learn Mode (shown before coin toss)
 // Note: 'welcome' is now shown to ALL new users after splash, not just Learn Mode
@@ -17371,11 +17449,24 @@ function loadCareerStats() {
   const level = getCurrentLevel();
   const localStats = getLocalMatchStats();
 
+  // Total solo stats (Career + Quick Play combined)
+  const soloGamesEl = document.getElementById('stats-solo-games');
+  const soloWinsEl = document.getElementById('stats-solo-wins');
+  const soloWinrateEl = document.getElementById('stats-solo-winrate');
+
+  const totalGames = (localStats.careerGames || 0) + (localStats.quickplayGames || 0);
+  const totalWins = (localStats.careerWins || 0) + (localStats.quickplayWins || 0);
+  const totalWinRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+
+  if (soloGamesEl) soloGamesEl.textContent = totalGames;
+  if (soloWinsEl) soloWinsEl.textContent = totalWins;
+  if (soloWinrateEl) soloWinrateEl.textContent = totalWinRate + '%';
+
+  // Career breakdown
   const levelEl = document.getElementById('stats-career-level');
   const progressEl = document.getElementById('stats-career-progress');
-  const gamesEl = document.getElementById('stats-career-games');
-  const winsEl = document.getElementById('stats-career-wins');
-  const winrateEl = document.getElementById('stats-career-winrate');
+  const careerGamesEl = document.getElementById('stats-career-games');
+  const careerWinsEl = document.getElementById('stats-career-wins');
 
   if (levelEl) {
     levelEl.textContent = level.name;
@@ -17383,7 +17474,6 @@ function loadCareerStats() {
   }
 
   if (progressEl) {
-    const remaining = level.winsToAdvance ? level.winsToAdvance - gameState.career.wins : 0;
     if (gameState.career.level >= 8) {
       progressEl.textContent = 'Maximum level reached!';
     } else {
@@ -17391,13 +17481,15 @@ function loadCareerStats() {
     }
   }
 
-  if (gamesEl) gamesEl.textContent = localStats.careerGames || 0;
-  if (winsEl) winsEl.textContent = localStats.careerWins || 0;
+  if (careerGamesEl) careerGamesEl.textContent = localStats.careerGames || 0;
+  if (careerWinsEl) careerWinsEl.textContent = localStats.careerWins || 0;
 
-  const winRate = localStats.careerGames > 0
-    ? Math.round((localStats.careerWins / localStats.careerGames) * 100)
-    : 0;
-  if (winrateEl) winrateEl.textContent = winRate + '%';
+  // Quick Play breakdown
+  const quickplayGamesEl = document.getElementById('stats-quickplay-games');
+  const quickplayWinsEl = document.getElementById('stats-quickplay-wins');
+
+  if (quickplayGamesEl) quickplayGamesEl.textContent = localStats.quickplayGames || 0;
+  if (quickplayWinsEl) quickplayWinsEl.textContent = localStats.quickplayWins || 0;
 }
 
 async function loadMatchHistoryDisplay() {
@@ -18270,6 +18362,11 @@ renderer.domElement.addEventListener('touchend', (e) => {
     pushOff();
     touchStartedInAiming = false;
   }
+
+  // Stop sweep sound immediately on finger lift (effectiveness still decays for gameplay)
+  if (gameState.phase === 'sweeping' && gameState.isSweeping) {
+    soundManager.stopSweeping();
+  }
 });
 
 // Get correct viewport dimensions (handles iOS keyboard bug)
@@ -18764,6 +18861,7 @@ window.debugWinMatch = function() {
   const startFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = true;
+    soundManager.setFastForward(true);
     btn.style.background = 'rgba(34, 197, 94, 0.9)';
     btn.style.borderColor = '#4ade80';
     btn.style.transform = 'scale(1.1)';
@@ -18772,6 +18870,7 @@ window.debugWinMatch = function() {
   const stopFastForward = (e) => {
     e.preventDefault();
     gameState.cpuFastForward = false;
+    soundManager.setFastForward(false);
     btn.style.background = 'rgba(59, 130, 246, 0.8)';
     btn.style.borderColor = '#60a5fa';
     btn.style.transform = 'scale(1)';
