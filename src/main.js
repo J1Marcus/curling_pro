@@ -7761,8 +7761,26 @@ function pushOff() {
     // Computer already set aimAngle in executeComputerShot - preserve it
     gameState.baseAimAngle = gameState.aimAngle;
   } else if (gameState.targetPosition) {
-    // Base angle points to target, player's drag adjusts from there
-    gameState.baseAimAngle = Math.atan2(gameState.targetPosition.x, gameState.targetPosition.z - HACK_Z);
+    // Apply curl compensation to the aim point so the stone curves INTO the target
+    // Without this, takeouts miss wide because the stone curls away from the target
+    const targetX = gameState.targetPosition.x;
+    const targetZ = gameState.targetPosition.z;
+    const curl = gameState.curlDirection || 0;
+    const effort = gameState.maxPower || 50;
+    const handle = gameState.handleAmount || 50;
+
+    // Calculate curl compensation based on effort AND handle position
+    // IN-turn (curl=1) curls LEFT (-X), so aim RIGHT (+compensation)
+    // OUT-turn (curl=-1) curls RIGHT (+X), so aim LEFT (-compensation)
+    // Handle: 0 = max curl (needs most compensation), 100 = minimal curl (least compensation)
+    const normalizedEffort = effort / 100;
+    const handleFactor = 1 - (handle / 100);  // 0 at handle=100 (straight), 1 at handle=0 (max curl)
+    const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 2.5 * handleFactor;
+    const curlCompensation = curl * estimatedCurlDrift * 0.6;
+    const aimX = targetX + curlCompensation;
+
+    // Base angle points to compensated aim point, player's drag adjusts from there
+    gameState.baseAimAngle = Math.atan2(aimX, targetZ - HACK_Z);
     gameState.aimAngle = gameState.baseAimAngle + playerAimAdjustment;
   } else {
     // No target - use player's aim directly
@@ -11346,7 +11364,7 @@ function calculateScore() {
     gameState.endScores.red[gameState.end - 1] = 0;
     gameState.endScores.yellow[gameState.end - 1] = 0;
     updateScoreDisplay();
-    showScoreOverlay(null, 0, gameState.end);
+    showScoringZoom(null, 0, gameState.end);
     return;
   }
 
@@ -11385,7 +11403,8 @@ function calculateScore() {
   // Save match progress after each end (for crash recovery)
   saveMatchProgress();
 
-  showScoreOverlay(scoringTeam, points, gameState.end);
+  // Zoom in on scoring stones before showing the score overlay
+  showScoringZoom(scoringTeam, points, gameState.end);
 }
 
 // Update scoring indicators on stones (show which stones are currently counting)
@@ -11484,6 +11503,85 @@ function updateScoringIndicators() {
       }
     }
   }
+}
+
+// ============================================
+// SCORING ZOOM (close-up before score announcement)
+// ============================================
+function showScoringZoom(team, points, endNumber) {
+  let advanced = false;
+
+  // Hide the tap hint when advancing
+  const hideTapHint = () => {
+    const hint = document.getElementById('scoring-tap-hint');
+    if (hint) hint.style.display = 'none';
+  };
+
+  // Advance handler - tap anywhere to show score overlay
+  const advanceToScore = () => {
+    if (advanced) return;
+    advanced = true;
+    hideTapHint();
+    document.removeEventListener('click', advanceToScore);
+    document.removeEventListener('touchstart', advanceToScore);
+    showScoreOverlay(team, points, endNumber);
+  };
+
+  // Show tap hint overlay
+  const showTapHint = () => {
+    let hint = document.getElementById('scoring-tap-hint');
+    if (!hint) {
+      hint = document.createElement('div');
+      hint.id = 'scoring-tap-hint';
+      hint.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: bold;
+        z-index: 1000;
+        animation: pulse 1.5s ease-in-out infinite;
+      `;
+      hint.textContent = 'TAP TO CONTINUE';
+      document.body.appendChild(hint);
+    }
+    hint.style.display = 'block';
+  };
+
+  // Animate camera to close-up view of the house
+  const from = {
+    x: camera.position.x,
+    y: camera.position.y,
+    z: camera.position.z,
+    lookAt: { x: 0, y: 0, z: TEE_LINE_FAR }
+  };
+
+  // Close-up overhead view of the button/house
+  const to = {
+    x: 0,
+    y: 4.5,  // Low overhead for close-up view
+    z: TEE_LINE_FAR - 2.5,  // Position slightly behind the button
+    lookAt: { x: 0, y: 0, z: TEE_LINE_FAR }  // Look at the button
+  };
+
+  // Animate to scoring view, then wait for user tap
+  animateCamera(from, to, 1200, () => {
+    if (advanced) return;
+    // Show tap hint and wait for user input
+    showTapHint();
+    // Add tap listeners (delay slightly to avoid accidental immediate tap)
+    setTimeout(() => {
+      if (!advanced) {
+        document.addEventListener('click', advanceToScore, { once: true });
+        document.addEventListener('touchstart', advanceToScore, { once: true });
+      }
+    }, 300);
+  });
 }
 
 // ============================================
@@ -11746,8 +11844,9 @@ function showGameOverOverlay() {
         careerMessageEl.style.display = 'block';
       }
     } else {
-      // Regular career progression
-      const careerResult = handleCareerResult(userWon);
+      // Regular career progression (only for Career mode, not Quick Play)
+      const isQuickPlay = gameState.selectedMode !== 'career' && gameState.gameMode === '1player';
+      const careerResult = isQuickPlay ? null : handleCareerResult(userWon);
 
       // Save to match history
       const matchType = gameState.selectedMode === 'career' ? 'career' : 'quickplay';
@@ -11763,6 +11862,7 @@ function showGameOverOverlay() {
         careerLevelName: level.name
       });
 
+      // Only show career progression message for Career mode (not Quick Play)
       if (careerMessageEl && careerResult) {
         careerMessageEl.textContent = careerResult.message;
         if (careerResult.advanced) {
@@ -11773,6 +11873,9 @@ function showGameOverOverlay() {
           careerMessageEl.style.color = '#94a3b8';
         }
         careerMessageEl.style.display = 'block';
+      } else if (careerMessageEl && isQuickPlay) {
+        // Hide career message for Quick Play
+        careerMessageEl.style.display = 'none';
       }
     }
   } else if (gameState.rankedMatch && careerMessageEl) {
@@ -11817,9 +11920,36 @@ function showGameOverOverlay() {
   // Show/hide rematch button based on game mode
   const rematchBtn = document.getElementById('gameover-rematch');
   if (rematchBtn) {
-    // Only show rematch for online multiplayer games
+    // Show rematch for online multiplayer OR Quick Play losses
     const isMultiplayer = multiplayer.multiplayerState.connected && gameState.selectedMode === 'online';
-    rematchBtn.style.display = isMultiplayer ? 'block' : 'none';
+    const isQuickPlay = gameState.selectedMode !== 'career' && gameState.gameMode === '1player';
+    const userLost = winnerClass !== userTeam;
+    const showRematch = isMultiplayer || (isQuickPlay && userLost);
+
+    if (showRematch && !isMultiplayer) {
+      // Quick Play rematch - update button text
+      rematchBtn.textContent = 'Rematch';
+      rematchBtn.onclick = () => window.startQuickPlayRematch();
+    }
+    rematchBtn.style.display = showRematch ? 'block' : 'none';
+  }
+
+  // Show/hide Next Level button for Quick Play wins
+  const nextLevelBtn = document.getElementById('gameover-nextlevel');
+  if (nextLevelBtn) {
+    const isQuickPlay = gameState.selectedMode !== 'career' && gameState.gameMode === '1player';
+    const userWon = winnerClass === userTeam;
+    const hasNextLevel = gameState.settings.quickPlayLevel < 8;
+    const showNextLevel = isQuickPlay && userWon && hasNextLevel;
+
+    if (showNextLevel) {
+      // Show the next level name on the button
+      const nextLevel = CAREER_LEVELS[gameState.settings.quickPlayLevel]; // quickPlayLevel is 1-indexed, array is 0-indexed
+      nextLevelBtn.textContent = `Next Level: ${nextLevel.name} →`;
+      nextLevelBtn.style.display = 'block';
+    } else {
+      nextLevelBtn.style.display = 'none';
+    }
   }
 
   // Show overlay
@@ -11917,6 +12047,130 @@ window.restartGame = function() {
         // Show mode selection to start new game setup
         showModeSelection();
       }
+    }, 500);
+  }
+};
+
+// Start next level after Quick Play win
+window.startNextLevel = function() {
+  // Advance to next level
+  if (gameState.settings.quickPlayLevel < 8) {
+    gameState.settings.quickPlayLevel++;
+  }
+
+  // Clear confetti if any
+  const confettiContainer = document.getElementById('confetti-container');
+  if (confettiContainer) confettiContainer.innerHTML = '';
+
+  const overlay = document.getElementById('gameover-overlay');
+  // Guard against double-firing from touch + click
+  if (overlay && overlay.classList.contains('visible')) {
+    overlay.classList.remove('visible');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+
+      // Reset game state for new match (keep mode and settings)
+      gameState.end = 1;
+      gameState.scores = { red: 0, yellow: 0 };
+      gameState.endScores = { red: [null, null, null, null, null, null, null, null, null, null], yellow: [null, null, null, null, null, null, null, null, null, null] };
+      gameState.hammer = 'yellow';
+      gameState.stonesThrown = { red: 0, yellow: 0 };
+      gameState.currentTeam = 'red';
+      gameState.phase = 'aiming';
+      gameState.previewHeight = 1;  // Target view for player
+      gameState.previewLocked = true;
+      gameState.curlDirection = null;
+      gameState.playerCurlDirection = null;
+
+      // Clear any remaining stones
+      for (const stone of gameState.stones) {
+        scene.remove(stone.mesh);
+        Matter.Composite.remove(world, stone.body);
+      }
+      gameState.stones = [];
+
+      // Update UI
+      updateScoreDisplay();
+      updateStoneCountDisplay();
+      clearTargetMarker();
+      setCurlButtonsEnabled(true);
+      resetOutOfPlayStones();
+      updatePreviewStoneForTeam();
+      updateCurlDisplay();
+
+      // Randomly assign new opponent country
+      const availableCountries = CURLING_COUNTRIES.filter(c => c.code !== gameState.playerCountry?.code);
+      gameState.opponentCountry = availableCountries[Math.floor(Math.random() * availableCountries.length)];
+
+      // Update scoreboard labels with countries
+      const redLabel = document.querySelector('#red-score-row .team-col');
+      const yellowLabel = document.querySelector('#yellow-score-row .team-col');
+      if (redLabel && gameState.playerCountry) {
+        redLabel.innerHTML = `${gameState.playerCountry.flag} ${gameState.playerCountry.code}`;
+      }
+      if (yellowLabel && gameState.opponentCountry) {
+        yellowLabel.innerHTML = `${gameState.opponentCountry.flag} ${gameState.opponentCountry.code}`;
+      }
+
+      // Update turn display for new level
+      const level = getCurrentLevel();
+      const totalEnds = gameState.settings.gameLength;
+      document.getElementById('turn').textContent = `End 1/${totalEnds} - ${gameState.playerCountry?.flag || ''} ${gameState.playerCountry?.name || 'Red'}'s Turn`;
+
+      // Start the game at the new level
+      startGame();
+    }, 500);
+  }
+};
+
+// Start rematch after Quick Play loss (same level)
+window.startQuickPlayRematch = function() {
+  // Clear confetti/rain if any
+  const confettiContainer = document.getElementById('confetti-container');
+  if (confettiContainer) confettiContainer.innerHTML = '';
+
+  const overlay = document.getElementById('gameover-overlay');
+  // Guard against double-firing from touch + click
+  if (overlay && overlay.classList.contains('visible')) {
+    overlay.classList.remove('visible');
+    setTimeout(() => {
+      overlay.style.display = 'none';
+
+      // Reset game state for new match (keep mode, settings, and level)
+      gameState.end = 1;
+      gameState.scores = { red: 0, yellow: 0 };
+      gameState.endScores = { red: [null, null, null, null, null, null, null, null, null, null], yellow: [null, null, null, null, null, null, null, null, null, null] };
+      gameState.hammer = 'yellow';
+      gameState.stonesThrown = { red: 0, yellow: 0 };
+      gameState.currentTeam = 'red';
+      gameState.phase = 'aiming';
+      gameState.previewHeight = 1;  // Target view for player
+      gameState.previewLocked = true;
+      gameState.curlDirection = null;
+      gameState.playerCurlDirection = null;
+
+      // Clear any remaining stones
+      for (const stone of gameState.stones) {
+        scene.remove(stone.mesh);
+        Matter.Composite.remove(world, stone.body);
+      }
+      gameState.stones = [];
+
+      // Update UI
+      updateScoreDisplay();
+      updateStoneCountDisplay();
+      clearTargetMarker();
+      setCurlButtonsEnabled(true);
+      resetOutOfPlayStones();
+      updatePreviewStoneForTeam();
+      updateCurlDisplay();
+
+      // Keep same opponent for rematch
+      const totalEnds = gameState.settings.gameLength;
+      document.getElementById('turn').textContent = `End 1/${totalEnds} - ${gameState.playerCountry?.flag || ''} ${gameState.playerCountry?.name || 'Red'}'s Turn`;
+
+      // Start the game at the same level
+      startGame();
     }, 500);
   }
 };
