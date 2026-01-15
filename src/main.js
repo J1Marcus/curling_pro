@@ -4947,160 +4947,358 @@ scene.add(hemiLight);
 // ============================================
 let arenaGroup = null;  // Group to hold all arena elements for easy updates
 
-// Create a more realistic seated spectator with rounded shapes and facial features
+// Create toon gradient for soft cartoon shading
+const toonGradientColors = new Uint8Array([140, 200, 255]);  // 3-step soft gradient
+const toonGradientTexture = new THREE.DataTexture(toonGradientColors, 3, 1, THREE.RedFormat);
+toonGradientTexture.minFilter = THREE.NearestFilter;
+toonGradientTexture.magFilter = THREE.NearestFilter;
+toonGradientTexture.needsUpdate = true;
+
+// Create stylized, expressive cartoon ADULT spectators
+// Wii Sports / Nintendo sports crowd style
+// Adult proportions + personality/charm + visible emotion
 function createSpectator() {
   const group = new THREE.Group();
 
-  // Random colors for clothing
-  const shirtColors = [0x3b82f6, 0xef4444, 0x22c55e, 0xf59e0b, 0x8b5cf6, 0xec4899, 0x06b6d4, 0xf97316, 0x1e40af, 0x991b1b];
-  const pantsColors = [0x1f2937, 0x374151, 0x4b5563, 0x1e3a5f, 0x3d2914];
-  const skinTones = [0xf5d0c5, 0xd4a373, 0x8b5a2b, 0xf8d9c0, 0xc68642, 0xe8beac];
-  const hairColors = [0x2c1810, 0x4a3728, 0x8b4513, 0xd4a574, 0x1a1a1a, 0x808080, 0xffd700];
+  // BOLD, saturated colors
+  const jacketColors = [
+    0x2E86AB, 0xE63946, 0x2A9D8F, 0xF4A261, 0x7B2CBF,
+    0xE07BE0, 0x00B4D8, 0xFF6B35, 0x4361EE, 0x80B918,
+    0xD90429, 0x06D6A0, 0xFFBE0B, 0x8338EC, 0x3A86FF
+  ];
+  const pantsColors = [0x1D3557, 0x2B2D42, 0x14213D, 0x3D405B, 0x023047];
+  const skinTones = [0xFFE5D9, 0xF4C7AB, 0xDEB887, 0xC19A6B, 0xA0785A, 0x8B5E3C];
+  const hairColors = [0x3D2314, 0x0D0D0D, 0x6B4226, 0xC9A227, 0x6E6E6E, 0xB5651D, 0x1C1008];
 
-  const shirtColor = shirtColors[Math.floor(Math.random() * shirtColors.length)];
+  const jacketColor = jacketColors[Math.floor(Math.random() * jacketColors.length)];
   const pantsColor = pantsColors[Math.floor(Math.random() * pantsColors.length)];
   const skinColor = skinTones[Math.floor(Math.random() * skinTones.length)];
   const hairColor = hairColors[Math.floor(Math.random() * hairColors.length)];
 
-  const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.8 });
-  const pantsMat = new THREE.MeshStandardMaterial({ color: pantsColor, roughness: 0.8 });
-  const skinMat = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.6 });
-  const hairMat = new THREE.MeshStandardMaterial({ color: hairColor, roughness: 0.9 });
-  const eyeMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
+  // Toon materials
+  const jacketMat = new THREE.MeshToonMaterial({ color: jacketColor, gradientMap: toonGradientTexture });
+  const pantsMat = new THREE.MeshToonMaterial({ color: pantsColor, gradientMap: toonGradientTexture });
+  const skinMat = new THREE.MeshToonMaterial({ color: skinColor, gradientMap: toonGradientTexture });
+  const hairMat = new THREE.MeshToonMaterial({ color: hairColor, gradientMap: toonGradientTexture });
+  const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+  const pupilMat = new THREE.MeshBasicMaterial({ color: 0x1A1A1A });
+  const mouthMat = new THREE.MeshBasicMaterial({ color: 0x8B4040 });
 
-  // Torso (capsule-like using sphere + cylinder + sphere)
-  const torsoMidGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.22, 12);
-  const torsoMid = new THREE.Mesh(torsoMidGeo, shirtMat);
-  torsoMid.position.set(0, 0.45, 0);
-  group.add(torsoMid);
+  // ===== PERSONALITY: 5 distinct mood/pose types =====
+  const poseType = Math.floor(Math.random() * 5);
+  const isExcited = poseType === 0;
+  const isCheering = poseType === 1;
+  const isFocused = poseType === 2;
+  const isRelaxed = poseType === 3;
+  const isHappy = poseType === 4;
 
-  // Shoulders (rounded top)
-  const shoulderGeo = new THREE.SphereGeometry(0.12, 12, 8);
-  const shoulders = new THREE.Mesh(shoulderGeo, shirtMat);
-  shoulders.position.set(0, 0.56, 0);
-  shoulders.scale.set(1.1, 0.5, 0.9);
-  group.add(shoulders);
+  // Lean angles (tuned down from previous)
+  let leanAngle;
+  if (isExcited) leanAngle = 0.18;
+  else if (isCheering) leanAngle = 0.12;
+  else if (isFocused) leanAngle = 0.22;
+  else if (isRelaxed) leanAngle = -0.14;
+  else leanAngle = 0.08;  // HAPPY
 
-  // Head (slightly oval)
-  const headGeo = new THREE.SphereGeometry(0.1, 16, 14);
+  // Head tilt based on pose
+  let headTilt = 0;
+  if (isExcited) headTilt = 0.10;
+  else if (isCheering) headTilt = 0.06;
+  else if (isFocused) headTilt = -0.06;
+  else if (isRelaxed) headTilt = -0.10;
+  else headTilt = 0.03;
+
+  // ===== HEAD (bigger, rounder, lifted) =====
+  const headGeo = new THREE.SphereGeometry(0.155, 16, 14);
   const head = new THREE.Mesh(headGeo, skinMat);
-  head.position.set(0, 0.75, 0);
-  head.scale.set(1, 1.1, 0.95);
+  head.position.set(0, 0.735, 0);
+  head.scale.set(1.05, 1.10, 1.00);
+  // Head rotation for personality
+  head.rotation.z = (Math.random() - 0.5) * 0.10;
+  head.rotation.x = headTilt + (Math.random() - 0.5) * 0.06;
+  head.rotation.y = (Math.random() - 0.5) * 0.18;
   group.add(head);
 
-  // Face features
-  // Eyes
-  const eyeGeo = new THREE.SphereGeometry(0.018, 8, 8);
-  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-  leftEye.position.set(-0.035, 0.77, -0.085);
-  group.add(leftEye);
+  // ===== FACE - attached to head with relative positions =====
 
-  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-  rightEye.position.set(0.035, 0.77, -0.085);
-  group.add(rightEye);
+  // Eye whites (positions relative to head center)
+  const eyeWhiteGeo = new THREE.SphereGeometry(0.028, 10, 10);
+  const leftEyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+  leftEyeWhite.position.set(-0.056, 0.015, -0.145);
+  leftEyeWhite.scale.set(1.0, 1.05, 0.45);
+  head.add(leftEyeWhite);
+  const rightEyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
+  rightEyeWhite.position.set(0.056, 0.015, -0.145);
+  rightEyeWhite.scale.set(1.0, 1.05, 0.45);
+  head.add(rightEyeWhite);
 
-  // Nose (small bump)
-  const noseGeo = new THREE.SphereGeometry(0.015, 8, 6);
-  const nose = new THREE.Mesh(noseGeo, skinMat);
-  nose.position.set(0, 0.73, -0.095);
-  group.add(nose);
+  // Pupils (relative to head)
+  const pupilGeo = new THREE.SphereGeometry(0.015, 8, 8);
+  const pupilOffset = isFocused ? -0.005 : 0;
+  const leftPupil = new THREE.Mesh(pupilGeo, pupilMat);
+  leftPupil.position.set(-0.056, 0.012 + pupilOffset, -0.158);
+  head.add(leftPupil);
+  const rightPupil = new THREE.Mesh(pupilGeo, pupilMat);
+  rightPupil.position.set(0.056, 0.012 + pupilOffset, -0.158);
+  head.add(rightPupil);
 
-  // Hair or cap
-  const hasHat = Math.random() > 0.7;
-  if (hasHat) {
-    // Baseball cap
-    const capGeo = new THREE.SphereGeometry(0.11, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2);
-    const capMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.7 });
-    const cap = new THREE.Mesh(capGeo, capMat);
-    cap.position.set(0, 0.78, 0);
-    group.add(cap);
-    // Brim
-    const brimGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.02, 12, 1, false, -Math.PI/3, Math.PI * 2/3);
-    const brim = new THREE.Mesh(brimGeo, capMat);
-    brim.position.set(0, 0.76, -0.08);
-    brim.rotation.x = -0.3;
-    group.add(brim);
+  // Eyebrows (relative to head)
+  const browMat = new THREE.MeshBasicMaterial({ color: hairColor });
+  const browGeo = new THREE.BoxGeometry(0.050, 0.012, 0.010);
+  const leftBrow = new THREE.Mesh(browGeo, browMat);
+  leftBrow.position.set(-0.056, 0.055, -0.140);
+  const rightBrow = new THREE.Mesh(browGeo, browMat);
+  rightBrow.position.set(0.056, 0.055, -0.140);
+
+  if (isExcited || isCheering) {
+    leftBrow.rotation.z = -0.35;
+    rightBrow.rotation.z = 0.35;
+  } else if (isFocused) {
+    leftBrow.rotation.z = 0.25;
+    rightBrow.rotation.z = -0.25;
   } else {
-    // Hair (fuller, covers more of head)
-    const hairGeo = new THREE.SphereGeometry(0.105, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.6);
+    leftBrow.rotation.z = -0.1;
+    rightBrow.rotation.z = 0.1;
+  }
+  head.add(leftBrow);
+  head.add(rightBrow);
+
+  // Nose (relative to head)
+  const noseGeo = new THREE.SphereGeometry(0.016, 8, 6);
+  const nose = new THREE.Mesh(noseGeo, skinMat);
+  nose.position.set(0, -0.025, -0.160);
+  nose.scale.set(0.75, 0.90, 0.55);
+  head.add(nose);
+
+  // Mouth (relative to head)
+  if (isCheering) {
+    const mouthGeo = new THREE.SphereGeometry(0.028, 10, 8);
+    const mouth = new THREE.Mesh(mouthGeo, mouthMat);
+    mouth.position.set(0, -0.040, -0.155);
+    mouth.scale.set(1.2, 0.8, 0.5);
+    head.add(mouth);
+  } else {
+    // Smile sizes: small 0.040, medium 0.048, big 0.055
+    const smileSize = (isExcited || isHappy) ? 0.055 : (isFocused ? 0.040 : 0.048);
+    const smileGeo = new THREE.TorusGeometry(smileSize, 0.010, 8, 12, Math.PI * 0.85);
+    const smile = new THREE.Mesh(smileGeo, mouthMat);
+    smile.position.set(0, -0.035, -0.155);
+    smile.rotation.z = Math.PI;
+    head.add(smile);
+  }
+
+  // ===== HAIR OR HAT =====
+  const hasHat = Math.random() > 0.5;
+  if (hasHat) {
+    const beanieGeo = new THREE.SphereGeometry(0.165, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const beanieMat = new THREE.MeshToonMaterial({ color: jacketColor, gradientMap: toonGradientTexture });
+    const beanie = new THREE.Mesh(beanieGeo, beanieMat);
+    beanie.position.set(0, 0.82, 0.00);
+    group.add(beanie);
+
+    const pomGeo = new THREE.SphereGeometry(0.045, 10, 10);
+    const pom = new THREE.Mesh(pomGeo, beanieMat);
+    pom.position.set(0, 0.97, 0.00);
+    group.add(pom);
+  } else {
+    const hairGeo = new THREE.SphereGeometry(0.155, 12, 10, 0, Math.PI * 2, 0, Math.PI * 0.52);
     const hair = new THREE.Mesh(hairGeo, hairMat);
-    hair.position.set(0, 0.77, 0.01);
+    hair.position.set(0, 0.80, 0.01);
     group.add(hair);
   }
 
-  // Arms (rounded, capsule-like)
-  const upperArmGeo = new THREE.CapsuleGeometry(0.03, 0.12, 4, 8);
-  const forearmGeo = new THREE.CapsuleGeometry(0.025, 0.1, 4, 8);
-  const armPose = Math.random();
+  // ===== NECK (taller for separation) =====
+  const neckGeo = new THREE.CylinderGeometry(0.045, 0.055, 0.10, 10);
+  const neck = new THREE.Mesh(neckGeo, skinMat);
+  neck.position.set(0, 0.58, 0);
+  group.add(neck);
 
-  // Left upper arm
-  const leftUpperArm = new THREE.Mesh(upperArmGeo, shirtMat);
-  leftUpperArm.position.set(-0.16, 0.48, 0);
-  leftUpperArm.rotation.z = 0.4;
+  // ===== JACKET (single continuous volume; avoids snowman stacking) =====
+  const jacketGroup = new THREE.Group();
+
+  // Main chest
+  const chestGeo = new THREE.SphereGeometry(0.178, 12, 10);
+  const chest = new THREE.Mesh(chestGeo, jacketMat);
+  chest.position.set(0, 0.34, 0.01);
+  chest.scale.set(1.45, 1.05, 1.30);
+  jacketGroup.add(chest);
+
+  // Upper/back bulge (gives hoodie/jacket mass, breaks perfect sphere silhouette)
+  const upperGeo = new THREE.SphereGeometry(0.165, 12, 10);
+  const upper = new THREE.Mesh(upperGeo, jacketMat);
+  upper.position.set(0, 0.43, 0.03);
+  upper.scale.set(1.55, 0.80, 1.35);
+  jacketGroup.add(upper);
+
+  // Tiny collar/hood bump
+  const hoodGeo = new THREE.SphereGeometry(0.115, 12, 10);
+  const hood = new THREE.Mesh(hoodGeo, jacketMat);
+  hood.position.set(0, 0.49, 0.06);
+  hood.scale.set(1.35, 0.75, 1.20);
+  jacketGroup.add(hood);
+
+  // Shape randomizers for body type variation
+  const puff = 0.90 + Math.random() * 0.25; // 0.90 - 1.15
+  jacketGroup.scale.set(1.0, 1.0, puff);
+  const shoulderWidth = 0.92 + Math.random() * 0.25; // 0.92 - 1.17
+  jacketGroup.scale.x *= shoulderWidth;
+
+  group.add(jacketGroup);
+
+  // ===== HIPS (seat mass; less spherical) =====
+  const hipsGeo = new THREE.SphereGeometry(0.155, 12, 10);
+  const hips = new THREE.Mesh(hipsGeo, pantsMat);
+  hips.position.set(0, 0.195, 0.03);
+  hips.scale.set(1.45, 0.70, 1.35);
+  hips.scale.x *= (0.95 + Math.random() * 0.20);
+  group.add(hips);
+
+  // ===== ARMS (longer for adult proportions) =====
+  const upperArmGeo = new THREE.CapsuleGeometry(0.060, 0.12, 5, 8);
+  const forearmGeo = new THREE.CapsuleGeometry(0.050, 0.105, 5, 8);
+
+  let leftUpperPos, leftUpperRot, leftForePos, leftForeRot;
+  let rightUpperPos, rightUpperRot, rightForePos, rightForeRot;
+
+  if (isCheering) {
+    // Arms up - Z offset forward so they sit in jacket
+    leftUpperPos = [-0.22, 0.52, 0.03];
+    leftUpperRot = [0, 0, 1.4];
+    leftForePos = [-0.32, 0.72, 0.03];
+    leftForeRot = [0, 0, 0.8];
+    rightUpperPos = [0.22, 0.52, 0.03];
+    rightUpperRot = [0, 0, -1.4];
+    rightForePos = [0.32, 0.72, 0.03];
+    rightForeRot = [0, 0, -0.8];
+  } else if (isExcited) {
+    // Clapping - Z adjusted forward
+    leftUpperPos = [-0.20, 0.44, -0.01];
+    leftUpperRot = [0.6, 0.3, 0.4];
+    leftForePos = [-0.16, 0.30, -0.12];
+    leftForeRot = [1.5, 0, 0.3];
+    rightUpperPos = [0.20, 0.44, -0.01];
+    rightUpperRot = [0.6, -0.3, -0.4];
+    rightForePos = [0.16, 0.30, -0.12];
+    rightForeRot = [1.5, 0, -0.3];
+  } else if (isFocused) {
+    // Elbows on knees - Z adjusted forward
+    leftUpperPos = [-0.18, 0.38, -0.03];
+    leftUpperRot = [0.8, 0.2, 0.7];
+    leftForePos = [-0.15, 0.22, -0.14];
+    leftForeRot = [1.8, 0, 0.2];
+    rightUpperPos = [0.18, 0.38, -0.03];
+    rightUpperRot = [0.8, -0.2, -0.7];
+    rightForePos = [0.15, 0.22, -0.14];
+    rightForeRot = [1.8, 0, -0.2];
+  } else if (isRelaxed) {
+    // Crossed arms - Z adjusted forward
+    leftUpperPos = [-0.19, 0.40, 0.02];
+    leftUpperRot = [0.3, 0, 0.5];
+    leftForePos = [-0.10, 0.28, -0.06];
+    leftForeRot = [1.0, 0.5, 0.6];
+    rightUpperPos = [0.19, 0.40, 0.02];
+    rightUpperRot = [0.3, 0, -0.5];
+    rightForePos = [0.10, 0.28, -0.06];
+    rightForeRot = [1.0, -0.5, -0.6];
+  } else {
+    // Happy neutral - Z adjusted forward
+    leftUpperPos = [-0.20, 0.40, 0.02];
+    leftUpperRot = [0.4, 0, 0.6];
+    leftForePos = [-0.20, 0.26, -0.08];
+    leftForeRot = [1.3, 0, 0.2];
+    rightUpperPos = [0.20, 0.40, 0.02];
+    rightUpperRot = [0.4, 0, -0.6];
+    rightForePos = [0.20, 0.26, -0.08];
+    rightForeRot = [1.3, 0, -0.2];
+  }
+
+  const leftUpperArm = new THREE.Mesh(upperArmGeo, jacketMat);
+  leftUpperArm.position.set(...leftUpperPos);
+  leftUpperArm.rotation.set(...leftUpperRot);
   group.add(leftUpperArm);
 
-  // Left forearm
-  const leftForearm = new THREE.Mesh(forearmGeo, skinMat);
-  if (armPose > 0.85) {
-    // Raised
-    leftForearm.position.set(-0.22, 0.62, 0);
-    leftForearm.rotation.z = 0.2;
-  } else {
-    // Resting
-    leftForearm.position.set(-0.18, 0.32, -0.06);
-    leftForearm.rotation.x = 1.2;
-    leftForearm.rotation.z = 0.3;
-  }
-  group.add(leftForearm);
-
-  // Right upper arm
-  const rightUpperArm = new THREE.Mesh(upperArmGeo, shirtMat);
-  rightUpperArm.position.set(0.16, 0.48, 0);
-  rightUpperArm.rotation.z = -0.4;
+  const rightUpperArm = new THREE.Mesh(upperArmGeo, jacketMat);
+  rightUpperArm.position.set(...rightUpperPos);
+  rightUpperArm.rotation.set(...rightUpperRot);
   group.add(rightUpperArm);
 
-  // Right forearm
-  const rightForearm = new THREE.Mesh(forearmGeo, skinMat);
-  if (armPose > 0.9) {
-    // Raised
-    rightForearm.position.set(0.22, 0.62, 0);
-    rightForearm.rotation.z = -0.2;
-  } else {
-    // Resting
-    rightForearm.position.set(0.18, 0.32, -0.06);
-    rightForearm.rotation.x = 1.2;
-    rightForearm.rotation.z = -0.3;
-  }
+  const leftForearm = new THREE.Mesh(forearmGeo, jacketMat);
+  leftForearm.position.set(...leftForePos);
+  leftForearm.rotation.set(...leftForeRot);
+  group.add(leftForearm);
+
+  const rightForearm = new THREE.Mesh(forearmGeo, jacketMat);
+  rightForearm.position.set(...rightForePos);
+  rightForearm.rotation.set(...rightForeRot);
   group.add(rightForearm);
 
-  // Thighs (capsule for roundness)
-  const thighGeo = new THREE.CapsuleGeometry(0.045, 0.15, 4, 8);
+  // Hands (slightly bigger)
+  const handGeo = new THREE.SphereGeometry(0.040, 8, 8);
+  const leftHand = new THREE.Mesh(handGeo, skinMat);
+  const rightHand = new THREE.Mesh(handGeo, skinMat);
+
+  if (isCheering) {
+    leftHand.position.set(-0.38, 0.88, 0);
+    rightHand.position.set(0.38, 0.88, 0);
+  } else if (isExcited) {
+    leftHand.position.set(-0.06, 0.20, -0.22);
+    rightHand.position.set(0.06, 0.20, -0.22);
+  } else if (isFocused) {
+    leftHand.position.set(-0.07, 0.12, -0.22);
+    rightHand.position.set(0.07, 0.12, -0.22);
+  } else if (isRelaxed) {
+    leftHand.position.set(0.02, 0.20, -0.12);
+    rightHand.position.set(-0.02, 0.20, -0.12);
+  } else {
+    leftHand.position.set(-0.12, 0.16, -0.16);
+    rightHand.position.set(0.12, 0.16, -0.16);
+  }
+  group.add(leftHand);
+  group.add(rightHand);
+
+  // ===== LEGS (longer for adult proportions) =====
+  const thighGeo = new THREE.CapsuleGeometry(0.060, 0.145, 5, 8);
 
   const leftThigh = new THREE.Mesh(thighGeo, pantsMat);
-  leftThigh.position.set(-0.07, 0.22, -0.1);
+  leftThigh.position.set(-0.09, 0.12, -0.04);
   leftThigh.rotation.x = Math.PI / 2.2;
   group.add(leftThigh);
 
   const rightThigh = new THREE.Mesh(thighGeo, pantsMat);
-  rightThigh.position.set(0.07, 0.22, -0.1);
+  rightThigh.position.set(0.09, 0.12, -0.04);
   rightThigh.rotation.x = Math.PI / 2.2;
   group.add(rightThigh);
 
-  // Lower legs
-  const shinGeo = new THREE.CapsuleGeometry(0.035, 0.12, 4, 8);
+  const shinGeo = new THREE.CapsuleGeometry(0.050, 0.115, 5, 8);
 
   const leftShin = new THREE.Mesh(shinGeo, pantsMat);
-  leftShin.position.set(-0.07, 0.05, -0.22);
+  leftShin.position.set(-0.09, 0.02, -0.18);
   leftShin.rotation.x = 0.15;
   group.add(leftShin);
 
   const rightShin = new THREE.Mesh(shinGeo, pantsMat);
-  rightShin.position.set(0.07, 0.05, -0.22);
+  rightShin.position.set(0.09, 0.02, -0.18);
   rightShin.rotation.x = 0.15;
   group.add(rightShin);
 
-  // Slight random lean for natural look
-  group.rotation.x = (Math.random() - 0.5) * 0.15;
+  // Feet (longer)
+  const footGeo = new THREE.CapsuleGeometry(0.042, 0.065, 5, 8);
+  const footMat = new THREE.MeshToonMaterial({ color: 0x252525, gradientMap: toonGradientTexture });
+
+  const leftFoot = new THREE.Mesh(footGeo, footMat);
+  leftFoot.position.set(-0.09, -0.01, -0.235);
+  leftFoot.rotation.x = Math.PI / 2;
+  group.add(leftFoot);
+
+  const rightFoot = new THREE.Mesh(footGeo, footMat);
+  rightFoot.position.set(0.09, -0.01, -0.235);
+  rightFoot.rotation.x = Math.PI / 2;
+  group.add(rightFoot);
+
+  // ===== FINAL ROTATION (more variation) =====
+  group.rotation.x = leanAngle + (Math.random() - 0.5) * 0.10;
+  group.rotation.y = (Math.random() - 0.5) * 0.35;
+  group.rotation.z = (Math.random() - 0.5) * 0.08;
 
   return group;
 }
@@ -5160,23 +5358,18 @@ function createArena(level = 1) {
       arenaGroup.add(stand);
 
       // Add spectators to this row
-      const spectatorSpacing = 0.45;  // Balanced spacing for performance
+      const spectatorSpacing = 0.45;
       const spectatorsPerRow = Math.floor(standLength / spectatorSpacing);
 
       for (let i = 0; i < spectatorsPerRow; i++) {
-        // Random chance to place spectator based on fill percent
         if (Math.random() > config.fillPercent) continue;
 
         const zPos = (i - spectatorsPerRow / 2) * spectatorSpacing + SHEET_LENGTH / 2;
 
-        // Create realistic spectator
         const spectator = createSpectator();
         spectator.position.set(xPos, yPos, zPos);
-        // Face toward the ice (side stands face inward)
-        // Right side (positive X) needs to face -X (toward ice): rotate +90°
-        // Left side (negative X) needs to face +X (toward ice): rotate -90°
         spectator.rotation.y = side > 0 ? Math.PI / 2 : -Math.PI / 2;
-        spectator.rotation.y += (Math.random() - 0.5) * 0.2;  // Slight variation
+        spectator.rotation.y += (Math.random() - 0.5) * 0.2;
 
         arenaGroup.add(spectator);
       }
@@ -5187,7 +5380,7 @@ function createArena(level = 1) {
   if (level >= 4) {
     const backRows = Math.min(level - 2, 5);
     for (let row = 0; row < backRows; row++) {
-      const zPos = SHEET_LENGTH + surroundWidth + 2 + row * rowDepth;  // After blue surround and draping
+      const zPos = SHEET_LENGTH + surroundWidth + 2 + row * rowDepth;
       const yPos = row * rowHeight + 0.5;
 
       // Stand platform
@@ -5202,7 +5395,7 @@ function createArena(level = 1) {
       arenaGroup.add(stand);
 
       // Spectators
-      const spectatorSpacing = 0.45;  // Balanced spacing for performance
+      const spectatorSpacing = 0.45;
       const spectatorsPerRow = Math.floor((SHEET_WIDTH + 6) / spectatorSpacing);
 
       for (let i = 0; i < spectatorsPerRow; i++) {
@@ -5210,10 +5403,8 @@ function createArena(level = 1) {
 
         const xPos = (i - spectatorsPerRow / 2) * spectatorSpacing;
 
-        // Create realistic spectator
         const spectator = createSpectator();
         spectator.position.set(xPos, yPos, zPos);
-        // Face the ice (back stands face toward near end)
         spectator.rotation.y = Math.PI + (Math.random() - 0.5) * 0.2;
 
         arenaGroup.add(spectator);
