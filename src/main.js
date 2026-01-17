@@ -19864,17 +19864,17 @@ setTimeout(() => {
 // DEBUG PANEL
 // ============================================
 function initDebugPanel() {
-  // Add toggle button at bottom of screen
+  // Add toggle button at bottom right of screen
   const toggleBtn = document.createElement('button');
   toggleBtn.id = 'debug-toggle-btn';
   toggleBtn.textContent = '🔧 Debug';
   toggleBtn.style.cssText = `
     position: fixed;
     bottom: 10px;
-    left: 10px;
-    background: rgba(0, 0, 0, 0.7);
-    border: 1px solid #4ade80;
-    color: #4ade80;
+    right: 10px;
+    background: rgba(220, 38, 38, 0.9);
+    border: 1px solid #ef4444;
+    color: white;
     padding: 8px 12px;
     border-radius: 6px;
     font-size: 12px;
