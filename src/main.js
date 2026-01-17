@@ -10777,9 +10777,10 @@ function updatePhysics() {
       const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability * stabilityFactor;
 
       // Calculate curl force - INVERSE relationship: more rotation = straighter path
-      // Rotation direction: negative omega = clockwise = curl LEFT, positive omega = counterclockwise = curl RIGHT
+      // Rotation direction: negative omega = clockwise = curl RIGHT, positive omega = counterclockwise = curl LEFT
+      // (This matches the throw setup where curlDirection 1=IN=clockwise=curl right)
       // Magnitude is weakly inversely proportional to rotation rate (curlOmegaExponent is small)
-      const curlDirection = omega < 0 ? -1 : 1;
+      const curlDirection = omega < 0 ? 1 : -1;  // negative omega (clockwise) = curl RIGHT (+1)
 
       // Base curl force with late curl multiplier
       // Uses weak omega exponent so rotation doesn't dominate
