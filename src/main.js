@@ -19982,6 +19982,20 @@ window.debugSetScenario = function(scenario) {
   seasonState.careerTier = tier;
   seasonState.qualifications = { regionalQualified: true, provincialQualified: true, nationalQualified: true };
 
+  // Set up player team if not already set
+  if (!seasonState.playerTeam) {
+    seasonState.playerTeam = {
+      name: 'Team Debug',
+      ranking: 1000,
+      club: {
+        id: 'granite',
+        name: 'Granite Curling Club',
+        crest: '🪨',
+        colors: { primary: '#4a5568', secondary: '#2d3748' }
+      }
+    };
+  }
+
   // Create tournament with player in finals or semis
   const teams = generateTournamentField(tournamentDef, tier);
   const playerTeam = teams.find(t => t.isPlayer);
