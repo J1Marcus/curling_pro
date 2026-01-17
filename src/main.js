@@ -19856,23 +19856,48 @@ setTimeout(() => {
     showModeSelection();
   }
 
-  // Check for debug mode
-  if (window.location.search.includes('debug=1')) {
-    initDebugPanel();
-  }
+  // Always init debug panel (with button on main menu)
+  initDebugPanel();
 }, remainingTime);
 
 // ============================================
-// DEBUG PANEL (only accessible via ?debug=1)
+// DEBUG PANEL
 // ============================================
 function initDebugPanel() {
+  // Add toggle button at bottom of screen
+  const toggleBtn = document.createElement('button');
+  toggleBtn.id = 'debug-toggle-btn';
+  toggleBtn.textContent = '🔧 Debug';
+  toggleBtn.style.cssText = `
+    position: fixed;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    border: 1px solid #4ade80;
+    color: #4ade80;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: monospace;
+    cursor: pointer;
+    z-index: 9999;
+  `;
+  toggleBtn.onclick = () => {
+    const panel = document.getElementById('debug-panel');
+    if (panel) {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+  };
+  document.body.appendChild(toggleBtn);
+
   const panel = document.createElement('div');
   panel.id = 'debug-panel';
   panel.style.cssText = `
+    display: none;
     position: fixed;
     top: 10px;
     right: 10px;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     border: 2px solid #4ade80;
     border-radius: 8px;
     padding: 15px;
