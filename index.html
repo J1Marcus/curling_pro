@@ -683,7 +683,7 @@
       z-index: 9000;
       overflow-y: auto;
     ">
-      <!-- Footer links -->
+<!-- Footer links -->
       <div id="mode-select-footer" style="
         position: fixed;
         bottom: max(30px, env(safe-area-inset-bottom));
@@ -734,6 +734,20 @@
           margin-bottom: 20px;
           filter: drop-shadow(0 4px 20px rgba(74, 222, 128, 0.3));
         ">
+
+        <!-- DEBUG BUTTON - TOP OF PAGE -->
+        <button onclick="window.toggleDebugPanel()" style="
+          padding: 10px 20px;
+          margin-bottom: 15px;
+          background: #dc2626;
+          border: 2px solid #fff;
+          border-radius: 8px;
+          color: white;
+          font-size: 14px;
+          font-weight: bold;
+          cursor: pointer;
+        ">🔧 DEBUG</button>
+
         <h1 style="
           color: white;
           font-size: 32px;
@@ -829,6 +843,7 @@
             <div style="color: white; font-size: 14px; font-weight: bold;">My Stats</div>
           </button>
         </div>
+
       </div>
     </div>
 

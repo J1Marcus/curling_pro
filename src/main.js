@@ -19863,33 +19863,14 @@ setTimeout(() => {
 // ============================================
 // DEBUG PANEL
 // ============================================
-function initDebugPanel() {
-  // Add toggle button at bottom right of screen
-  const toggleBtn = document.createElement('button');
-  toggleBtn.id = 'debug-toggle-btn';
-  toggleBtn.textContent = '🔧 Debug';
-  toggleBtn.style.cssText = `
-    position: fixed;
-    bottom: 10px;
-    right: 10px;
-    background: rgba(220, 38, 38, 0.9);
-    border: 1px solid #ef4444;
-    color: white;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 12px;
-    font-family: monospace;
-    cursor: pointer;
-    z-index: 9999;
-  `;
-  toggleBtn.onclick = () => {
-    const panel = document.getElementById('debug-panel');
-    if (panel) {
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    }
-  };
-  document.body.appendChild(toggleBtn);
+window.toggleDebugPanel = function() {
+  const panel = document.getElementById('debug-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  }
+};
 
+function initDebugPanel() {
   const panel = document.createElement('div');
   panel.id = 'debug-panel';
   panel.style.cssText = `
