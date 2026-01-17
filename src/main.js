@@ -18411,35 +18411,44 @@ window.sendFeedback = async function(event) {
 };
 
 // Check if the losing team is mathematically eliminated
-// This considers stones out of play - if the deficit > max possible score, game over
+// Works in ANY end - considers remaining ends and stones out of play
 function checkMathematicalElimination() {
-  // Only check in the last end
-  if (gameState.end !== gameState.settings.gameLength) {
-    return false;
-  }
-
-  // Determine the losing team
   const redScore = gameState.scores.red;
   const yellowScore = gameState.scores.yellow;
 
   if (redScore === yellowScore) {
-    return false;  // Tied, no elimination
+    return false;  // Tied, no elimination possible
   }
 
   const losingTeam = redScore < yellowScore ? 'red' : 'yellow';
   const deficit = Math.abs(redScore - yellowScore);
 
-  // Count losing team's stones that are out of play
+  // Calculate maximum possible points the losing team can still score
+  const currentEnd = gameState.end;
+  const totalEnds = gameState.settings.gameLength;
+  const futureEnds = totalEnds - currentEnd;  // Full ends after this one
+
+  // Future ends: max 8 points per end
+  const futureMaxPoints = futureEnds * 8;
+
+  // Current end: max 8 points minus stones already out of play
+  // Also consider unthrown stones - losing team can only score with stones they throw
   const losingTeamStonesOut = gameState.stones.filter(
     s => s.team === losingTeam && s.outOfPlay
   ).length;
+  const losingTeamStonesThrown = gameState.stonesThrown[losingTeam];
+  const losingTeamStonesRemaining = 8 - losingTeamStonesThrown;
 
-  // Maximum possible score = 8 minus stones out of play
-  const maxPossibleScore = 8 - losingTeamStonesOut;
+  // In current end, max possible = stones remaining to throw + stones in play (not out)
+  // But capped at 8 total for the end, minus stones out of play
+  const losingTeamStonesInPlay = losingTeamStonesThrown - losingTeamStonesOut;
+  const currentEndMaxPoints = Math.min(8, losingTeamStonesRemaining + losingTeamStonesInPlay);
 
-  // If deficit > max possible score, losing team cannot win
-  if (deficit > maxPossibleScore) {
-    console.log(`[MERCY] ${losingTeam} team eliminated: deficit=${deficit}, stonesOut=${losingTeamStonesOut}, maxScore=${maxPossibleScore}`);
+  const totalMaxPoints = currentEndMaxPoints + futureMaxPoints;
+
+  // If deficit > total max possible, losing team cannot catch up
+  if (deficit > totalMaxPoints) {
+    console.log(`[MERCY] ${losingTeam} eliminated: deficit=${deficit}, currentEndMax=${currentEndMaxPoints}, futureMax=${futureMaxPoints}, totalMax=${totalMaxPoints}`);
     return true;
   }
 
@@ -18475,21 +18484,8 @@ function startNewEnd() {
   }
 
   // Check if it's mathematically impossible for the losing team to catch up
-  // Max points per end = 8 (all 8 stones counting)
-  const remainingEnds = gameState.settings.gameLength - gameState.end + 1;
-  const maxPossiblePoints = remainingEnds * 8;
-  const scoreDifference = Math.abs(gameState.scores.red - gameState.scores.yellow);
-
-  if (scoreDifference > maxPossiblePoints) {
-    // Game over - impossible to catch up
-    console.log(`[MERCY] Game ending early - score difference ${scoreDifference} > max possible ${maxPossiblePoints}`);
-    showGameOverOverlay();
-    return;
-  }
-
-  // Additional mercy check for last end - account for stones out of play
   if (checkMathematicalElimination()) {
-    console.log(`[MERCY] Losing team mathematically eliminated in last end`);
+    console.log(`[MERCY] Game ending early - losing team cannot catch up`);
     showGameOverOverlay();
     return;
   }
