@@ -10647,10 +10647,10 @@ function updatePhysics() {
     Matter.Engine.update(engine, 1000 / 60);
     // Track simulated game time (unaffected by fast-forward for accurate timing display)
     gameState.gameTime += 1000 / 60;
-  }
 
-  // Update sliding phase
-  updateSliding();
+    // Update sliding phase inside the loop so friction/curl is applied correctly in FFW mode
+    updateSliding();
+  }
 
   // Sync 3D meshes with physics bodies
   for (const stone of gameState.stones) {
