@@ -16442,7 +16442,7 @@ window.showPostMatch = function() {
           document.getElementById('post-match-screen').style.display = 'none';
           // Find and enter the first available tournament at the new tier
           if (nextTierTournaments.length > 0) {
-            const newTournament = enterTournament(nextTierTournaments[0]);
+            const newTournament = createTournament(nextTierTournaments[0]);
             if (newTournament) {
               showBracket();
               return;
@@ -16477,7 +16477,7 @@ window.showPostMatch = function() {
           return def && def.tier === result.tournamentTier;
         });
         if (sameTierTournaments.length > 0) {
-          const newTournament = enterTournament(sameTierTournaments[0]);
+          const newTournament = createTournament(sameTierTournaments[0]);
           if (newTournament) {
             showBracket();
             return;
