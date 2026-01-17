@@ -683,6 +683,22 @@
       z-index: 9000;
       overflow-y: auto;
     ">
+      <!-- DEBUG BUTTON - Bottom Right -->
+      <button onclick="window.toggleDebugPanel()" style="
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 10px 16px;
+        background: #dc2626;
+        border: 2px solid #fff;
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        font-weight: bold;
+        cursor: pointer;
+        z-index: 9005;
+      ">🔧 DEBUG</button>
+
 <!-- Footer links -->
       <div id="mode-select-footer" style="
         position: fixed;
@@ -735,20 +751,7 @@
           filter: drop-shadow(0 4px 20px rgba(74, 222, 128, 0.3));
         ">
 
-        <!-- DEBUG BUTTON - TOP OF PAGE -->
-        <button onclick="window.toggleDebugPanel()" style="
-          padding: 10px 20px;
-          margin-bottom: 15px;
-          background: #dc2626;
-          border: 2px solid #fff;
-          border-radius: 8px;
-          color: white;
-          font-size: 14px;
-          font-weight: bold;
-          cursor: pointer;
-        ">🔧 DEBUG</button>
-
-        <h1 style="
+<h1 style="
           color: white;
           font-size: 32px;
           margin-bottom: 40px;
