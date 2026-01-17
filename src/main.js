@@ -20052,7 +20052,13 @@ window.debugSetScenario = function(scenario) {
 
   saveSeasonState();
   window.debugRefreshState();
-  alert(`Scenario set: ${scenario} at ${tier} tier.\nGo to Career mode to continue.`);
+
+  // Close debug panel
+  const panel = document.getElementById('debug-panel');
+  if (panel) panel.style.display = 'none';
+
+  // Go directly to bracket view
+  showBracket();
 };
 
 window.debugSetTier = function() {
