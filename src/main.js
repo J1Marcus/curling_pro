@@ -20124,7 +20124,22 @@ window.debugSetScenario = function(scenario) {
     }
     gameState.stones = [];
 
-    // Start the game directly (this handles all UI setup)
+    // Save state for crash recovery so startGame() will restore it
+    const debugMatchState = {
+      end: gameState.end,
+      scores: gameState.scores,
+      endScores: gameState.endScores,
+      hammer: gameState.hammer,
+      currentTeam: gameState.currentTeam,
+      computerTeam: gameState.computerTeam,
+      stonesThrown: gameState.stonesThrown,
+      playerCountry: gameState.playerCountry,
+      opponentCountry: gameState.opponentCountry,
+      stonePositions: []
+    };
+    localStorage.setItem('curling_match_progress', JSON.stringify(debugMatchState));
+
+    // Start the game directly (this handles all UI setup and will restore our saved state)
     startGame();
   } else {
     // For other scenarios, go to bracket view
