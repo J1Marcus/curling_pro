@@ -19894,9 +19894,10 @@ function initDebugPanel() {
 
     <div style="margin-bottom: 15px;">
       <strong>Tournament Scenarios:</strong><br>
-      <button onclick="window.debugSetScenario('finals_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (Winning 6-2)</button>
-      <button onclick="window.debugSetScenario('finals_close')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (Tied 4-4)</button>
-      <button onclick="window.debugSetScenario('semis_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Semis (Winning 5-2)</button>
+      <button onclick="window.debugSetScenario('finals_last_end')" style="margin: 3px; padding: 5px 10px; background: #22c55e; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">Finals - LAST END (6-4)</button>
+      <button onclick="window.debugSetScenario('finals_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (End 5, 6-2)</button>
+      <button onclick="window.debugSetScenario('finals_close')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (End 5, Tied 4-4)</button>
+      <button onclick="window.debugSetScenario('semis_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Semis (End 4, 5-2)</button>
     </div>
 
     <div style="margin-bottom: 15px;">
@@ -20006,17 +20007,39 @@ window.debugSetScenario = function(scenario) {
   gameState.computerTeam = 'yellow';
   gameState.inTournamentMatch = false;
 
+  // Determine game length based on tier
+  const tierIndex = CAREER_TIERS.indexOf(tier);
+  const endCounts = [6, 6, 8, 8, 10, 10];
+  const gameLength = endCounts[tierIndex] || 6;
+  gameState.settings.gameLength = gameLength;
+
   // Set scores based on scenario
-  if (scenario.includes('winning')) {
-    gameState.end = 5;
+  if (scenario === 'finals_last_end') {
+    // Final end of finals - player winning by 2, has hammer
+    gameState.end = gameLength;
+    gameState.scores = { red: 6, yellow: 4 };
+    gameState.hammer = 'red';  // Player has hammer for dramatic finish
+    // Fill in end scores
+    gameState.endScores = { red: [], yellow: [] };
+    for (let i = 0; i < gameLength - 1; i++) {
+      if (i % 2 === 0) {
+        gameState.endScores.red[i] = 2;
+        gameState.endScores.yellow[i] = 0;
+      } else {
+        gameState.endScores.red[i] = 0;
+        gameState.endScores.yellow[i] = 2;
+      }
+    }
+  } else if (scenario.includes('winning')) {
+    gameState.end = Math.max(5, gameLength - 1);
     gameState.scores = { red: 6, yellow: 2 };
     gameState.hammer = 'yellow';
   } else if (scenario.includes('close')) {
-    gameState.end = 5;
+    gameState.end = Math.max(5, gameLength - 1);
     gameState.scores = { red: 4, yellow: 4 };
     gameState.hammer = 'red';
   } else {
-    gameState.end = 4;
+    gameState.end = Math.max(4, gameLength - 2);
     gameState.scores = { red: 5, yellow: 2 };
     gameState.hammer = 'yellow';
   }
