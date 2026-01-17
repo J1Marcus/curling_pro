@@ -18845,6 +18845,48 @@ function updateScoreDisplay() {
   if (yellowHammer) {
     yellowHammer.innerHTML = gameState.hammer === 'yellow' ? '<span class="hammer-indicator">●</span>' : '';
   }
+
+  // Update extra end column if in extra end
+  const headerExtraEnd = document.getElementById('header-extra-end');
+  const redExtraEnd = document.getElementById('red-extra-end');
+  const yellowExtraEnd = document.getElementById('yellow-extra-end');
+
+  if (gameState.inExtraEnd) {
+    // Show extra end column
+    if (headerExtraEnd) headerExtraEnd.style.display = '';
+    if (redExtraEnd) redExtraEnd.style.display = '';
+    if (yellowExtraEnd) yellowExtraEnd.style.display = '';
+
+    // Update extra end scores (use the score from the extra end in endScores array)
+    const extraEndIndex = gameState.settings.gameLength; // Extra end score is stored after regulation ends
+    if (redExtraEnd) {
+      const score = gameState.endScores.red[extraEndIndex];
+      redExtraEnd.textContent = score !== undefined && score !== null ? score : '';
+      redExtraEnd.className = '';
+      if (score !== null && score !== undefined && score > 0) {
+        redExtraEnd.classList.add('scored', 'scored-red');
+      }
+      if (gameState.end > gameState.settings.gameLength && (score === null || score === undefined)) {
+        redExtraEnd.classList.add('current-end');
+      }
+    }
+    if (yellowExtraEnd) {
+      const score = gameState.endScores.yellow[extraEndIndex];
+      yellowExtraEnd.textContent = score !== undefined && score !== null ? score : '';
+      yellowExtraEnd.className = '';
+      if (score !== null && score !== undefined && score > 0) {
+        yellowExtraEnd.classList.add('scored', 'scored-yellow');
+      }
+      if (gameState.end > gameState.settings.gameLength && (score === null || score === undefined)) {
+        yellowExtraEnd.classList.add('current-end');
+      }
+    }
+  } else {
+    // Hide extra end column when not in extra end
+    if (headerExtraEnd) headerExtraEnd.style.display = 'none';
+    if (redExtraEnd) redExtraEnd.style.display = 'none';
+    if (yellowExtraEnd) yellowExtraEnd.style.display = 'none';
+  }
 }
 
 // Configure scoreboard to show correct number of end columns
