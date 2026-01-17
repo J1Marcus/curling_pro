@@ -16058,6 +16058,42 @@ window.startTournamentMatch = function() {
   // Hide pre-match screen
   document.getElementById('pre-match-screen').style.display = 'none';
 
+  // Reset game state from any previous match (critical for second+ matches in tournament)
+  // Clear any remaining stones from previous match
+  for (const stone of gameState.stones) {
+    scene.remove(stone.mesh);
+    Matter.Composite.remove(world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Reset core game state
+  gameState.end = 1;
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.endScores = { red: [], yellow: [] };
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+  gameState.phase = 'aiming';
+  gameState.currentTeam = 'red';
+  gameState.hammer = 'yellow';
+  gameState.curlDirection = null;
+  gameState.playerCurlDirection = null;
+  gameState.activeStone = null;
+  gameState.setupComplete = false;
+
+  // Clear any pending computer shot and reset flags
+  if (gameState._computerShotTimeout) {
+    clearTimeout(gameState._computerShotTimeout);
+    gameState._computerShotTimeout = null;
+  }
+  gameState._computerShotInProgress = false;
+
+  // Reset out-of-play stones counter
+  resetOutOfPlayStones();
+
+  // Update UI to reflect reset state
+  updateScoreDisplay();
+  updateStoneCountDisplay();
+  clearTargetMarker();
+
   // Set up game state for career tournament match
   gameState.selectedMode = 'career';
   gameState.gameMode = '1player';
