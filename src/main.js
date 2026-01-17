@@ -18580,6 +18580,13 @@ function startNewEnd() {
     scoreOverlay.style.display = 'none';
   }
 
+  // Clear any pending computer shot state from previous end
+  if (gameState._computerShotTimeout) {
+    clearTimeout(gameState._computerShotTimeout);
+    gameState._computerShotTimeout = null;
+  }
+  gameState._computerShotInProgress = false;
+
   // Clear stones
   for (const stone of gameState.stones) {
     scene.remove(stone.mesh);
@@ -18611,6 +18618,16 @@ function startNewEnd() {
 
   // Check if it's computer's turn first (for camera view)
   const isComputer = gameState.gameMode === '1player' && gameState.currentTeam === gameState.computerTeam;
+
+  console.log('[startNewEnd] End', gameState.end, '- hammer:', gameState.hammer,
+    'currentTeam:', gameState.currentTeam, 'computerTeam:', gameState.computerTeam,
+    'gameMode:', gameState.gameMode, 'isComputer:', isComputer);
+
+  // Defensive check: verify gameState is properly configured for 1-player mode
+  if (gameState.gameMode === '1player' && !gameState.computerTeam) {
+    console.error('[startNewEnd] WARNING: computerTeam is not set! Defaulting to yellow');
+    gameState.computerTeam = 'yellow';
+  }
 
   // Set camera view - target view for player, thrower view for computer
   if (isComputer) {
