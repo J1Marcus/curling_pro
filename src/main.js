@@ -4446,6 +4446,20 @@ function updateBracketWithResult(playerWon, playerScore, opponentScore) {
 
     match.status = 'complete';
 
+    // Also mark the match complete directly in the bracket (defensive: ensures bracket reference is updated)
+    const matchId = match.id;
+    if (matchId && tournament.bracket && tournament.bracket.rounds) {
+      for (const round of tournament.bracket.rounds) {
+        for (const bracketMatch of round.matchups) {
+          if (bracketMatch.id === matchId) {
+            bracketMatch.status = 'complete';
+            bracketMatch.winner = match.winner;
+            bracketMatch.scores = match.scores;
+          }
+        }
+      }
+    }
+
     // Record game in series (for best-of)
     if (!match.games) match.games = [];
     match.games.push({
@@ -15734,8 +15748,35 @@ window.showBracket = function() {
   playBtn.parentNode.replaceChild(newBtn, playBtn);
 
   if (nextMatch && (nextMatch.matchup.status === 'pending' || nextMatch.matchup.status === 'ready')) {
+    // Double-check by looking at the actual bracket match status (defensive against stale references)
+    let actualRoundName = nextMatch.round.name;
+    const matchId = nextMatch.matchup.id;
+    if (matchId && tournament.bracket?.rounds) {
+      for (const round of tournament.bracket.rounds) {
+        for (const bracketMatch of round.matchups) {
+          if (bracketMatch.id === matchId) {
+            // If bracket shows this match as complete, find the real next match
+            if (bracketMatch.status === 'complete') {
+              console.warn(`[showBracket] Match ${matchId} status mismatch: reference says ${nextMatch.matchup.status} but bracket says complete`);
+              // Find actual next round for player
+              for (let i = 0; i < tournament.bracket.rounds.length; i++) {
+                const r = tournament.bracket.rounds[i];
+                for (const m of r.matchups) {
+                  if ((m.status === 'pending' || m.status === 'ready') &&
+                      ((m.team1 && m.team1.isPlayer) || (m.team2 && m.team2.isPlayer))) {
+                    actualRoundName = r.name;
+                    break;
+                  }
+                }
+              }
+            }
+            break;
+          }
+        }
+      }
+    }
     newBtn.style.display = 'block';
-    newBtn.textContent = `Play ${nextMatch.round.name}`;
+    newBtn.textContent = `Play ${actualRoundName}`;
     newBtn.addEventListener('click', handlePlayClick);
     newBtn.addEventListener('touchend', handlePlayClick);
   } else if (tournament.phase === 'complete') {
@@ -16358,10 +16399,26 @@ window.showPostMatch = function() {
   } else {
     const nextMatch = getNextPlayerMatch();
     if (nextMatch) {
+      // Verify we're showing the NEXT round, not the same round we just played
+      let roundName = nextMatch.round.name;
+      if (result.roundName && roundName === result.roundName) {
+        // Bug: showing same round as just played, find actual next round
+        console.warn(`[showPostMatch] Round mismatch: showing ${roundName} but just played ${result.roundName}`);
+        const bracket = seasonState.activeTournament?.bracket;
+        if (bracket?.rounds) {
+          // Find the round AFTER the one we just played
+          for (let i = 0; i < bracket.rounds.length; i++) {
+            if (bracket.rounds[i].name === result.roundName && i + 1 < bracket.rounds.length) {
+              roundName = bracket.rounds[i + 1].name;
+              break;
+            }
+          }
+        }
+      }
       const nextOpp = getCurrentMatchOpponent();
       const nextOppName = nextOpp ?
         `${nextOpp.firstName} ${nextOpp.lastName}` : 'TBD';
-      nextInfo.textContent = `Next: ${nextMatch.round.name} vs. ${nextOppName}`;
+      nextInfo.textContent = `Next: ${roundName} vs. ${nextOppName}`;
     } else {
       nextInfo.textContent = 'Waiting for next round...';
     }
@@ -19335,6 +19392,179 @@ function animate() {
 // DEBUG/TESTING FUNCTIONS
 // ============================================
 
+// Debug: Reset career to final end of tournament finals, winning by 4+
+// Usage: In browser console, call: debugTournamentFinal()
+// This modifies your ACTUAL saved career state and starts the match immediately
+window.debugTournamentFinal = function(tournamentId = 'club_championship', autoStart = true) {
+  // Get the tournament definition
+  const definition = TOURNAMENT_DEFINITIONS.find(t => t.id === tournamentId);
+  if (!definition) {
+    console.error('Tournament not found:', tournamentId);
+    console.log('Available:', TOURNAMENT_DEFINITIONS.map(t => t.id));
+    return;
+  }
+
+  // Initialize or reset season state
+  if (!seasonState.currentSeason) {
+    initializeNewSeason();
+  }
+
+  // Set career tier to match tournament requirements
+  seasonState.careerTier = definition.requirements.minTier;
+  console.log('[DEBUG] Set career tier to:', seasonState.careerTier);
+
+  // Create a tournament with player in the finals
+  const tournament = {
+    definition: definition,
+    phase: 'finals',
+    teams: [],
+    bracket: {
+      type: 'single_elimination',
+      rounds: []
+    },
+    currentMatchup: null
+  };
+
+  // Create simple 4-team bracket with player in finals
+  const playerTeam = {
+    id: 'player',
+    name: seasonState.playerTeam?.name || 'Team Player',
+    isPlayer: true
+  };
+
+  const opponent = generateOpponent(definition.tier, 1);
+  const opponentTeam = {
+    id: opponent.id,
+    name: opponent.teamName || `Team ${opponent.lastName}`,
+    isPlayer: false,
+    ...opponent
+  };
+
+  // Set up bracket - semifinals complete, finals pending
+  tournament.bracket.rounds = [
+    {
+      name: 'Semifinals',
+      matchups: [
+        { id: 'sf1', team1: playerTeam, team2: { id: 'ai1', name: 'AI Team 1' }, status: 'complete', winner: 'team1' },
+        { id: 'sf2', team1: opponentTeam, team2: { id: 'ai2', name: 'AI Team 2' }, status: 'complete', winner: 'team1' }
+      ]
+    },
+    {
+      name: 'Final',
+      matchups: [
+        { id: 'final', team1: playerTeam, team2: opponentTeam, status: 'pending', winner: null }
+      ]
+    }
+  ];
+
+  // Set current matchup to the finals
+  tournament.currentMatchup = {
+    round: tournament.bracket.rounds[1],
+    matchup: tournament.bracket.rounds[1].matchups[0],
+    roundName: 'Final'
+  };
+
+  tournament.teams = [playerTeam, opponentTeam, { id: 'ai1', name: 'AI Team 1' }, { id: 'ai2', name: 'AI Team 2' }];
+
+  // Set as active tournament
+  seasonState.activeTournament = tournament;
+
+  // Save to localStorage
+  saveSeasonState();
+
+  console.log('[DEBUG] Tournament final set up!');
+  console.log('[DEBUG] Tournament:', definition.name);
+  console.log('[DEBUG] Tier:', definition.tier, '→ advances to:', definition.rewards.tierAdvance ? CAREER_TIERS[CAREER_TIERS.indexOf(definition.tier) + 1] : 'N/A');
+  console.log('[DEBUG] Opponent:', opponentTeam.name);
+
+  // Auto-start the match in the final end, winning by 5
+  if (autoStart) {
+    debugStartFinalMatch(7, 2);  // Winning by 5 points
+  } else {
+    console.log('[DEBUG] Now call: debugStartFinalMatch() to start the match in the last end');
+  }
+
+  return tournament;
+};
+
+// Debug: Start the final match in the last end (winning position)
+window.debugStartFinalMatch = function(playerScore = 5, opponentScore = 3) {
+  if (!seasonState.activeTournament) {
+    console.error('No active tournament. Call debugTournamentFinal() first.');
+    return;
+  }
+
+  // Set up game state for tournament match
+  gameState.selectedMode = 'career';
+  gameState.gameMode = '1player';
+  gameState.computerTeam = 'yellow';
+  gameState.inTournamentMatch = true;
+
+  // Set countries/teams
+  const opponent = getCurrentMatchOpponent();
+  gameState.playerCountry = {
+    id: 'player',
+    name: seasonState.playerTeam?.name || 'Team Player',
+    flag: seasonState.playerTeam?.club?.crest || '🥌'
+  };
+  gameState.opponentCountry = {
+    id: 'opponent',
+    name: opponent?.teamName || 'Opponent',
+    flag: opponent?.club?.crest || '🎯'
+  };
+
+  // Set to last end with player winning
+  const totalEnds = gameState.settings.gameLength || 6;
+  gameState.end = totalEnds;
+  gameState.scores = { red: playerScore, yellow: opponentScore };
+  gameState.endScores = { red: [], yellow: [] };
+  for (let i = 0; i < totalEnds; i++) {
+    gameState.endScores.red.push(i < totalEnds - 1 ? Math.floor(playerScore / (totalEnds - 1)) : null);
+    gameState.endScores.yellow.push(i < totalEnds - 1 ? Math.floor(opponentScore / (totalEnds - 1)) : null);
+  }
+
+  // Set up for player's turn
+  gameState.stonesThrown = { red: 7, yellow: 7 };  // One stone left each
+  gameState.currentTeam = 'red';
+  gameState.hammer = 'red';  // Player has hammer (last stone advantage)
+  gameState.phase = 'aiming';
+  gameState.setupComplete = true;
+
+  // Clear stones
+  gameState.stones.forEach(stone => {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(world, stone.body);
+  });
+  gameState.stones = [];
+
+  // Update UI
+  updateScoreDisplay();
+  updateScoreboardFlags();
+  updateScoreboardForGameLength();
+  updateStoneCountDisplay();
+  updatePreviewStoneForTeam();
+  document.getElementById('turn').textContent = `End ${totalEnds}/${totalEnds} - Final Stone!`;
+
+  // Show game canvas
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('season-overview-screen').style.display = 'none';
+  document.getElementById('bracket-screen').style.display = 'none';
+  document.getElementById('pre-match-screen').style.display = 'none';
+  hideModeSelectFooter();
+  const canvas = document.getElementById('game-canvas');
+  if (canvas) canvas.style.display = 'block';
+  const gameUI = document.getElementById('game-ui');
+  if (gameUI) gameUI.style.display = 'block';
+
+  // Start ambient sound
+  soundManager.startAmbientCrowd();
+
+  console.log('[DEBUG] Final match started!');
+  console.log('[DEBUG] Score:', playerScore, '-', opponentScore, '(you are winning)');
+  console.log('[DEBUG] End:', totalEnds, '/', totalEnds, '- This is the last end!');
+  console.log('[DEBUG] Throw your final stone to win the tournament!');
+};
+
 // Debug: Set up a match in the last end for testing end-of-match scenarios
 // Usage: In browser console, call: debugLastEnd() or debugLastEnd(5, 4) for custom scores
 window.debugLastEnd = function(playerScore = 5, opponentScore = 4) {
@@ -19433,6 +19663,7 @@ window.debugWinMatch = function() {
 };
 
 // Debug button removed for production
+
 
 // ============================================
 // CPU FAST FORWARD BUTTON
