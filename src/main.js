@@ -16005,6 +16005,11 @@ window.showPreMatch = function() {
 
   console.log('[showPreMatch] opponent:', opponent);
 
+  // Hide other screens that might be visible
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('season-overview-screen').style.display = 'none';
+  hideModeSelectFooter();
+
   if (!opponent) {
     console.error('No opponent found for pre-match screen');
     // Debug: log the current match state
@@ -16217,6 +16222,8 @@ window.startTournamentMatch = function() {
     // Skip coin toss if resuming, otherwise show it
     if (isResuming) {
       console.log('[Resume] Skipping coin toss, resuming from End', savedProgress.end);
+      // Show game canvas and hide all menu screens when resuming
+      showGameCanvas();
       startGame();
     } else {
       window.startCoinToss();
@@ -16233,12 +16240,30 @@ window.startTournamentMatch = function() {
       if (!gameState.opponentCountry) {
         gameState.opponentCountry = CURLING_COUNTRIES[1]; // Default to second country
       }
+      // Show game canvas and hide all menu screens when resuming
+      showGameCanvas();
       startGame();
     } else {
       showCountrySelection();
     }
   }
 };
+
+// Helper function to show game canvas and hide all menu screens
+function showGameCanvas() {
+  // Hide all menu screens
+  document.getElementById('mode-select-screen').style.display = 'none';
+  document.getElementById('season-overview-screen').style.display = 'none';
+  document.getElementById('bracket-screen').style.display = 'none';
+  document.getElementById('pre-match-screen').style.display = 'none';
+  document.getElementById('tournament-entry-screen').style.display = 'none';
+  document.getElementById('club-select-screen').style.display = 'none';
+  hideModeSelectFooter();
+
+  // Show game canvas
+  const canvas = document.getElementById('game-canvas');
+  if (canvas) canvas.style.display = 'block';
+}
 
 // Continue tournament after match ends
 window.continueTournament = function() {
