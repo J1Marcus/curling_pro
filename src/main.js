@@ -11822,8 +11822,8 @@ function showGameOverOverlay() {
 
     // Check if this is a tournament match
     if (gameState.inTournamentMatch && seasonState.activeTournament) {
-      // Handle tournament match result
-      handleTournamentMatchResult(userWon);
+      // Handle tournament match result - returns info about championship, tier advancement
+      const matchResult = handleTournamentMatchResult(userWon);
 
       // Save to match history
       saveLocalMatchToHistory({
@@ -11839,8 +11839,32 @@ function showGameOverOverlay() {
       });
 
       if (careerMessageEl) {
-        careerMessageEl.textContent = userWon ? 'Tournament match won!' : 'Eliminated from tournament';
-        careerMessageEl.style.color = userWon ? '#4ade80' : '#f87171';
+        if (matchResult?.isChampion) {
+          // Special celebration for tournament champions!
+          const tierName = matchResult.tournamentTier?.charAt(0).toUpperCase() +
+                          matchResult.tournamentTier?.slice(1) || 'Tournament';
+          careerMessageEl.innerHTML = `🏆 <strong>${matchResult.tournamentName} CHAMPION!</strong>`;
+          careerMessageEl.style.color = '#fbbf24';  // Gold color
+          careerMessageEl.style.fontSize = '1.2em';
+
+          // If tier advanced, add that info
+          if (matchResult.tierAdvanced && matchResult.newTier) {
+            const newTierName = matchResult.newTier.charAt(0).toUpperCase() + matchResult.newTier.slice(1);
+            careerMessageEl.innerHTML += `<br><span style="font-size: 0.85em; color: #4ade80;">You've earned a spot at the ${newTierName} level!</span>`;
+          }
+        } else if (userWon) {
+          // Show round advancement info
+          const roundName = matchResult?.roundName || 'Match';
+          careerMessageEl.innerHTML = `✓ <strong>${roundName} Won!</strong>`;
+          careerMessageEl.style.color = '#4ade80';
+          careerMessageEl.style.fontSize = '';
+          // Add advancement hint
+          careerMessageEl.innerHTML += `<br><span style="font-size: 0.85em; color: #94a3b8;">Advancing in ${matchResult?.tournamentName || 'tournament'}...</span>`;
+        } else {
+          careerMessageEl.innerHTML = `✗ Eliminated from ${matchResult?.tournamentName || 'tournament'}`;
+          careerMessageEl.style.color = '#f87171';
+          careerMessageEl.style.fontSize = '';
+        }
         careerMessageEl.style.display = 'block';
       }
     } else {
@@ -16193,23 +16217,31 @@ window.startNewSeason = function() {
 function handleTournamentMatchResult(playerWon) {
   if (!seasonState.activeTournament) return;
 
+  // Capture tournament info BEFORE it might be cleared by completeTournament
+  const tournament = seasonState.activeTournament;
+  const tournamentName = tournament.definition?.name || 'Tournament';
+  const tournamentTier = tournament.definition?.tier || 'club';
+  const currentTierIndex = CAREER_TIERS.indexOf(seasonState.careerTier);
+  const willAdvanceTier = playerWon && tournament.definition?.rewards?.tierAdvance &&
+                          currentTierIndex < CAREER_TIERS.length - 1;
+  const nextTier = willAdvanceTier ? CAREER_TIERS[currentTierIndex + 1] : null;
+
+  // Get the current round name before bracket update
+  const currentRoundName = tournament.currentMatchup?.round?.name ||
+                           tournament.currentMatchup?.roundName || 'Match';
+
   // Get player and opponent scores from gameState
   const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
   const playerScore = gameState.scores[playerTeam];
   const opponentScore = gameState.scores[playerTeam === 'red' ? 'yellow' : 'red'];
 
-  // Update tournament bracket
-  updateBracketWithResult(playerWon, playerScore, opponentScore);
+  // Get opponent info before bracket update potentially clears it
+  const opponent = getCurrentMatchOpponent();
 
-  // Update season stats
-  if (playerWon) {
-    seasonState.stats.totalWins++;
-  } else {
-    seasonState.stats.totalLosses++;
-  }
+  // Update tournament bracket - this returns the result with isChampion, etc.
+  const bracketResult = updateBracketWithResult(playerWon, playerScore, opponentScore);
 
   // Update rivalry history if opponent was a rival
-  const opponent = getCurrentMatchOpponent();
   if (opponent && opponent.isRival && opponent.id) {
     if (!seasonState.rivalryHistory[opponent.id]) {
       seasonState.rivalryHistory[opponent.id] = { playerWins: 0, playerLosses: 0, lastMet: null };
@@ -16222,23 +16254,36 @@ function handleTournamentMatchResult(playerWon) {
     seasonState.rivalryHistory[opponent.id].lastMet = new Date().toISOString();
   }
 
-  // Check tournament status
-  const status = checkTournamentStatus();
-
   // Clear tournament match flag
   gameState.inTournamentMatch = false;
 
   // Save state
   saveSeasonState();
 
-  // Store result for post-match screen
+  // Determine tournament status from bracket result
+  let status = 'ongoing';
+  if (bracketResult?.isChampion) {
+    status = 'champion';
+  } else if (bracketResult?.playerEliminated) {
+    status = 'eliminated';
+  }
+
+  // Store result for post-match screen and game over overlay
   window._lastMatchResult = {
     playerWon,
     playerScore,
     opponentScore,
     opponent,
-    tournamentStatus: status
+    tournamentStatus: status,
+    tournamentName,
+    tournamentTier,
+    roundName: currentRoundName,
+    isChampion: bracketResult?.isChampion || false,
+    tierAdvanced: willAdvanceTier,
+    newTier: nextTier
   };
+
+  return window._lastMatchResult;
 }
 
 // Show post-match screen
@@ -16259,12 +16304,19 @@ window.showPostMatch = function() {
   const resultText = document.getElementById('match-result-text');
   const scoreText = document.getElementById('match-final-score');
 
-  if (result.playerWon) {
+  if (result.isChampion) {
+    // Special gold banner for tournament champions
+    banner.style.background = 'linear-gradient(135deg, #854d0e 0%, #ca8a04 50%, #854d0e 100%)';
+    resultText.textContent = '🏆 CHAMPION!';
+    resultText.style.fontSize = '2em';
+  } else if (result.playerWon) {
     banner.style.background = 'linear-gradient(135deg, #1a4d2e 0%, #2d6b40 100%)';
     resultText.textContent = 'VICTORY!';
+    resultText.style.fontSize = '';
   } else {
     banner.style.background = 'linear-gradient(135deg, #4d1a1a 0%, #6b2d2d 100%)';
     resultText.textContent = 'DEFEAT';
+    resultText.style.fontSize = '';
   }
 
   scoreText.textContent = `${result.playerScore} - ${result.opponentScore}`;
@@ -16289,9 +16341,17 @@ window.showPostMatch = function() {
 
   if (result.tournamentStatus === 'eliminated' || result.tournamentStatus === 'champion') {
     if (result.tournamentStatus === 'champion') {
-      nextInfo.textContent = '🏆 Tournament Champion!';
+      // Show championship message with tier advancement if applicable
+      if (result.tierAdvanced && result.newTier) {
+        const newTierName = result.newTier.charAt(0).toUpperCase() + result.newTier.slice(1);
+        nextInfo.innerHTML = `🏆 <strong>${result.tournamentName} Champion!</strong><br>` +
+          `<span style="color: #4ade80;">You've qualified for ${newTierName} tournaments!</span>`;
+      } else {
+        nextInfo.innerHTML = `🏆 <strong>${result.tournamentName || 'Tournament'} Champion!</strong>`;
+      }
     } else {
       nextInfo.textContent = 'Tournament ended';
+      nextInfo.style.color = '';
     }
     continueBtn.style.display = 'none';
     returnBtn.style.display = 'block';
