@@ -16387,15 +16387,39 @@ window.showPostMatch = function() {
         const newTierName = result.newTier.charAt(0).toUpperCase() + result.newTier.slice(1);
         nextInfo.innerHTML = `🏆 <strong>${result.tournamentName} Champion!</strong><br>` +
           `<span style="color: #4ade80;">You've qualified for ${newTierName} tournaments!</span>`;
+
+        // Show "Enter Next Tournament" button instead of "Return to Season"
+        continueBtn.style.display = 'block';
+        continueBtn.textContent = `Enter ${newTierName} Tournament`;
+        continueBtn.onclick = function() {
+          document.getElementById('post-match-screen').style.display = 'none';
+          // Find and enter the first available tournament at the new tier
+          const newTierTournaments = getAvailableTournaments().filter(id => {
+            const def = getTournamentDefinition(id);
+            return def && def.tier === result.newTier;
+          });
+          if (newTierTournaments.length > 0) {
+            const newTournament = enterTournament(newTierTournaments[0]);
+            if (newTournament) {
+              showBracket();
+              return;
+            }
+          }
+          // Fallback to season overview if no tournament available
+          showSeasonOverview();
+        };
+        returnBtn.style.display = 'none';
       } else {
         nextInfo.innerHTML = `🏆 <strong>${result.tournamentName || 'Tournament'} Champion!</strong>`;
+        continueBtn.style.display = 'none';
+        returnBtn.style.display = 'block';
       }
     } else {
       nextInfo.textContent = 'Tournament ended';
       nextInfo.style.color = '';
+      continueBtn.style.display = 'none';
+      returnBtn.style.display = 'block';
     }
-    continueBtn.style.display = 'none';
-    returnBtn.style.display = 'block';
   } else {
     const nextMatch = getNextPlayerMatch();
     if (nextMatch) {
@@ -19831,4 +19855,223 @@ setTimeout(() => {
     // Go directly to mode selection
     showModeSelection();
   }
+
+  // Check for debug mode
+  if (window.location.search.includes('debug=1')) {
+    initDebugPanel();
+  }
 }, remainingTime);
+
+// ============================================
+// DEBUG PANEL (only accessible via ?debug=1)
+// ============================================
+function initDebugPanel() {
+  const panel = document.createElement('div');
+  panel.id = 'debug-panel';
+  panel.style.cssText = `
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.9);
+    border: 2px solid #4ade80;
+    border-radius: 8px;
+    padding: 15px;
+    z-index: 10000;
+    font-family: monospace;
+    font-size: 12px;
+    color: white;
+    max-height: 80vh;
+    overflow-y: auto;
+    min-width: 280px;
+  `;
+
+  panel.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <strong style="color: #4ade80;">DEBUG PANEL</strong>
+      <button onclick="document.getElementById('debug-panel').style.display='none'" style="background: #ef4444; border: none; color: white; padding: 2px 8px; border-radius: 4px; cursor: pointer;">X</button>
+    </div>
+    <hr style="border-color: #333; margin: 10px 0;">
+
+    <div style="margin-bottom: 15px;">
+      <strong>Tournament Scenarios:</strong><br>
+      <button onclick="window.debugSetScenario('finals_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (Winning 6-2)</button>
+      <button onclick="window.debugSetScenario('finals_close')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (Tied 4-4)</button>
+      <button onclick="window.debugSetScenario('semis_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Semis (Winning 5-2)</button>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <strong>Tier Selection:</strong><br>
+      <select id="debug-tier-select" style="margin: 3px; padding: 5px; background: #1e293b; color: white; border: 1px solid #4ade80; border-radius: 4px;">
+        <option value="club">Club</option>
+        <option value="regional">Regional</option>
+        <option value="provincial">Provincial</option>
+        <option value="national">National</option>
+        <option value="international">International</option>
+        <option value="olympic">Olympic</option>
+      </select>
+      <button onclick="window.debugSetTier()" style="margin: 3px; padding: 5px 10px; background: #22c55e; border: none; color: white; border-radius: 4px; cursor: pointer;">Set Tier</button>
+    </div>
+
+    <div style="margin-bottom: 15px;">
+      <strong>Quick Actions:</strong><br>
+      <button onclick="window.debugWinCurrentMatch()" style="margin: 3px; padding: 5px 10px; background: #22c55e; border: none; color: white; border-radius: 4px; cursor: pointer;">Win Current Match</button>
+      <button onclick="window.debugAdvanceEnd()" style="margin: 3px; padding: 5px 10px; background: #f59e0b; border: none; color: white; border-radius: 4px; cursor: pointer;">Score End (You +2)</button>
+      <button onclick="window.debugResetCareer()" style="margin: 3px; padding: 5px 10px; background: #ef4444; border: none; color: white; border-radius: 4px; cursor: pointer;">Reset Career</button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
+      <strong>Current State:</strong>
+      <pre id="debug-state" style="background: #1e293b; padding: 8px; border-radius: 4px; font-size: 10px; max-height: 150px; overflow: auto;"></pre>
+      <button onclick="window.debugRefreshState()" style="margin: 3px; padding: 5px 10px; background: #6b7280; border: none; color: white; border-radius: 4px; cursor: pointer;">Refresh</button>
+    </div>
+  `;
+
+  document.body.appendChild(panel);
+  window.debugRefreshState();
+}
+
+window.debugRefreshState = function() {
+  const stateEl = document.getElementById('debug-state');
+  if (!stateEl) return;
+
+  const state = {
+    tier: seasonState.careerTier,
+    tournament: seasonState.activeTournament?.definition?.name || 'None',
+    phase: seasonState.activeTournament?.phase || 'N/A',
+    currentMatch: seasonState.activeTournament?.currentMatchup?.round?.name || 'N/A',
+    gameEnd: gameState.end,
+    scores: gameState.scores,
+    hammer: gameState.hammer,
+    computerTeam: gameState.computerTeam
+  };
+  stateEl.textContent = JSON.stringify(state, null, 2);
+};
+
+window.debugSetScenario = function(scenario) {
+  const tier = document.getElementById('debug-tier-select')?.value || 'club';
+
+  // Find the championship tournament for this tier
+  const tierTournaments = TOURNAMENT_DEFINITIONS.filter(t => t.tier === tier && t.rewards?.tierAdvance);
+  const tournamentDef = tierTournaments[0] || TOURNAMENT_DEFINITIONS.find(t => t.tier === tier);
+
+  if (!tournamentDef) {
+    alert('No tournament found for tier: ' + tier);
+    return;
+  }
+
+  // Set career tier
+  seasonState.careerTier = tier;
+  seasonState.qualifications = { regionalQualified: true, provincialQualified: true, nationalQualified: true };
+
+  // Create tournament with player in finals or semis
+  const teams = generateTournamentField(tournamentDef, tier);
+  const bracket = generateSingleEliminationBracket(teams, tournamentDef.format.bestOf || 1);
+
+  // Mark earlier rounds as complete
+  const playerTeam = teams.find(t => t.isPlayer);
+
+  if (scenario.includes('finals')) {
+    // Mark semifinals as complete
+    for (const match of bracket.rounds[0].matchups) {
+      match.status = 'complete';
+      match.winner = match.team1?.isPlayer ? 'team1' : (match.team2?.isPlayer ? 'team2' : 'team1');
+      match.scores = { team1: 6, team2: 3 };
+    }
+    // Set up finals with player
+    const finalMatch = bracket.rounds[1].matchups[0];
+    finalMatch.team1 = playerTeam;
+    finalMatch.team2 = teams.find(t => !t.isPlayer);
+    finalMatch.status = 'ready';
+  } else if (scenario.includes('semis')) {
+    // Player is in semifinals (first round for 4-team)
+    // Already set up by bracket generation
+  }
+
+  const tournament = {
+    id: Date.now().toString(),
+    definition: tournamentDef,
+    phase: 'bracket',
+    bracket: bracket,
+    currentMatchup: null,
+    startTime: Date.now(),
+    result: null
+  };
+
+  tournament.currentMatchup = getNextPlayerMatch(tournament);
+  seasonState.activeTournament = tournament;
+
+  // Set up game state for the match
+  gameState.selectedMode = 'career';
+  gameState.gameMode = '1player';
+  gameState.computerTeam = 'yellow';
+  gameState.inTournamentMatch = false;
+
+  // Set scores based on scenario
+  if (scenario.includes('winning')) {
+    gameState.end = 5;
+    gameState.scores = { red: 6, yellow: 2 };
+    gameState.hammer = 'yellow';
+  } else if (scenario.includes('close')) {
+    gameState.end = 5;
+    gameState.scores = { red: 4, yellow: 4 };
+    gameState.hammer = 'red';
+  } else {
+    gameState.end = 4;
+    gameState.scores = { red: 5, yellow: 2 };
+    gameState.hammer = 'yellow';
+  }
+
+  saveSeasonState();
+  window.debugRefreshState();
+  alert(`Scenario set: ${scenario} at ${tier} tier.\nGo to Career mode to continue.`);
+};
+
+window.debugSetTier = function() {
+  const tier = document.getElementById('debug-tier-select')?.value || 'club';
+  seasonState.careerTier = tier;
+  seasonState.qualifications = {
+    regionalQualified: CAREER_TIERS.indexOf(tier) >= 1,
+    provincialQualified: CAREER_TIERS.indexOf(tier) >= 2,
+    nationalQualified: CAREER_TIERS.indexOf(tier) >= 3
+  };
+  seasonState.seasonCalendar.available = getAvailableTournaments();
+  saveSeasonState();
+  window.debugRefreshState();
+  alert('Tier set to: ' + tier);
+};
+
+window.debugWinCurrentMatch = function() {
+  if (!seasonState.activeTournament || !gameState.inTournamentMatch) {
+    alert('Not in a tournament match!');
+    return;
+  }
+  // Set a winning score and trigger game over
+  gameState.scores.red = 10;
+  gameState.scores.yellow = 2;
+  gameState.end = gameState.settings.gameLength + 1;
+  showGameOverOverlay();
+};
+
+window.debugAdvanceEnd = function() {
+  if (!gameState.setupComplete) {
+    alert('Start a match first!');
+    return;
+  }
+  // Player scores 2 points
+  const playerTeam = gameState.computerTeam === 'yellow' ? 'red' : 'yellow';
+  gameState.scores[playerTeam] += 2;
+  gameState.endScores[playerTeam][gameState.end - 1] = 2;
+  gameState.endScores[gameState.computerTeam][gameState.end - 1] = 0;
+  gameState.hammer = gameState.computerTeam;
+  updateScoreDisplay();
+  startNewEnd();
+  window.debugRefreshState();
+};
+
+window.debugResetCareer = function() {
+  if (confirm('Reset entire career? This cannot be undone.')) {
+    localStorage.removeItem('curling_season_state');
+    localStorage.removeItem('curling_match_progress');
+    location.reload();
+  }
+};
