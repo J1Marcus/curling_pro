@@ -20102,10 +20102,11 @@ window.debugSetScenario = function(scenario) {
 
   // For last end scenarios, start the game directly in that end
   if (scenario === 'finals_last_end' || scenario.includes('winning') || scenario.includes('close')) {
-    // Hide all screens
+    // Hide all overlay screens
     const screensToHide = ['mode-select-screen', 'bracket-screen', 'pre-match-screen',
       'season-overview-screen', 'club-select-screen', 'difficulty-select-screen',
-      'coin-toss-overlay', 'color-choice-overlay', 'team-assignment-overlay'];
+      'coin-toss-overlay', 'color-choice-overlay', 'team-assignment-overlay',
+      'post-match-screen', 'settings-summary-screen'];
     screensToHide.forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
@@ -20113,10 +20114,8 @@ window.debugSetScenario = function(scenario) {
 
     // Set up as if we're mid-tournament match
     gameState.inTournamentMatch = true;
-    gameState.setupComplete = true;
     gameState.stonesThrown = { red: 0, yellow: 0 };
-    gameState.currentTeam = gameState.hammer; // Team with hammer throws second, so other team is current
-    gameState.currentTeam = gameState.hammer === 'red' ? 'yellow' : 'red';
+    gameState.currentTeam = gameState.hammer === 'red' ? 'yellow' : 'red'; // Non-hammer throws first
 
     // Clear any existing stones
     for (const stone of gameState.stones) {
@@ -20125,11 +20124,7 @@ window.debugSetScenario = function(scenario) {
     }
     gameState.stones = [];
 
-    // Show game UI
-    document.getElementById('game-ui').style.display = 'flex';
-    document.getElementById('aim-circle').style.display = 'block';
-
-    // Start the game directly
+    // Start the game directly (this handles all UI setup)
     startGame();
   } else {
     // For other scenarios, go to bracket view
