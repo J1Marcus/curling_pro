@@ -9612,7 +9612,7 @@ function updateSweepFromMovement(x, y) {
 
     const wasSweeping = gameState.isSweeping;
     gameState.isSweeping = gameState.sweepEffectiveness > 0.1;
-    gameState.lastSweepTime = now;
+    gameState.lastSweepTime = gameState.gameTime;  // Use physics time for FFW determinism
 
     // Calculate sweep vector for curl influence
     const sweepMagnitude = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
@@ -9672,10 +9672,10 @@ function updateSweepFromMovement(x, y) {
 
 // Decay sweep effectiveness when not actively sweeping
 function decaySweepEffectiveness() {
-  const now = Date.now();
+  const now = gameState.gameTime;  // Use physics time for FFW determinism
   const timeSinceLastSweep = now - gameState.lastSweepTime;
 
-  // Decay over 200ms
+  // Decay over 200ms (in physics time)
   if (timeSinceLastSweep > 100) {
     gameState.sweepEffectiveness *= 0.9;
     if (gameState.sweepEffectiveness < 0.05) {
@@ -9735,7 +9735,7 @@ function updateComputerSweeping() {
       gameState.isSweeping = true;
       gameState.sweepEffectiveness = 0.7 + Math.random() * 0.3; // 70-100%
       gameState.sweepCurlInfluence = 0; // Computer uses neutral sweep
-      gameState.lastSweepTime = Date.now();
+      gameState.lastSweepTime = gameState.gameTime;  // Use physics time for FFW determinism
 
       if (!gameState._computerSweepSoundStarted) {
         soundManager.startSweeping();
@@ -9770,7 +9770,7 @@ function updateComputerSweeping() {
       gameState.isSweeping = true;
       gameState.sweepEffectiveness = 0.6 + skillFactor * 0.4; // Better at higher levels
       gameState.sweepCurlInfluence = 0; // Computer uses neutral sweep for now
-      gameState.lastSweepTime = Date.now();
+      gameState.lastSweepTime = gameState.gameTime;  // Use physics time for FFW determinism
 
       if (!gameState._computerSweepSoundStarted) {
         soundManager.startSweeping();
