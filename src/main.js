@@ -20100,47 +20100,25 @@ window.debugSetScenario = function(scenario) {
   const panel = document.getElementById('debug-panel');
   if (panel) panel.style.display = 'none';
 
-  // For last end scenarios, start the game directly in that end
+  // For last end scenarios, save state and show pre-match screen with resume option
   if (scenario === 'finals_last_end' || scenario.includes('winning') || scenario.includes('close')) {
-    // Hide all overlay screens
-    const screensToHide = ['mode-select-screen', 'bracket-screen', 'pre-match-screen',
-      'season-overview-screen', 'club-select-screen', 'difficulty-select-screen',
-      'coin-toss-overlay', 'color-choice-overlay', 'team-assignment-overlay',
-      'post-match-screen', 'settings-summary-screen'];
-    screensToHide.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
-    });
-
-    // Set up as if we're mid-tournament match
-    gameState.inTournamentMatch = true;
-    gameState.stonesThrown = { red: 0, yellow: 0 };
-    gameState.currentTeam = gameState.hammer === 'red' ? 'yellow' : 'red'; // Non-hammer throws first
-
-    // Clear any existing stones
-    for (const stone of gameState.stones) {
-      scene.remove(stone.mesh);
-      Matter.Composite.remove(world, stone.body);
-    }
-    gameState.stones = [];
-
-    // Save state for crash recovery so startGame() will restore it
+    // Save state for crash recovery - showPreMatch() will detect this and show resume UI
     const debugMatchState = {
       end: gameState.end,
       scores: gameState.scores,
       endScores: gameState.endScores,
       hammer: gameState.hammer,
-      currentTeam: gameState.currentTeam,
+      currentTeam: gameState.hammer === 'red' ? 'yellow' : 'red', // Non-hammer throws first
       computerTeam: gameState.computerTeam,
-      stonesThrown: gameState.stonesThrown,
+      stonesThrown: { red: 0, yellow: 0 },
       playerCountry: gameState.playerCountry,
       opponentCountry: gameState.opponentCountry,
       stonePositions: []
     };
-    localStorage.setItem('curling_match_progress', JSON.stringify(debugMatchState));
+    localStorage.setItem('curlingpro_match_progress', JSON.stringify(debugMatchState));
 
-    // Start the game directly (this handles all UI setup and will restore our saved state)
-    startGame();
+    // Show the pre-match screen - it will show the resume summary with current score
+    showPreMatch();
   } else {
     // For other scenarios, go to bracket view
     showBracket();
