@@ -14888,9 +14888,21 @@ window.goBackToDifficulty = function() {
 
 // Go back to mode selection
 window.goBackToModeSelect = function() {
-  document.getElementById('difficulty-select-screen').style.display = 'none';
-  document.getElementById('season-overview-screen').style.display = 'none';
-  document.getElementById('club-select-screen').style.display = 'none';
+  // Hide all possible screens that could be open
+  const screensToHide = [
+    'difficulty-select-screen',
+    'season-overview-screen',
+    'club-select-screen',
+    'bracket-screen',
+    'country-select-screen',
+    'settings-summary-screen',
+    'practice-drill-screen',
+    'level-select-screen'
+  ];
+  screensToHide.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
   showModeSelection();
 };
 
