@@ -19984,26 +19984,57 @@ window.debugSetScenario = function(scenario) {
 
   // Create tournament with player in finals or semis
   const teams = generateTournamentField(tournamentDef, tier);
-  const bracket = generateSingleEliminationBracket(teams, tournamentDef.format.bestOf || 1);
-
-  // Mark earlier rounds as complete
   const playerTeam = teams.find(t => t.isPlayer);
+  const opponentTeam = teams.find(t => !t.isPlayer);
+
+  // Create a custom bracket for the scenario
+  let bracket;
 
   if (scenario.includes('finals')) {
-    // Mark semifinals as complete
-    for (const match of bracket.rounds[0].matchups) {
-      match.status = 'complete';
-      match.winner = match.team1?.isPlayer ? 'team1' : (match.team2?.isPlayer ? 'team2' : 'team1');
-      match.scores = { team1: 6, team2: 3 };
-    }
-    // Set up finals with player
-    const finalMatch = bracket.rounds[1].matchups[0];
-    finalMatch.team1 = playerTeam;
-    finalMatch.team2 = teams.find(t => !t.isPlayer);
-    finalMatch.status = 'ready';
+    // Create bracket with player already in finals
+    bracket = {
+      rounds: [
+        {
+          name: 'Semifinals',
+          matchups: [
+            {
+              id: 'semi1',
+              team1: playerTeam,
+              team2: teams[2] || opponentTeam,
+              status: 'complete',
+              winner: 'team1',  // Player won
+              scores: { team1: 6, team2: 3 }
+            },
+            {
+              id: 'semi2',
+              team1: opponentTeam,
+              team2: teams[3] || teams[2],
+              status: 'complete',
+              winner: 'team1',  // Opponent won
+              scores: { team1: 5, team2: 4 }
+            }
+          ]
+        },
+        {
+          name: 'Finals',
+          matchups: [
+            {
+              id: 'final',
+              team1: playerTeam,
+              team2: opponentTeam,
+              status: 'ready',
+              winner: null,
+              scores: null
+            }
+          ]
+        }
+      ]
+    };
   } else if (scenario.includes('semis')) {
-    // Player is in semifinals (first round for 4-team)
-    // Already set up by bracket generation
+    // Player is in semifinals
+    bracket = generateSingleEliminationBracket(teams, tournamentDef.format.bestOf || 1);
+  } else {
+    bracket = generateSingleEliminationBracket(teams, tournamentDef.format.bestOf || 1);
   }
 
   const tournament = {
