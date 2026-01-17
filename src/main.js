@@ -16397,21 +16397,27 @@ window.showPostMatch = function() {
       // Show championship message with tier advancement if applicable
       if (result.tierAdvanced && result.newTier) {
         const newTierName = result.newTier.charAt(0).toUpperCase() + result.newTier.slice(1);
-        nextInfo.innerHTML = `🏆 <strong>${result.tournamentName} Champion!</strong><br>` +
-          `<span style="color: #4ade80;">You've qualified for ${newTierName} tournaments!</span>`;
+        // Find the next tier's first tournament name for the message
+        const nextTierTournaments = getAvailableTournaments().filter(id => {
+          const def = getTournamentDefinition(id);
+          return def && def.tier === result.newTier;
+        });
+        const nextTournamentDef = nextTierTournaments.length > 0 ?
+          getTournamentDefinition(nextTierTournaments[0]) : null;
+        const nextTournamentName = nextTournamentDef?.name || `${newTierName} Tournament`;
 
-        // Show "Enter Next Tournament" button instead of "Return to Season"
+        nextInfo.innerHTML = `🏆 <strong>Congratulations on winning the ${result.tournamentName}!</strong><br><br>` +
+          `<span style="color: #4ade80;">You've earned a spot in the ${nextTournamentName}.</span><br>` +
+          `<span style="color: #94a3b8;">Would you like to begin that tournament now?</span>`;
+
+        // Show "Begin Tournament" button
         continueBtn.style.display = 'block';
-        continueBtn.textContent = `Enter ${newTierName} Tournament`;
+        continueBtn.textContent = `Begin ${newTierName} Tournament`;
         continueBtn.onclick = function() {
           document.getElementById('post-match-screen').style.display = 'none';
           // Find and enter the first available tournament at the new tier
-          const newTierTournaments = getAvailableTournaments().filter(id => {
-            const def = getTournamentDefinition(id);
-            return def && def.tier === result.newTier;
-          });
-          if (newTierTournaments.length > 0) {
-            const newTournament = enterTournament(newTierTournaments[0]);
+          if (nextTierTournaments.length > 0) {
+            const newTournament = enterTournament(nextTierTournaments[0]);
             if (newTournament) {
               showBracket();
               return;
@@ -16420,17 +16426,43 @@ window.showPostMatch = function() {
           // Fallback to season overview if no tournament available
           showSeasonOverview();
         };
-        returnBtn.style.display = 'none';
+        returnBtn.style.display = 'block';
+        returnBtn.textContent = 'Maybe Later';
       } else {
-        nextInfo.innerHTML = `🏆 <strong>${result.tournamentName || 'Tournament'} Champion!</strong>`;
+        // Champion but no tier advancement (e.g., already at Olympic level)
+        nextInfo.innerHTML = `🏆 <strong>Congratulations on winning the ${result.tournamentName || 'Tournament'}!</strong><br><br>` +
+          `<span style="color: #4ade80;">You've reached the pinnacle of curling excellence!</span>`;
         continueBtn.style.display = 'none';
         returnBtn.style.display = 'block';
+        returnBtn.textContent = 'Return to Season';
       }
     } else {
-      nextInfo.textContent = 'Tournament ended';
-      nextInfo.style.color = '';
-      continueBtn.style.display = 'none';
+      // Player was eliminated - show kind message and offer to try again
+      nextInfo.innerHTML = `<span style="color: #94a3b8;">You gave it your all out there. Every loss is a lesson that makes you stronger.</span><br><br>` +
+        `<span style="color: #64748b;">Ready to enter a new ${result.tournamentTier || 'club'} tournament?</span>`;
+
+      // Show "Enter New Tournament" button
+      continueBtn.style.display = 'block';
+      continueBtn.textContent = 'Enter New Tournament';
+      continueBtn.onclick = function() {
+        document.getElementById('post-match-screen').style.display = 'none';
+        // Find and enter a fresh tournament at the same tier
+        const sameTierTournaments = getAvailableTournaments().filter(id => {
+          const def = getTournamentDefinition(id);
+          return def && def.tier === result.tournamentTier;
+        });
+        if (sameTierTournaments.length > 0) {
+          const newTournament = enterTournament(sameTierTournaments[0]);
+          if (newTournament) {
+            showBracket();
+            return;
+          }
+        }
+        // Fallback to season overview if no tournament available
+        showSeasonOverview();
+      };
       returnBtn.style.display = 'block';
+      returnBtn.textContent = 'Return to Season';
     }
   } else {
     const nextMatch = getNextPlayerMatch();
@@ -20116,6 +20148,19 @@ window.debugSetScenario = function(scenario) {
 
   // For last end scenarios, save state and show pre-match screen with resume option
   if (scenario === 'finals_last_end' || scenario.includes('winning') || scenario.includes('close')) {
+    // Set up country/team info for the match (required for startTournamentMatch)
+    const playerClub = seasonState.playerTeam.club;
+    gameState.playerCountry = {
+      id: playerClub?.id || 'club',
+      name: seasonState.playerTeam.name || 'Team Player',
+      flag: playerClub?.crest || '🥌'
+    };
+    gameState.opponentCountry = {
+      id: opponentTeam?.club?.id || 'opponent',
+      name: opponentTeam?.teamName || opponentTeam?.name || 'Opponent',
+      flag: opponentTeam?.club?.crest || '🥌'
+    };
+
     // Save state for crash recovery - showPreMatch() will detect this and show resume UI
     const debugMatchState = {
       end: gameState.end,
