@@ -16160,6 +16160,8 @@ window.startTournamentMatch = function() {
   gameState.playerCurlDirection = null;
   gameState.activeStone = null;
   gameState.setupComplete = false;
+  gameState.inExtraEnd = false;
+  gameState.extraEndNumber = 0;
 
   // Clear any pending computer shot and reset flags
   if (gameState._computerShotTimeout) {
@@ -18695,9 +18697,18 @@ function startNewEnd() {
   gameState.currentTeam = gameState.hammer === 'red' ? 'yellow' : 'red';
 
   if (gameState.end > gameState.settings.gameLength) {
-    // Game over
-    showGameOverOverlay();
-    return;
+    // Check if game is tied - if so, play extra end(s)
+    if (gameState.scores.red === gameState.scores.yellow) {
+      // Tied game - play an extra end!
+      gameState.inExtraEnd = true;
+      gameState.extraEndNumber = (gameState.extraEndNumber || 0) + 1;
+      console.log('[EXTRA END] Game tied after regulation, starting extra end', gameState.extraEndNumber);
+      // Hammer stays with whoever had it (last end's hammer holder keeps it for extra end)
+    } else {
+      // Game over - someone won
+      showGameOverOverlay();
+      return;
+    }
   }
 
   // Check if it's mathematically impossible for the losing team to catch up
@@ -18741,6 +18752,14 @@ function startNewEnd() {
   let turnText;
   const totalEnds = gameState.settings.gameLength;
 
+  // Determine end label (regular or extra end)
+  let endLabel;
+  if (gameState.inExtraEnd) {
+    endLabel = gameState.extraEndNumber > 1 ? `Extra End ${gameState.extraEndNumber}` : 'Extra End';
+  } else {
+    endLabel = `End ${gameState.end}/${totalEnds}`;
+  }
+
   if (gameState.selectedMode === 'online') {
     // Multiplayer - use player names
     const localTeam = multiplayer.multiplayerState.localPlayer.team;
@@ -18749,13 +18768,13 @@ function startNewEnd() {
     const remoteName = multiplayer.multiplayerState.remotePlayer.name || 'Opponent';
 
     if (isMyTurn) {
-      turnText = `End ${gameState.end}/${totalEnds} - ${localName}'s Turn`;
+      turnText = `${endLabel} - ${localName}'s Turn`;
     } else {
-      turnText = `End ${gameState.end}/${totalEnds} - ${remoteName}'s Turn`;
+      turnText = `${endLabel} - ${remoteName}'s Turn`;
     }
   } else {
     const teamName = gameState.currentTeam.charAt(0).toUpperCase() + gameState.currentTeam.slice(1);
-    turnText = `End ${gameState.end}/${totalEnds} - ${teamName}'s\u00A0Turn${isComputer ? ' (Computer)' : ''}`;
+    turnText = `${endLabel} - ${teamName}'s\u00A0Turn${isComputer ? ' (Computer)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
