@@ -20883,5 +20883,20 @@ window.debugOlympicsCeremony = function() {
 // This puts you in the last end of the Olympics final, winning by 5
 window.debugOlympicsFinal = function() {
   console.log('[DEBUG] Setting up Olympics gold medal match...');
-  debugTournamentFinal('olympics', true);
+
+  // Ensure season is initialized
+  if (!seasonState.currentSeason) {
+    initializeNewSeason();
+  }
+
+  // Grant Olympics qualification so the tournament works
+  seasonState.qualifications.olympicsQualified = true;
+  seasonState.careerTier = 'international';
+
+  // Set a team name for the ceremony
+  if (!seasonState.teamName) {
+    seasonState.teamName = seasonState.playerTeam?.name || 'Team Champion';
+  }
+
+  window.debugTournamentFinal('olympics', true);
 };
