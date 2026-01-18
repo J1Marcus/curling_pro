@@ -1249,6 +1249,176 @@ class SoundManager {
       // Ignore errors during reset
     }
   }
+
+  // ============================================
+  // OLYMPIC ANTHEM - Triumphant fanfare
+  // ============================================
+
+  playOlympicAnthem() {
+    if (!this.enabled || !this.audioContext) return;
+
+    // Stop any existing anthem
+    this.stopOlympicAnthem();
+
+    const now = this.audioContext.currentTime;
+    this.anthemNodes = [];
+
+    // Create master gain for anthem
+    const anthemGain = this.audioContext.createGain();
+    anthemGain.gain.setValueAtTime(0, now);
+    anthemGain.gain.linearRampToValueAtTime(0.3, now + 1);
+    anthemGain.connect(this.masterGain);
+    this.anthemMasterGain = anthemGain;
+
+    // Triumphant chord progression: C - G - Am - F - C - G - C (I-V-vi-IV-I-V-I)
+    const chordProgression = [
+      { notes: [261.63, 329.63, 392.00], duration: 2.5 },  // C major
+      { notes: [196.00, 246.94, 293.66], duration: 2.5 },  // G major (lower)
+      { notes: [220.00, 261.63, 329.63], duration: 2.5 },  // A minor
+      { notes: [174.61, 220.00, 261.63], duration: 2.5 },  // F major
+      { notes: [261.63, 329.63, 392.00], duration: 2.0 },  // C major
+      { notes: [392.00, 493.88, 587.33], duration: 2.0 },  // G major (higher)
+      { notes: [523.25, 659.25, 783.99], duration: 4.0 },  // C major (finale, octave up)
+    ];
+
+    let currentTime = now;
+
+    chordProgression.forEach((chord, chordIndex) => {
+      const isFinale = chordIndex === chordProgression.length - 1;
+
+      chord.notes.forEach((freq, noteIndex) => {
+        // Main tone - sawtooth for brass-like quality
+        const osc = this.audioContext.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq;
+
+        // Add slight detune for richness
+        if (noteIndex > 0) {
+          osc.detune.value = (Math.random() - 0.5) * 10;
+        }
+
+        // Filter to soften the sawtooth
+        const filter = this.audioContext.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = isFinale ? 2000 : 1200;
+        filter.Q.value = 0.5;
+
+        // Note envelope
+        const noteGain = this.audioContext.createGain();
+        const attackTime = 0.1;
+        const releaseTime = 0.3;
+
+        noteGain.gain.setValueAtTime(0, currentTime);
+        noteGain.gain.linearRampToValueAtTime(
+          isFinale ? 0.25 : 0.15,
+          currentTime + attackTime
+        );
+        noteGain.gain.setValueAtTime(
+          isFinale ? 0.25 : 0.15,
+          currentTime + chord.duration - releaseTime
+        );
+        noteGain.gain.linearRampToValueAtTime(0, currentTime + chord.duration);
+
+        osc.connect(filter);
+        filter.connect(noteGain);
+        noteGain.connect(anthemGain);
+
+        osc.start(currentTime);
+        osc.stop(currentTime + chord.duration + 0.1);
+
+        this.anthemNodes.push({ osc, filter, noteGain });
+      });
+
+      // Add timpani-like bass on strong beats
+      if (chordIndex % 2 === 0 || isFinale) {
+        const timpani = this.audioContext.createOscillator();
+        timpani.type = 'sine';
+        timpani.frequency.value = chord.notes[0] / 2; // One octave below root
+
+        const timpaniGain = this.audioContext.createGain();
+        timpaniGain.gain.setValueAtTime(0.2, currentTime);
+        timpaniGain.gain.exponentialRampToValueAtTime(0.01, currentTime + 0.8);
+
+        timpani.connect(timpaniGain);
+        timpaniGain.connect(anthemGain);
+
+        timpani.start(currentTime);
+        timpani.stop(currentTime + 1);
+
+        this.anthemNodes.push({ osc: timpani, noteGain: timpaniGain });
+      }
+
+      currentTime += chord.duration;
+    });
+
+    // Add cymbal crash at finale
+    const finaleTime = now + chordProgression.reduce((sum, c, i) =>
+      sum + (i < chordProgression.length - 1 ? c.duration : 0), 0);
+
+    this.playCymbalCrash(finaleTime);
+
+    // Fade out at the end
+    const totalDuration = chordProgression.reduce((sum, c) => sum + c.duration, 0);
+    anthemGain.gain.setValueAtTime(0.3, now + totalDuration - 1);
+    anthemGain.gain.linearRampToValueAtTime(0, now + totalDuration);
+  }
+
+  playCymbalCrash(time) {
+    if (!this.audioContext) return;
+
+    const duration = 3;
+    const noiseBuffer = this.getNoiseBuffer(duration);
+
+    const noise = this.audioContext.createBufferSource();
+    noise.buffer = noiseBuffer;
+
+    const highpass = this.audioContext.createBiquadFilter();
+    highpass.type = 'highpass';
+    highpass.frequency.value = 3000;
+
+    const bandpass = this.audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 8000;
+    bandpass.Q.value = 0.5;
+
+    const gain = this.audioContext.createGain();
+    gain.gain.setValueAtTime(0.3, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + duration);
+
+    noise.connect(highpass);
+    highpass.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(this.anthemMasterGain || this.masterGain);
+
+    noise.start(time);
+    noise.stop(time + duration);
+
+    if (this.anthemNodes) {
+      this.anthemNodes.push({ osc: noise, noteGain: gain });
+    }
+  }
+
+  stopOlympicAnthem() {
+    if (this.anthemNodes) {
+      this.anthemNodes.forEach(node => {
+        try {
+          if (node.osc && node.osc.stop) node.osc.stop();
+        } catch (e) {
+          // Already stopped
+        }
+      });
+      this.anthemNodes = null;
+    }
+
+    if (this.anthemMasterGain) {
+      try {
+        this.anthemMasterGain.gain.setValueAtTime(0, this.audioContext.currentTime);
+      } catch (e) {
+        // Ignore
+      }
+      this.anthemMasterGain = null;
+    }
+  }
 }
 
 // Export singleton instance

@@ -7219,11 +7219,13 @@ function updateSkipSignalArm() {
   }
 
   // Update beacon arrow direction (only visible in throw view, not target view)
+  // Negate direction for arm position: CW (direction=1) should show arm on LEFT side
+  // This matches real curling where skip's right arm out (pointing left from thrower) = clockwise
   if (curlArrow) {
     // Only show arrow in throw view (previewHeight < 0.5), hide in target view
     curlArrow.visible = gameState.previewHeight < 0.5;
-    curlArrow.rotation.z = direction > 0 ? -Math.PI / 2 : Math.PI / 2;
-    curlArrow.position.x = direction * 0.5;
+    curlArrow.rotation.z = direction > 0 ? Math.PI / 2 : -Math.PI / 2;  // Swapped
+    curlArrow.position.x = -direction * 0.5;  // Negated
   }
 
   // Update skip's signal arm
@@ -7231,11 +7233,11 @@ function updateSkipSignalArm() {
     signalArm.visible = true;
     signalHand.visible = true;
     signalArm.rotation.set(0, 0, Math.PI / 2);
-    signalArm.position.set(direction * 0.2, 0.55, skipZ);
-    signalHand.position.set(direction * 0.38, 0.55, skipZ);
+    signalArm.position.set(-direction * 0.2, 0.55, skipZ);  // Negated
+    signalHand.position.set(-direction * 0.38, 0.55, skipZ);  // Negated
 
     if (rightBroomArm) {
-      rightBroomArm.visible = (direction === -1);
+      rightBroomArm.visible = (direction === 1);  // Swapped from -1 to 1
     }
   }
 }
@@ -10309,24 +10311,23 @@ function getComputerShot() {
   }
 
   // Determine curl direction based on target position and shot type
+  // Physics: curl=1 (IN/CW) curls RIGHT (+X), curl=-1 (OUT/CCW) curls LEFT (-X)
   if (shotType === 'takeout' || shotType === 'peel') {
     // For takeouts, curl toward the target (stone curves INTO target)
-    curl = targetX > 0 ? -1 : 1;
-  } else if (shotType === 'come-around') {
-    // Come around curls away from guard then back
+    // Target on right → curl right (1), target on left → curl left (-1)
     curl = targetX > 0 ? 1 : -1;
+  } else if (shotType === 'come-around') {
+    // Come around: curl AWAY from the guard side to wrap around it
+    // Target on right → curl left (-1) to come around from left side
+    curl = targetX > 0 ? -1 : 1;
   } else {
     // For draws/guards, pick curl direction to curve INTO the target
-    // In this game: IN-turn (1) curls LEFT, OUT-turn (-1) curls RIGHT
-    // If target is left of center, use IN-turn to curl left into it
-    // If target is right of center, use OUT-turn to curl right into it
-    curl = targetX > 0.2 ? -1 : (targetX < -0.2 ? 1 : (Math.random() > 0.5 ? 1 : -1));
+    // Target on right → curl right (1), target on left → curl left (-1)
+    curl = targetX > 0.2 ? 1 : (targetX < -0.2 ? -1 : (Math.random() > 0.5 ? 1 : -1));
   }
 
   // Calculate aim angle with proper curl compensation
-  // In this game's physics:
-  // IN-turn (curl=1) curls LEFT (-X direction)
-  // OUT-turn (curl=-1) curls RIGHT (+X direction)
+  // Physics: curl=1 curls RIGHT (+X), curl=-1 curls LEFT (-X)
   const normalizedEffort = effort / 100;
   // Curl drift decreases with effort (fast stones curl less)
   // At effort 50 (draw): ~1m drift, at effort 80 (takeout): ~0.4m drift
@@ -10334,9 +10335,9 @@ function getComputerShot() {
   const estimatedCurlDrift = (1.0 - normalizedEffort * 0.7) * 1.2;
 
   // Compensate for curl:
-  // IN-turn (curl=1) curls left, so aim RIGHT (+compensation)
-  // OUT-turn (curl=-1) curls right, so aim LEFT (-compensation)
-  const curlCompensation = curl * estimatedCurlDrift * 0.4; // 40% compensation (conservative)
+  // curl=1 curls right, so aim LEFT (-compensation)
+  // curl=-1 curls left, so aim RIGHT (+compensation)
+  const curlCompensation = -curl * estimatedCurlDrift * 0.4; // Negative: aim opposite to curl
 
   // Adjust aim: compensate for curl
   const aimX = targetX + curlCompensation;
@@ -10626,6 +10627,84 @@ function executeComputerShot() {
 }
 
 // ============================================
+// PER-STEP PHYSICS (curl and friction)
+// Called inside the physics loop for FFW consistency
+// ============================================
+function applyPerStepPhysics() {
+  // Ice condition variability based on level
+  const levelId = gameState.gameMode === '1player' ? gameState.career.level : 4;
+  const iceVariability = (levelId - 1) * 0.02;  // 0 to 0.14
+
+  // Apply curl effect during movement
+  if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
+    const body = gameState.activeStone.body;
+    const vel = body.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+
+    if (speed > 0.3) {
+      const lateCurlMultiplier = ADVANCED_PHYSICS.lateCurl.getCurlMultiplier(speed, gameState.initialThrowSpeed);
+      const omega = body.angularVelocity;
+      const absOmega = Math.abs(omega);
+      const stabilityFactor = ADVANCED_PHYSICS.rotation.getStabilityFactor(omega);
+      const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability * stabilityFactor;
+
+      const curlDirection = omega < 0 ? 1 : -1;
+      const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
+      const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
+      let curlForce = curlDirection * 0.000006 * lateCurlMultiplier * iceRandomness * omegaFactor;
+      curlForce = Math.max(-0.0002, Math.min(0.0002, curlForce));
+
+      if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
+        const baseCurlReduction = 0.15;
+        const diagonalEffect = gameState.sweepCurlInfluence * 0.4;
+        const curlModifier = 1 - baseCurlReduction + diagonalEffect;
+        curlForce *= Math.max(0.3, Math.min(1.3, curlModifier));
+      }
+
+      curlForce = Math.max(-0.00012, Math.min(0.00012, curlForce));
+      Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
+    }
+  }
+
+  // Apply friction
+  const frictionVariation = 1 + (Math.random() - 0.5) * iceVariability * 0.5;
+
+  for (const stone of gameState.stones) {
+    const vel = stone.body.velocity;
+    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
+
+    if (speed > 0.1) {
+      const isGuardWeight = stone._isGuardWeight || false;
+      let friction = getIceFriction(isGuardWeight);
+
+      if (speed < 1.5 && speed >= 1.0) {
+        friction *= 1 + (1.5 - speed) * 0.8;
+      }
+
+      const stoneZ = stone.body.position.y / PHYSICS_SCALE;
+      if (speed < 1.0) {
+        let dampingRate;
+        if (stoneZ >= HOG_LINE_FAR) {
+          dampingRate = 0.002 + (1.0 - speed) * 0.004;
+        } else {
+          dampingRate = 0.0015 + (1.0 - speed) * 0.007;
+        }
+        const dampedSpeed = Math.max(0.1, speed * (1 - dampingRate));
+        const scale = dampedSpeed / speed;
+        Matter.Body.setVelocity(stone.body, {
+          x: vel.x * scale,
+          y: vel.y * scale
+        });
+      }
+
+      stone.body.frictionAir = friction * frictionVariation;
+    } else {
+      Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
+    }
+  }
+}
+
+// ============================================
 // PHYSICS UPDATE
 // ============================================
 function updatePhysics() {
@@ -10644,12 +10723,13 @@ function updatePhysics() {
   const physicsIterations = canFastForward ? 5 : 1;
 
   for (let i = 0; i < physicsIterations; i++) {
-    Matter.Engine.update(engine, 1000 / 60);
-    // Track simulated game time (unaffected by fast-forward for accurate timing display)
-    gameState.gameTime += 1000 / 60;
-
-    // Update sliding phase inside the loop so friction/curl is applied correctly in FFW mode
+    // Apply curl and friction BEFORE engine update so they take effect this step
+    applyPerStepPhysics();
     updateSliding();
+
+    // Run physics simulation
+    Matter.Engine.update(engine, 1000 / 60);
+    gameState.gameTime += 1000 / 60;
   }
 
   // Sync 3D meshes with physics bodies
@@ -10745,142 +10825,13 @@ function updatePhysics() {
     }
   }
 
-  // Apply curl effect during movement (stone curves based on rotation)
-  // Ice condition variability based on level
-  // Beginners get very consistent ice, higher levels have more realistic variation
-  const levelId = gameState.gameMode === '1player' ? gameState.career.level : 4;
-  // Level 1: 0% variation (perfectly consistent ice)
-  // Level 8: 15% variation (realistic ice conditions that vary)
-  const iceVariability = (levelId - 1) * 0.02;  // 0 to 0.14
-
-  // Simple curl physics - angular velocity directly affects curl
-  // Positive angularVelocity (IN turn) curls RIGHT (+X)
-  // Negative angularVelocity (OUT turn) curls LEFT (-X)
+  // Update sliding sound volume once per frame (not in physics loop)
   if (gameState.activeStone && (gameState.phase === 'throwing' || gameState.phase === 'sweeping')) {
-    const body = gameState.activeStone.body;
-    const vel = body.velocity;
+    const vel = gameState.activeStone.body.velocity;
     const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-
     if (speed > 0.3) {
       const normalizedSpeed = Math.min(speed, 5) / 5;
-
-      // ADVANCED PHYSICS 2: LATE CURL BEHAVIOR (Normalized Speed Model)
-      // Curl is continuous function of normalized speed (v/v0)
-      // Curl ramps up smoothly as stone slows, not just at threshold
-      const lateCurlMultiplier = ADVANCED_PHYSICS.lateCurl.getCurlMultiplier(speed, gameState.initialThrowSpeed);
-
-      // Ice variability - slight random variation in curl
-      // ADVANCED PHYSICS 3: Rotation affects stability/variance
-      const omega = body.angularVelocity;
-      const absOmega = Math.abs(omega);
-      const stabilityFactor = ADVANCED_PHYSICS.rotation.getStabilityFactor(omega);
-      const iceRandomness = 1 + (Math.random() - 0.5) * iceVariability * stabilityFactor;
-
-      // Calculate curl force - INVERSE relationship: more rotation = straighter path
-      // Rotation direction: negative omega = clockwise = curl RIGHT, positive omega = counterclockwise = curl LEFT
-      // (This matches the throw setup where curlDirection 1=IN=clockwise=curl right)
-      // Magnitude is weakly inversely proportional to rotation rate (curlOmegaExponent is small)
-      const curlDirection = omega < 0 ? 1 : -1;  // negative omega (clockwise) = curl RIGHT (+1)
-
-      // Base curl force with late curl multiplier
-      // Uses weak omega exponent so rotation doesn't dominate
-      // Ensure base is positive for Math.pow with fractional exponent
-      const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
-      const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
-      // Base curl constant increased for more noticeable curl effect
-      let curlForce = curlDirection * 0.000006 * lateCurlMultiplier * iceRandomness * omegaFactor;
-      curlForce = Math.max(-0.0002, Math.min(0.0002, curlForce));  // Slightly higher cap for more curl
-
-      // NEW SWEEP MODEL:
-      // - Fast sweeping (any direction) carries the stone farther (handled in friction)
-      // - Diagonal sweeping toward curl side = reduces curl
-      // - Diagonal sweeping away from curl side = lets it curl more
-      // - Effect is subtle (centimeters, not steering)
-      if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
-        // sweepCurlInfluence: -1 = reduce curl, +1 = let it curl
-        // Negative influence reduces curl force, positive allows more
-        // Base reduction from any sweeping (parallel sweeping gives distance but minimal curl change)
-        const baseCurlReduction = 0.15; // Small base reduction from friction smoothing
-
-        // Diagonal influence adds/subtracts from curl
-        // Max effect is ~40% curl modification at full diagonal sweep
-        const diagonalEffect = gameState.sweepCurlInfluence * 0.4;
-
-        // Combined effect: reduce by base amount, then apply diagonal influence
-        // Negative sweepCurlInfluence (sweeping toward curl) = more reduction
-        // Positive sweepCurlInfluence (sweeping away) = less reduction (or slight increase)
-        const curlModifier = 1 - baseCurlReduction + diagonalEffect;
-        curlForce *= Math.max(0.3, Math.min(1.3, curlModifier)); // Clamp to reasonable range
-      }
-
-      // Final cap to prevent extreme cases while allowing meaningful curl
-      curlForce = Math.max(-0.00012, Math.min(0.00012, curlForce));
-      Matter.Body.applyForce(body, body.position, { x: curlForce, y: 0 });
-
-      // Update sliding sound volume based on speed
       soundManager.updateSlidingVolume(normalizedSpeed);
-
-      // Update live crowd reactions based on stone position/trajectory
-      // DISABLED - testing if this breaks iOS audio
-      // try {
-      //   updateLiveCrowdReactions(body, speed);
-      // } catch(e) {
-      //   // Don't let crowd reactions break physics
-      // }
-    }
-  }
-
-  // Apply increased friction at low speeds to make stones stop faster
-  // Real curling: stones "fall off a cliff" as they slow - friction spikes dramatically
-  // Post-hog glide should be ~4-5s, not 18s, so we need aggressive low-speed friction
-  // The key: only apply aggressive slowdown at VERY low speeds (post-hog territory)
-  const frictionVariation = 1 + (Math.random() - 0.5) * iceVariability * 0.5;
-
-  for (const stone of gameState.stones) {
-    const vel = stone.body.velocity;
-    const speed = Math.sqrt(vel.x * vel.x + vel.y * vel.y);
-
-    if (speed > 0.1) {
-      // Progressive friction increase as stone slows
-      // At high speeds: base friction only
-      // At low speeds: aggressive "cliff" slowdown kicks in
-      // Use ice conditioning based on shot weight
-      const isGuardWeight = stone._isGuardWeight || false;
-      let friction = getIceFriction(isGuardWeight);
-
-      // Mild increase at medium-low speeds (1.5 to 1.0)
-      if (speed < 1.5 && speed >= 1.0) {
-        friction *= 1 + (1.5 - speed) * 0.8;
-      }
-
-      // Aggressive "cliff" at low speeds (< 1.0)
-      // Stone needs to stop quickly when moving slowly, not drift forever
-      // frictionAir alone isn't enough - directly dampen velocity
-      const stoneZ = stone.body.position.y / PHYSICS_SCALE;
-      if (speed < 1.0) {
-        // Direct velocity damping
-        // More aggressive after far hog line (tuned for 4-5s post-hog glide)
-        // Slightly more aggressive before hog line to stop weak throws faster
-        let dampingRate;
-        if (stoneZ >= HOG_LINE_FAR) {
-          // Post-hog: need to stop in 4-5s
-          dampingRate = 0.002 + (1.0 - speed) * 0.004;  // ~0.2-0.6% per frame
-        } else {
-          // Pre-hog: weak throws - slightly more aggressive than before
-          dampingRate = 0.0015 + (1.0 - speed) * 0.007;  // Small bump from original
-        }
-        const dampedSpeed = Math.max(0.1, speed * (1 - dampingRate));
-        const scale = dampedSpeed / speed;
-        Matter.Body.setVelocity(stone.body, {
-          x: vel.x * scale,
-          y: vel.y * scale
-        });
-      }
-
-      stone.body.frictionAir = friction * frictionVariation;
-    } else {
-      // Stop the stone completely when very slow
-      Matter.Body.setVelocity(stone.body, { x: 0, y: 0 });
     }
   }
 
@@ -11755,6 +11706,573 @@ function launchRaindrops() {
   }, 8000);
 }
 
+// ============================================
+// OLYMPICS VICTORY CEREMONY
+// ============================================
+
+let olympicsCeremonyActive = false;
+let olympicsCeremonyObjects = [];
+
+function showOlympicsCeremony(matchResult) {
+  if (olympicsCeremonyActive) return;
+  olympicsCeremonyActive = true;
+  olympicsCeremonyObjects = [];
+
+  console.log('[Olympics] Starting victory ceremony!', matchResult);
+
+  // Clear any existing game overlays
+  const gameOverOverlay = document.getElementById('gameover-overlay');
+  if (gameOverOverlay) gameOverOverlay.style.display = 'none';
+
+  // Stop ambient sounds and clear stones for ceremony
+  soundManager.stopAmbientCrowd();
+
+  // Get the ceremony overlay
+  const overlay = document.getElementById('olympics-ceremony-overlay');
+  if (!overlay) {
+    console.error('[Olympics] Ceremony overlay not found');
+    olympicsCeremonyActive = false;
+    showGameOverOverlay();
+    return;
+  }
+
+  // Set team name
+  const teamNameEl = document.getElementById('olympics-team-name');
+  if (teamNameEl) {
+    teamNameEl.textContent = seasonState.teamName || 'Team Champion';
+  }
+
+  // Hide text elements initially - they'll appear during sequence
+  const championText = document.getElementById('olympics-champion-text');
+  const medalIcon = document.getElementById('olympics-medal-icon');
+  const continueBtn = document.getElementById('olympics-continue-btn');
+  if (championText) championText.style.opacity = '0';
+  if (medalIcon) medalIcon.style.opacity = '0';
+  if (continueBtn) continueBtn.style.opacity = '0';
+
+  // Show overlay with fade in
+  overlay.style.display = 'flex';
+  overlay.style.opacity = '0';
+  requestAnimationFrame(() => {
+    overlay.style.transition = 'opacity 1s ease-in';
+    overlay.style.opacity = '1';
+  });
+
+  // Create 3D podium scene
+  createOlympicPodium();
+
+  // Animate camera to ceremony view
+  animateCameraToCeremony();
+
+  // Start the ceremony sequence
+  runCeremonySequence(matchResult);
+}
+
+function createOlympicPodium() {
+  // Podium position - center of the house area
+  const podiumX = 0;
+  const podiumZ = -17; // Near the house
+
+  // Create podium base (three tiers)
+  const podiumGroup = new THREE.Group();
+  podiumGroup.name = 'olympicPodium';
+
+  // Gold tier (1st place - center, tallest)
+  const goldGeom = new THREE.BoxGeometry(1.2, 1.0, 1.0);
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xffd700,
+    metalness: 0.8,
+    roughness: 0.2,
+    emissive: 0xffd700,
+    emissiveIntensity: 0.2
+  });
+  const goldPodium = new THREE.Mesh(goldGeom, goldMat);
+  goldPodium.position.set(0, 0.5, 0);
+  goldPodium.castShadow = true;
+  goldPodium.receiveShadow = true;
+  podiumGroup.add(goldPodium);
+
+  // Add "1" on gold podium
+  const goldLabel = createPodiumLabel('1', 0xffd700);
+  goldLabel.position.set(0, 0.8, 0.51);
+  podiumGroup.add(goldLabel);
+
+  // Silver tier (2nd place - left from camera view)
+  const silverGeom = new THREE.BoxGeometry(1.0, 0.7, 1.0);
+  const silverMat = new THREE.MeshStandardMaterial({
+    color: 0xc0c0c0,
+    metalness: 0.8,
+    roughness: 0.3
+  });
+  const silverPodium = new THREE.Mesh(silverGeom, silverMat);
+  silverPodium.position.set(-1.3, 0.35, 0);
+  silverPodium.castShadow = true;
+  silverPodium.receiveShadow = true;
+  podiumGroup.add(silverPodium);
+
+  // Add "2" on silver podium
+  const silverLabel = createPodiumLabel('2', 0xc0c0c0);
+  silverLabel.position.set(-1.3, 0.55, 0.51);
+  podiumGroup.add(silverLabel);
+
+  // Bronze tier (3rd place - right from camera view)
+  const bronzeGeom = new THREE.BoxGeometry(1.0, 0.5, 1.0);
+  const bronzeMat = new THREE.MeshStandardMaterial({
+    color: 0xcd7f32,
+    metalness: 0.7,
+    roughness: 0.4
+  });
+  const bronzePodium = new THREE.Mesh(bronzeGeom, bronzeMat);
+  bronzePodium.position.set(1.3, 0.25, 0);
+  bronzePodium.castShadow = true;
+  bronzePodium.receiveShadow = true;
+  podiumGroup.add(bronzePodium);
+
+  // Add "3" on bronze podium
+  const bronzeLabel = createPodiumLabel('3', 0xcd7f32);
+  bronzeLabel.position.set(1.3, 0.35, 0.51);
+  podiumGroup.add(bronzeLabel);
+
+  // Position the whole podium
+  podiumGroup.position.set(podiumX, 0, podiumZ);
+
+  scene.add(podiumGroup);
+  olympicsCeremonyObjects.push(podiumGroup);
+
+  // Create champion figure on gold podium
+  createChampionFigure(podiumX, 1.0, podiumZ);
+
+  // Create flag pole behind podium
+  createFlagPole(podiumX, podiumZ - 1.5);
+
+  // Add spotlight on podium
+  const spotlight = new THREE.SpotLight(0xffffff, 2);
+  spotlight.position.set(podiumX, 8, podiumZ + 5);
+  spotlight.target.position.set(podiumX, 0, podiumZ);
+  spotlight.angle = Math.PI / 6;
+  spotlight.penumbra = 0.3;
+  spotlight.castShadow = true;
+  scene.add(spotlight);
+  scene.add(spotlight.target);
+  olympicsCeremonyObjects.push(spotlight, spotlight.target);
+}
+
+function createPodiumLabel(text, color) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, 128, 128);
+
+  ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+  ctx.font = 'bold 80px Arial';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 64, 64);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+  const geometry = new THREE.PlaneGeometry(0.4, 0.4);
+  return new THREE.Mesh(geometry, material);
+}
+
+function createChampionFigure(x, y, z) {
+  // Simple champion figure - reuse spectator style
+  const figureGroup = new THREE.Group();
+  figureGroup.name = 'olympicChampion';
+
+  // Body
+  const bodyGeom = new THREE.CapsuleGeometry(0.15, 0.4, 8, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xdc2626 }); // Red team jacket
+  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  body.position.y = 0.4;
+  figureGroup.add(body);
+
+  // Head
+  const headGeom = new THREE.SphereGeometry(0.12, 16, 16);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xfdbf6f });
+  const head = new THREE.Mesh(headGeom, headMat);
+  head.position.y = 0.75;
+  figureGroup.add(head);
+
+  // Arms raised in victory
+  const armGeom = new THREE.CapsuleGeometry(0.04, 0.25, 4, 8);
+  const armMat = new THREE.MeshStandardMaterial({ color: 0xdc2626 });
+
+  const leftArm = new THREE.Mesh(armGeom, armMat);
+  leftArm.position.set(-0.22, 0.7, 0);
+  leftArm.rotation.z = Math.PI / 4;
+  figureGroup.add(leftArm);
+
+  const rightArm = new THREE.Mesh(armGeom, armMat);
+  rightArm.position.set(0.22, 0.7, 0);
+  rightArm.rotation.z = -Math.PI / 4;
+  figureGroup.add(rightArm);
+
+  figureGroup.position.set(x, y, z);
+  scene.add(figureGroup);
+  olympicsCeremonyObjects.push(figureGroup);
+
+  return figureGroup;
+}
+
+function createFlagPole(x, z) {
+  // Flag pole
+  const poleGeom = new THREE.CylinderGeometry(0.03, 0.03, 4, 8);
+  const poleMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 });
+  const pole = new THREE.Mesh(poleGeom, poleMat);
+  pole.position.set(x, 2, z);
+  scene.add(pole);
+  olympicsCeremonyObjects.push(pole);
+
+  // Flag (starts at bottom, will animate up)
+  const flagGeom = new THREE.PlaneGeometry(1.2, 0.8, 10, 10);
+  const flagMat = new THREE.MeshStandardMaterial({
+    color: 0xdc2626, // Red team color
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.95
+  });
+  const flag = new THREE.Mesh(flagGeom, flagMat);
+  flag.name = 'olympicFlag';
+  flag.position.set(x + 0.6, 0.5, z); // Start at bottom
+  flag.userData.startY = 0.5;
+  flag.userData.endY = 3.5;
+  flag.userData.waveTime = 0;
+  scene.add(flag);
+  olympicsCeremonyObjects.push(flag);
+
+  // Add Olympic rings texture to flag
+  addOlympicRingsToFlag(flag);
+}
+
+function addOlympicRingsToFlag(flag) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 171;
+  const ctx = canvas.getContext('2d');
+
+  // Red background
+  ctx.fillStyle = '#dc2626';
+  ctx.fillRect(0, 0, 256, 171);
+
+  // Draw Olympic rings
+  const rings = [
+    { x: 60, y: 55, color: '#0081c8' },   // Blue
+    { x: 128, y: 55, color: '#000000' },  // Black
+    { x: 196, y: 55, color: '#ee334e' },  // Red
+    { x: 94, y: 90, color: '#fcb131' },   // Yellow
+    { x: 162, y: 90, color: '#00a651' }   // Green
+  ];
+
+  ctx.lineWidth = 6;
+  rings.forEach(ring => {
+    ctx.strokeStyle = ring.color;
+    ctx.beginPath();
+    ctx.arc(ring.x, ring.y, 25, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+
+  const texture = new THREE.CanvasTexture(canvas);
+  flag.material.map = texture;
+  flag.material.needsUpdate = true;
+}
+
+function animateCameraToCeremony() {
+  // Save current camera position for later restoration
+  const originalPos = camera.position.clone();
+  const originalRot = camera.rotation.clone();
+
+  // Target ceremony view position
+  const ceremonyPos = { x: 0, y: 3, z: -12 };
+  const lookAtTarget = { x: 0, y: 1.5, z: -17 };
+
+  // Animate camera position
+  const startPos = { x: camera.position.x, y: camera.position.y, z: camera.position.z };
+  const duration = 2000;
+  const startTime = Date.now();
+
+  function animateCamera() {
+    if (!olympicsCeremonyActive) return;
+
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3); // Ease out cubic
+
+    camera.position.x = startPos.x + (ceremonyPos.x - startPos.x) * eased;
+    camera.position.y = startPos.y + (ceremonyPos.y - startPos.y) * eased;
+    camera.position.z = startPos.z + (ceremonyPos.z - startPos.z) * eased;
+
+    camera.lookAt(lookAtTarget.x, lookAtTarget.y, lookAtTarget.z);
+
+    if (progress < 1) {
+      requestAnimationFrame(animateCamera);
+    }
+  }
+
+  animateCamera();
+}
+
+function animateFlagRising() {
+  const flag = scene.getObjectByName('olympicFlag');
+  if (!flag) return;
+
+  const duration = 4000;
+  const startTime = Date.now();
+  const startY = flag.userData.startY;
+  const endY = flag.userData.endY;
+
+  function animate() {
+    if (!olympicsCeremonyActive) return;
+
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 2); // Ease out quad
+
+    flag.position.y = startY + (endY - startY) * eased;
+
+    // Add wave effect
+    flag.userData.waveTime += 0.05;
+    const positions = flag.geometry.attributes.position;
+    for (let i = 0; i < positions.count; i++) {
+      const x = positions.getX(i);
+      const wave = Math.sin(x * 3 + flag.userData.waveTime) * 0.05;
+      positions.setZ(i, wave);
+    }
+    positions.needsUpdate = true;
+
+    if (progress < 1 || olympicsCeremonyActive) {
+      requestAnimationFrame(animate);
+    }
+  }
+
+  animate();
+}
+
+function launchOlympicFireworks() {
+  const container = document.getElementById('confetti-container');
+  if (!container) return;
+
+  // Olympic colors for fireworks
+  const olympicColors = [
+    '#ffd700', '#ffffff', '#0081c8', '#fcb131',
+    '#00a651', '#ee334e', '#c0c0c0', '#cd7f32'
+  ];
+
+  // Create enhanced confetti burst
+  container.innerHTML = '';
+  const confettiCount = 300;
+
+  for (let i = 0; i < confettiCount; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+
+    const left = Math.random() * 100;
+    const delay = Math.random() * 2;
+    const duration = 4 + Math.random() * 3;
+    const size = 10 + Math.random() * 15;
+    const color = olympicColors[Math.floor(Math.random() * olympicColors.length)];
+    const shape = Math.random() > 0.6 ? '50%' : (Math.random() > 0.3 ? '0' : '25%');
+
+    confetti.style.cssText = `
+      left: ${left}%;
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      border-radius: ${shape};
+      animation-delay: ${delay}s;
+      animation-duration: ${duration}s;
+      box-shadow: 0 0 ${size/2}px ${color};
+    `;
+
+    container.appendChild(confetti);
+  }
+
+  // Multiple bursts
+  setTimeout(() => launchOlympicFireworksBurst(), 2000);
+  setTimeout(() => launchOlympicFireworksBurst(), 4000);
+  setTimeout(() => launchOlympicFireworksBurst(), 6000);
+}
+
+function launchOlympicFireworksBurst() {
+  const container = document.getElementById('confetti-container');
+  if (!container) return;
+
+  const olympicColors = ['#ffd700', '#ffffff', '#0081c8', '#fcb131', '#00a651'];
+  const burstCount = 50;
+
+  for (let i = 0; i < burstCount; i++) {
+    const confetti = document.createElement('div');
+    confetti.className = 'confetti';
+
+    const left = 30 + Math.random() * 40;
+    const delay = Math.random() * 0.5;
+    const duration = 2 + Math.random() * 2;
+    const size = 12 + Math.random() * 10;
+    const color = olympicColors[Math.floor(Math.random() * olympicColors.length)];
+
+    confetti.style.cssText = `
+      left: ${left}%;
+      width: ${size}px;
+      height: ${size}px;
+      background: ${color};
+      border-radius: 50%;
+      animation-delay: ${delay}s;
+      animation-duration: ${duration}s;
+      box-shadow: 0 0 ${size}px ${color};
+    `;
+
+    container.appendChild(confetti);
+  }
+}
+
+function showMedalPresentation() {
+  const medalIcon = document.getElementById('olympics-medal-icon');
+  if (medalIcon) {
+    medalIcon.style.opacity = '1';
+    medalIcon.style.transform = 'translateY(0) scale(1.1)';
+
+    setTimeout(() => {
+      medalIcon.style.transform = 'translateY(0) scale(1)';
+    }, 800);
+  }
+}
+
+function showChampionText() {
+  const championText = document.getElementById('olympics-champion-text');
+  if (championText) {
+    championText.style.opacity = '1';
+    championText.style.transform = 'scale(1)';
+  }
+}
+
+function showContinueButton() {
+  const continueBtn = document.getElementById('olympics-continue-btn');
+  if (continueBtn) {
+    continueBtn.style.transition = 'opacity 0.5s ease-in';
+    continueBtn.style.opacity = '1';
+    continueBtn.style.pointerEvents = 'auto';
+  }
+}
+
+function runCeremonySequence(matchResult) {
+  // Timeline:
+  // 0s    - Camera transitions (already started)
+  // 1s    - Title appears
+  // 2s    - Anthem begins
+  // 3s    - Flag starts rising
+  // 5s    - Medal presentation
+  // 7s    - Champion text appears
+  // 8s    - Team name appears
+  // 9s    - Fireworks begin
+  // 12s   - Continue button appears
+
+  // 1s - Show title
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      const title = document.getElementById('olympics-title');
+      if (title) title.style.opacity = '1';
+    }
+  }, 1000);
+
+  // 2s - Start anthem
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      soundManager.playOlympicAnthem();
+    }
+  }, 2000);
+
+  // 3s - Flag starts rising
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      animateFlagRising();
+    }
+  }, 3000);
+
+  // 5s - Medal presentation
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      showMedalPresentation();
+      soundManager.playCrowdCheer(1.0);
+    }
+  }, 5000);
+
+  // 7s - Champion text
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      showChampionText();
+    }
+  }, 7000);
+
+  // 8s - Team name
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      const teamName = document.getElementById('olympics-team-name');
+      if (teamName) teamName.style.opacity = '1';
+    }
+  }, 8000);
+
+  // 9s - Fireworks
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      launchOlympicFireworks();
+    }
+  }, 9000);
+
+  // 12s - Continue button
+  setTimeout(() => {
+    if (olympicsCeremonyActive) {
+      showContinueButton();
+    }
+  }, 12000);
+}
+
+window.closeOlympicsCeremony = function() {
+  console.log('[Olympics] Closing ceremony');
+
+  olympicsCeremonyActive = false;
+
+  // Hide overlay
+  const overlay = document.getElementById('olympics-ceremony-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+
+  // Clean up 3D objects
+  olympicsCeremonyObjects.forEach(obj => {
+    if (obj.parent) {
+      obj.parent.remove(obj);
+    }
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (obj.material.map) obj.material.map.dispose();
+      obj.material.dispose();
+    }
+  });
+  olympicsCeremonyObjects = [];
+
+  // Clear confetti
+  const container = document.getElementById('confetti-container');
+  if (container) container.innerHTML = '';
+
+  // Stop anthem if playing
+  soundManager.stopOlympicAnthem();
+
+  // Reset camera position
+  resetCameraToDefault();
+
+  // Show post-match screen
+  showPostMatch();
+};
+
+function resetCameraToDefault() {
+  // Reset to default overhead view
+  camera.position.set(0, 15, 0);
+  camera.lookAt(0, 0, -16);
+}
+
 function showGameOverOverlay() {
   // Clear saved match progress since match is complete
   clearMatchProgress();
@@ -11852,6 +12370,12 @@ function showGameOverOverlay() {
         careerLevel: gameState.career.level,
         careerLevelName: level.name
       });
+
+      // Check for Olympics victory - show special ceremony
+      if (matchResult?.isChampion && matchResult?.tournamentId === 'olympics') {
+        showOlympicsCeremony(matchResult);
+        return; // Skip standard game over overlay
+      }
 
       if (careerMessageEl) {
         if (matchResult?.isChampion) {
@@ -16356,6 +16880,7 @@ function handleTournamentMatchResult(playerWon) {
     opponentScore,
     opponent,
     tournamentStatus: status,
+    tournamentId: tournament.definition?.id,
     tournamentName,
     tournamentTier,
     roundName: currentRoundName,
@@ -20319,4 +20844,43 @@ window.debugResetCareer = function() {
     localStorage.removeItem('curling_match_progress');
     location.reload();
   }
+};
+
+// Debug: Test Olympics victory ceremony (UI only)
+// Usage: In browser console, call: debugOlympicsCeremony()
+window.debugOlympicsCeremony = function() {
+  console.log('[DEBUG] Testing Olympics ceremony...');
+
+  // Create a mock match result for Olympics victory
+  const mockMatchResult = {
+    playerWon: true,
+    playerScore: 8,
+    opponentScore: 4,
+    tournamentStatus: 'champion',
+    tournamentId: 'olympics',
+    tournamentName: 'Winter Olympics',
+    tournamentTier: 'olympic',
+    roundName: 'Gold Medal Match',
+    isChampion: true,
+    tierAdvanced: false,
+    newTier: null
+  };
+
+  // Set team name if not set
+  if (!seasonState.teamName) {
+    seasonState.teamName = 'Team Champion';
+  }
+
+  // Show the Olympics ceremony
+  showOlympicsCeremony(mockMatchResult);
+
+  console.log('[DEBUG] Olympics ceremony started!');
+};
+
+// Debug: Set up Olympics gold medal match final
+// Usage: In browser console, call: debugOlympicsFinal()
+// This puts you in the last end of the Olympics final, winning by 5
+window.debugOlympicsFinal = function() {
+  console.log('[DEBUG] Setting up Olympics gold medal match...');
+  debugTournamentFinal('olympics', true);
 };
