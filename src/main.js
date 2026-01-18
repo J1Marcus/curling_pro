@@ -20884,6 +20884,10 @@ window.debugOlympicsCeremony = function() {
 window.debugOlympicsFinal = function() {
   console.log('[DEBUG] Setting up Olympics gold medal match...');
 
+  // Close debug panel
+  const panel = document.getElementById('debug-panel');
+  if (panel) panel.style.display = 'none';
+
   // Ensure season is initialized
   if (!seasonState.currentSeason) {
     initializeNewSeason();
