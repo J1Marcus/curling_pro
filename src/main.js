@@ -20129,7 +20129,7 @@ window.debugTournamentFinal = function(tournamentId = 'club_championship', autoS
     isPlayer: true
   };
 
-  const opponent = generateOpponent(definition.tier, 1);
+  const opponent = generateRandomOpponent(definition.tier, null);
   const opponentTeam = {
     id: opponent.id,
     name: opponent.teamName || `Team ${opponent.lastName}`,
