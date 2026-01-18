@@ -20176,7 +20176,7 @@ window.debugTournamentFinal = function(tournamentId = 'club_championship', autoS
 
   // Auto-start the match in the final end, winning by 5
   if (autoStart) {
-    debugStartFinalMatch(7, 2);  // Winning by 5 points
+    window.debugStartFinalMatch(7, 2);  // Winning by 5 points
   } else {
     console.log('[DEBUG] Now call: debugStartFinalMatch() to start the match in the last end');
   }
