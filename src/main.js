@@ -20556,6 +20556,7 @@ function initDebugPanel() {
 
     <div style="margin-bottom: 15px;">
       <strong>Tournament Scenarios:</strong><br>
+      <button onclick="window.debugOlympicsFinal()" style="margin: 3px; padding: 5px 10px; background: linear-gradient(135deg, #fbbf24, #f59e0b); border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">🥇 Olympics Finals - LAST END</button>
       <button onclick="window.debugSetScenario('finals_last_end')" style="margin: 3px; padding: 5px 10px; background: #22c55e; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold;">Finals - LAST END (6-4)</button>
       <button onclick="window.debugSetScenario('finals_winning')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (End 5, 6-2)</button>
       <button onclick="window.debugSetScenario('finals_close')" style="margin: 3px; padding: 5px 10px; background: #3b82f6; border: none; color: white; border-radius: 4px; cursor: pointer;">Finals (End 5, Tied 4-4)</button>
