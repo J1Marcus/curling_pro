@@ -6598,6 +6598,13 @@ function handleCollision(event) {
     const stoneA = gameState.stones.find(s => s.body === bodyA);
     const stoneB = gameState.stones.find(s => s.body === bodyB);
     if (stoneA && stoneB) {
+      // Mark active stone as having contacted another stone (hog line exception rule)
+      // If a delivered stone hits another stone before stopping, it remains in play
+      // even if it stops short of the far hog line
+      if (gameState.activeStone === stoneA || gameState.activeStone === stoneB) {
+        gameState.activeStone.hasContactedStone = true;
+      }
+
       // Calculate collision intensity based on relative velocity
       const relVelX = bodyA.velocity.x - bodyB.velocity.x;
       const relVelY = bodyA.velocity.y - bodyB.velocity.y;
@@ -7814,6 +7821,7 @@ function pushOff() {
 
   gameState.stones.push(stone);
   gameState.activeStone = stone;
+  stone.hasContactedStone = false;  // Track if stone hits another before stopping (for hog line exception)
 
   // Add thrower sprite behind stone (helps novice users understand release mechanic)
   if (gameState.throwerTexture && !isComputer) {
@@ -10886,7 +10894,8 @@ function updatePhysics() {
       }
 
       // Check if stone didn't reach far hog line - move to out-of-play area
-      if (stoneZ < HOG_LINE_FAR && !gameState.activeStone.outOfPlay) {
+      // Exception: if stone contacted another stone before stopping, it remains in play
+      if (stoneZ < HOG_LINE_FAR && !gameState.activeStone.outOfPlay && !gameState.activeStone.hasContactedStone) {
         moveStoneOutOfPlay(gameState.activeStone, 'did not reach far hog line');
       }
 
