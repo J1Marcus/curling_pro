@@ -18424,12 +18424,27 @@ window.closeFeedback = function() {
 // SUPPORT THE DEVELOPER (Tip Jar)
 // ============================================
 
-// IAP Product IDs (will be configured in App Store Connect)
+// IAP Product IDs (configured in App Store Connect & RevenueCat)
 const TIP_PRODUCTS = {
-  small: { id: 'com.curlingpro.tip.small', price: '$0.99' },
-  medium: { id: 'com.curlingpro.tip.medium', price: '$2.99' },
-  large: { id: 'com.curlingpro.tip.large', price: '$4.99' }
+  small: { id: 'com.pksols.curlingpro.tip.small', price: '$0.99' },
+  medium: { id: 'com.pksols.curlingpro.tip.medium', price: '$2.99' },
+  large: { id: 'com.pksols.curlingpro.tip.large', price: '$4.99' }
 };
+
+// Initialize RevenueCat (call this on app startup)
+async function initializeRevenueCat() {
+  if (window.Capacitor?.isNativePlatform?.()) {
+    try {
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+      await Purchases.configure({
+        apiKey: 'test_WyJHOUhmHkZnrQFcsCybzGjUUpU'
+      });
+      console.log('[IAP] RevenueCat initialized');
+    } catch (error) {
+      console.error('[IAP] Failed to initialize RevenueCat:', error);
+    }
+  }
+}
 
 window.showSupportOptions = function() {
   const overlay = document.getElementById('support-overlay');
@@ -18456,16 +18471,20 @@ window.purchaseTip = async function(tier) {
     return;
   }
 
-  // Check if Capacitor IAP is available
-  if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.InAppPurchase) {
-    // Native IAP flow (when Capacitor is set up)
+  // Check if running on native platform
+  if (window.Capacitor?.isNativePlatform?.()) {
     try {
       statusEl.textContent = 'Processing...';
       statusEl.style.color = '#94a3b8';
       statusEl.style.display = 'block';
 
-      const iap = window.Capacitor.Plugins.InAppPurchase;
-      await iap.purchase({ productId: product.id });
+      const { Purchases } = await import('@revenuecat/purchases-capacitor');
+
+      // Get the product from RevenueCat
+      const offerings = await Purchases.getOfferings();
+
+      // Purchase the product directly by ID
+      await Purchases.purchaseStoreProduct({ product: { identifier: product.id } });
 
       // Success
       statusEl.textContent = '💛 Thank you for your support!';
@@ -18482,7 +18501,8 @@ window.purchaseTip = async function(tier) {
       }, 2500);
 
     } catch (error) {
-      if (error.code === 'USER_CANCELLED') {
+      console.error('[IAP] Purchase error:', error);
+      if (error.code === 'PURCHASE_CANCELLED' || error.message?.includes('cancelled')) {
         statusEl.style.display = 'none';
       } else {
         statusEl.textContent = 'Purchase failed. Please try again.';
@@ -19110,8 +19130,6 @@ window.sendFeedback = async function(event) {
   event.preventDefault();
 
   const type = document.getElementById('feedback-type').value;
-  const name = document.getElementById('feedback-name').value;
-  const email = document.getElementById('feedback-email').value;
   const message = document.getElementById('feedback-message').value;
   const submitBtn = document.getElementById('feedback-submit');
   const statusEl = document.getElementById('feedback-status');
@@ -19122,7 +19140,7 @@ window.sendFeedback = async function(event) {
   statusEl.style.display = 'none';
 
   try {
-    const result = await analytics.submitFeedbackToSupabase(type, name, email, message);
+    const result = await analytics.submitFeedbackToSupabase(type, '', '', message);
 
     if (result.success) {
       statusEl.textContent = 'Thank you! Your feedback has been sent.';
@@ -19142,7 +19160,7 @@ window.sendFeedback = async function(event) {
 
     // Offer email fallback
     const subject = encodeURIComponent(`[Curling Pro ${type === 'bug' ? 'Bug Report' : 'Feature Request'}]`);
-    const body = encodeURIComponent(`${message}\n\n---\nFrom: ${name || 'Anonymous'}\nEmail: ${email || 'Not provided'}`);
+    const body = encodeURIComponent(message);
     const mailtoLink = `mailto:feedback@curlingpro.app?subject=${subject}&body=${body}`;
 
     statusEl.innerHTML = `
@@ -20491,6 +20509,9 @@ setTimeout(() => {
   hideSplashScreen();
   animate();
   console.log('Curling game initialized!');
+
+  // Initialize RevenueCat for in-app purchases
+  initializeRevenueCat();
 
   // Initialize sound on first user interaction (browser autoplay policy)
   // Howler handles iOS audio unlocking automatically

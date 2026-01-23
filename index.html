@@ -3222,34 +3222,6 @@
         <form id="feedback-form" onsubmit="window.sendFeedback(event)">
           <input type="hidden" id="feedback-type" value="bug">
 
-          <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Name (optional)</label>
-            <input type="text" id="feedback-name" placeholder="Your name" style="
-              width: 100%;
-              padding: 10px;
-              border: 2px solid #4a5568;
-              background: #2d3748;
-              color: white;
-              border-radius: 6px;
-              font-size: 14px;
-              box-sizing: border-box;
-            ">
-          </div>
-
-          <div style="margin-bottom: 15px;">
-            <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Email (optional, for follow-up)</label>
-            <input type="email" id="feedback-email" placeholder="your@email.com" style="
-              width: 100%;
-              padding: 10px;
-              border: 2px solid #4a5568;
-              background: #2d3748;
-              color: white;
-              border-radius: 6px;
-              font-size: 14px;
-              box-sizing: border-box;
-            ">
-          </div>
-
           <div style="margin-bottom: 20px;">
             <label style="display: block; margin-bottom: 5px; color: #a0aec0; font-size: 14px;">Message *</label>
             <textarea id="feedback-message" required placeholder="Describe the issue or feature..." style="
@@ -3930,11 +3902,11 @@
         <h2 style="color: white; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Privacy Policy</h2>
 
         <div style="color: #cbd5e1; font-size: 14px; line-height: 1.7;">
-          <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2026</p>
+          <p style="margin: 0 0 15px 0;"><strong style="color: #4ade80;">Last updated:</strong> January 2025</p>
 
-          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data We Collect</h3>
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data Stored on Your Device</h3>
           <p style="margin: 0 0 15px 0;">
-            This game stores data <strong>only on your device</strong> using local storage. This includes:
+            This game stores the following data locally on your device:
           </p>
           <ul style="margin: 0 0 15px 0; padding-left: 20px;">
             <li>Career progress (level, wins, losses)</li>
@@ -3942,27 +3914,43 @@
             <li>Tutorial completion status</li>
           </ul>
 
-          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Data We Don't Collect</h3>
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Online Features</h3>
+          <p style="margin: 0 0 15px 0;">
+            If you use online features (multiplayer, leaderboards), the following data is sent to our servers:
+          </p>
           <ul style="margin: 0 0 15px 0; padding-left: 20px;">
-            <li>No personal information</li>
-            <li>No analytics or tracking</li>
-            <li>No cookies</li>
-            <li>No data sent to any server</li>
+            <li>Player name you choose</li>
+            <li>Game scores and match results</li>
+            <li>Country/region selection</li>
           </ul>
+          <p style="margin: 0 0 15px 0;">
+            This data is used solely to enable multiplayer gameplay and display leaderboards. We do not collect email addresses, real names, or other personal information.
+          </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">In-App Purchases</h3>
+          <p style="margin: 0 0 15px 0;">
+            Tip jar purchases are processed by Apple and RevenueCat. We do not store your payment information. Purchase processing is subject to Apple's and RevenueCat's privacy policies.
+          </p>
 
           <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Your Control</h3>
           <p style="margin: 0 0 15px 0;">
-            You can clear all stored data at any time by:
+            You can clear locally stored data at any time by:
           </p>
           <ul style="margin: 0 0 15px 0; padding-left: 20px;">
             <li>Using "Reset Career" in Settings</li>
-            <li>Uninstalling the app or clearing app data</li>
+            <li>Uninstalling the app</li>
           </ul>
 
-          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Third Parties</h3>
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Children</h3>
           <p style="margin: 0 0 15px 0;">
-            This game does not share any data with third parties. All game logic runs entirely on your device.
+            This app does not knowingly collect personal information from children under 13.
           </p>
+
+          <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Third-Party Services</h3>
+          <ul style="margin: 0 0 15px 0; padding-left: 20px;">
+            <li>Supabase (multiplayer and leaderboard hosting)</li>
+            <li>RevenueCat (in-app purchase processing)</li>
+          </ul>
 
           <h3 style="color: #94a3b8; font-size: 16px; margin: 20px 0 10px 0;">Contact</h3>
           <p style="margin: 0;">
