@@ -6351,6 +6351,36 @@ function createSheet() {
     console.warn('Could not load thrower.png');
   });
 
+  // Load sweeper silhouette texture for sweeping visual
+  textureLoader.load('/sweeper.png', (sweeperTexture) => {
+    gameState.sweeperTexture = sweeperTexture;
+    console.log('Sweeper silhouette loaded');
+  }, undefined, (error) => {
+    console.warn('Could not load sweeper.png');
+  });
+
+  // Load skip silhouette textures (left, right, and neutral)
+  textureLoader.load('/skip1.png', (skipTexture) => {
+    gameState.skipTextureLeft = skipTexture;
+    console.log('Skip silhouette (left) loaded');
+  }, undefined, (error) => {
+    console.warn('Could not load skip1.png');
+  });
+
+  textureLoader.load('/skip2.png', (skipTexture) => {
+    gameState.skipTextureRight = skipTexture;
+    console.log('Skip silhouette (right) loaded');
+  }, undefined, (error) => {
+    console.warn('Could not load skip2.png');
+  });
+
+  textureLoader.load('/skip3.png', (skipTexture) => {
+    gameState.skipTextureNeutral = skipTexture;
+    console.log('Skip silhouette (neutral) loaded');
+  }, undefined, (error) => {
+    console.warn('Could not load skip3.png');
+  });
+
   // === FAR HOUSE (target end) ===
   createHouse(TEE_LINE_FAR);
 
@@ -6686,6 +6716,7 @@ function handleCollision(event) {
 
         // If this was the active stone, clear it
         if (gameState.activeStone === stone) {
+          removeSweeperSprite();
           gameState.activeStone = null;
           gameState.isSweeping = false;
           gameState._computerSweepSoundStarted = false;
@@ -7010,11 +7041,7 @@ function createTargetMarker() {
   // TALL BEACON for visibility from throwing view
   const group = new THREE.Group();
 
-  // Materials (transparent: true enables opacity fading when stones pass nearby)
-  const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, transparent: true });  // Dark jacket
-  const pantsMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.8, transparent: true });  // Dark pants
-  const skinMaterial = new THREE.MeshStandardMaterial({ color: 0xe0b090, roughness: 0.6, transparent: true });  // Skin tone
-  const broomMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5, transparent: true });  // Dark gray handle
+  // Materials for beacon and broom pad
   const padMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true });  // Bright green broom pad (unlit for visibility)
   const beaconMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });  // Bright green beacon (unlit) - not faded
 
@@ -7052,50 +7079,21 @@ function createTargetMarker() {
   arrow.name = 'curlArrow';
   group.add(arrow);
 
-  // === SKIP BODY (smaller, behind beacon) ===
-  // Torso
-  const torsoGeometry = new THREE.CylinderGeometry(0.1, 0.08, 0.35, 12);
-  const torso = new THREE.Mesh(torsoGeometry, bodyMaterial);
-  torso.position.set(0, 0.5, skipZ);
-  group.add(torso);
-
-  // Head
-  const headGeometry = new THREE.SphereGeometry(0.08, 12, 10);
-  const head = new THREE.Mesh(headGeometry, skinMaterial);
-  head.position.set(0, 0.78, skipZ);
-  group.add(head);
-
-  // Legs
-  const legGeometry = new THREE.CylinderGeometry(0.04, 0.035, 0.35, 8);
-  const leftLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-  leftLeg.position.set(-0.05, 0.18, skipZ);
-  group.add(leftLeg);
-
-  const rightLeg = new THREE.Mesh(legGeometry, pantsMaterial);
-  rightLeg.position.set(0.05, 0.18, skipZ);
-  group.add(rightLeg);
-
-  // === BROOM (extends forward toward thrower) ===
-  const handleGeometry = new THREE.CylinderGeometry(0.015, 0.015, 0.8, 8);
-  const broomHandle = new THREE.Mesh(handleGeometry, broomMaterial);
-  broomHandle.rotation.x = Math.PI / 2.8;
-  broomHandle.position.set(0, 0.3, skipZ * 0.4);
-  group.add(broomHandle);
-
-  // Broom arms
-  const broomArmGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8);
-  const leftBroomArm = new THREE.Mesh(broomArmGeometry, bodyMaterial);
-  leftBroomArm.rotation.x = Math.PI / 3;
-  leftBroomArm.rotation.z = 0.3;
-  leftBroomArm.position.set(-0.08, 0.45, skipZ - 0.1);
-  group.add(leftBroomArm);
-
-  const rightBroomArm = new THREE.Mesh(broomArmGeometry, bodyMaterial);
-  rightBroomArm.rotation.x = Math.PI / 3;
-  rightBroomArm.rotation.z = -0.3;
-  rightBroomArm.position.set(0.08, 0.45, skipZ - 0.1);
-  rightBroomArm.name = 'rightBroomArm';
-  group.add(rightBroomArm);
+  // === SKIP SPRITE (replaces 3D body) ===
+  // Create sprite material - will be updated with correct texture based on curl direction
+  const skipSpriteMaterial = new THREE.SpriteMaterial({
+    map: gameState.skipTextureNeutral || gameState.skipTextureLeft || null,
+    transparent: true,
+    opacity: 0.7,
+    blending: THREE.MultiplyBlending, // Makes white background transparent
+    depthWrite: false
+  });
+  const skipSprite = new THREE.Sprite(skipSpriteMaterial);
+  skipSprite.scale.set(1.5, 1.5, 1); // Base scale - will be adjusted dynamically
+  // Position so broom pad in sprite aligns with click location
+  skipSprite.position.set(0, 0.75, 0.3); // Neutral position - broom pad at origin
+  skipSprite.name = 'skipSprite';
+  group.add(skipSprite);
 
   // === BROOM PAD (THE TARGET) - Large and bright ===
   const padGeometry = new THREE.BoxGeometry(0.25, 0.03, 0.15);
@@ -7122,16 +7120,7 @@ function createTargetMarker() {
   innerGlowMesh.name = 'beacon';
   group.add(innerGlowMesh);
 
-  // === SIGNAL ARM (indicates curl direction) ===
-  const signalArmGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
-  const signalArm = new THREE.Mesh(signalArmGeometry, bodyMaterial);
-  signalArm.name = 'signalArm';
-  group.add(signalArm);
-
-  const handGeometry = new THREE.SphereGeometry(0.03, 8, 6);
-  const signalHand = new THREE.Mesh(handGeometry, skinMaterial);
-  signalHand.name = 'signalHand';
-  group.add(signalHand);
+  // Signal arm is now part of the skip sprite (skip1.png / skip2.png)
 
   group.visible = false;
   scene.add(group);
@@ -7261,46 +7250,61 @@ function broadcastAimStateThrottled() {
 function updateSkipSignalArm() {
   if (!gameState.targetMarker) return;
 
-  const signalArm = gameState.targetMarker.getObjectByName('signalArm');
-  const signalHand = gameState.targetMarker.getObjectByName('signalHand');
-  const rightBroomArm = gameState.targetMarker.getObjectByName('rightBroomArm');
+  const skipSprite = gameState.targetMarker.getObjectByName('skipSprite');
   const curlArrow = gameState.targetMarker.getObjectByName('curlArrow');
 
-  // curlDirection: 1 = IN (clockwise) = curl right
-  // curlDirection: -1 = OUT (counter-clockwise) = curl left
+  // curlDirection: 1 = IN (clockwise) = curl right = arm pointing left = skip1.png
+  // curlDirection: -1 = OUT (counter-clockwise) = curl left = arm pointing right = skip2.png
   // curlDirection: null = not selected yet
   const direction = gameState.curlDirection;
-  const skipZ = 0.6;
 
-  // Hide arrow and arm if no direction selected
+  // Dynamic scaling for all cases
+  const throwViewScale = 1.5;
+  const targetViewScale = 1.2;
+  const dynamicScale = throwViewScale - (throwViewScale - targetViewScale) * gameState.previewHeight;
+  const scaleFactor = dynamicScale / 1.4;
+
+  // Hide arrow if no direction selected, show neutral pose
   if (direction === null) {
     if (curlArrow) curlArrow.visible = false;
-    if (signalArm) signalArm.visible = false;
-    if (signalHand) signalHand.visible = false;
-    if (rightBroomArm) rightBroomArm.visible = false;
+    // Show neutral sprite when no direction selected
+    if (skipSprite && gameState.skipTextureNeutral) {
+      skipSprite.material.map = gameState.skipTextureNeutral;
+      skipSprite.material.needsUpdate = true;
+      skipSprite.scale.set(dynamicScale, dynamicScale, 1);
+      // skip3 (neutral): broom pad is centered at bottom
+      skipSprite.position.x = 0;
+      skipSprite.position.y = 0.7 * scaleFactor;
+      skipSprite.position.z = 0.3;
+    }
     return;
   }
 
   // Update beacon arrow direction (only visible in throw view, not target view)
-  // Negate direction for arm position: CW (direction=1) should show arm on LEFT side
-  // This matches real curling where skip's right arm out (pointing left from thrower) = clockwise
   if (curlArrow) {
-    // Only show arrow in throw view (previewHeight < 0.5), hide in target view
     curlArrow.visible = gameState.previewHeight < 0.5;
-    curlArrow.rotation.z = direction > 0 ? Math.PI / 2 : -Math.PI / 2;  // Swapped
-    curlArrow.position.x = -direction * 0.5;  // Negated
+    curlArrow.rotation.z = direction > 0 ? Math.PI / 2 : -Math.PI / 2;
+    curlArrow.position.x = -direction * 0.5;
   }
 
-  // Update skip's signal arm
-  if (signalArm && signalHand) {
-    signalArm.visible = true;
-    signalHand.visible = true;
-    signalArm.rotation.set(0, 0, Math.PI / 2);
-    signalArm.position.set(-direction * 0.2, 0.55, skipZ);  // Negated
-    signalHand.position.set(-direction * 0.38, 0.55, skipZ);  // Negated
+  // Update skip sprite texture and position based on curl direction
+  // direction = 1 (curl right/clockwise) = skip pointing LEFT = skip2.png
+  // direction = -1 (curl left/counter-clockwise) = skip pointing RIGHT = skip1.png
+  if (skipSprite) {
+    skipSprite.scale.set(dynamicScale, dynamicScale, 1);
+    skipSprite.position.y = 0.7 * scaleFactor;
+    skipSprite.position.z = 0.3;
 
-    if (rightBroomArm) {
-      rightBroomArm.visible = (direction === 1);  // Swapped from -1 to 1
+    if (direction === 1 && gameState.skipTextureRight) {
+      // skip2 (pointing left): offset to keep broom at click point
+      skipSprite.material.map = gameState.skipTextureRight;
+      skipSprite.material.needsUpdate = true;
+      skipSprite.position.x = -0.24 * scaleFactor;
+    } else if (direction === -1 && gameState.skipTextureLeft) {
+      // skip1 (pointing right): offset to keep broom at click point
+      skipSprite.material.map = gameState.skipTextureLeft;
+      skipSprite.material.needsUpdate = true;
+      skipSprite.position.x = 0.24 * scaleFactor;
     }
   }
 }
@@ -7314,9 +7318,9 @@ function updateSkipFade() {
   if (gameState.previewHeight > 0.5) {
     // Ensure skip is fully visible in target view
     gameState.targetMarker.traverse((child) => {
-      if (child.isMesh && child.name !== 'beacon' && child.name !== 'curlArrow') {
+      if ((child.isMesh || child.isSprite) && child.name !== 'beacon' && child.name !== 'curlArrow') {
         if (child.material) {
-          child.material.opacity = 1;
+          child.material.opacity = child.isSprite ? 0.7 : 1; // Sprite uses 0.7 base opacity
         }
       }
     });
@@ -7355,12 +7359,13 @@ function updateSkipFade() {
     opacity = Math.max(0, (minDistance - fadeEnd) / (fadeStart - fadeEnd));
   }
 
-  // Apply opacity to skip body parts (not beacon)
+  // Apply opacity to skip body parts (not beacon) - handles both meshes and sprites
   gameState.targetMarker.traverse((child) => {
-    if (child.isMesh && child.name !== 'beacon' && child.name !== 'curlArrow') {
+    if ((child.isMesh || child.isSprite) && child.name !== 'beacon' && child.name !== 'curlArrow') {
       if (child.material) {
         child.material.transparent = true;
-        child.material.opacity = opacity;
+        // Sprite has base opacity of 0.7, scale it
+        child.material.opacity = child.isSprite ? opacity * 0.7 : opacity;
       }
     }
   });
@@ -9746,10 +9751,91 @@ function updateSweepFromMovement(x, y) {
     // Start/stop sweeping sound
     if (gameState.isSweeping && !wasSweeping) {
       soundManager.startSweeping();
+      addSweeperSprite();
     } else if (!gameState.isSweeping && wasSweeping) {
       soundManager.stopSweeping();
+      removeSweeperSprite();
     }
   }
+}
+
+// Add sweeper sprite in front of the active stone
+function addSweeperSprite() {
+  if (!gameState.sweeperTexture || !gameState.activeStone) return;
+  if (gameState.sweeperSprite) return; // Already added
+
+  const sweeperMaterial = new THREE.SpriteMaterial({
+    map: gameState.sweeperTexture,
+    transparent: true,
+    opacity: 0.7, // Match thrower opacity
+    blending: THREE.MultiplyBlending, // Makes white transparent, keeps black
+    depthWrite: false
+  });
+  const sweeperSprite = new THREE.Sprite(sweeperMaterial);
+  sweeperSprite.scale.set(1.8, 1.8, 1); // Bigger size
+  sweeperSprite.renderOrder = 999;
+  scene.add(sweeperSprite); // Add to scene, not stone
+  gameState.sweeperSprite = sweeperSprite;
+  updateSweeperPosition(); // Initial position
+}
+
+// Update sweeper sprite position to stay in front of the stone
+function updateSweeperPosition() {
+  if (!gameState.sweeperSprite || !gameState.activeStone) return;
+
+  const stone = gameState.activeStone;
+  const stoneX = stone.body.position.x / PHYSICS_SCALE;
+  const stoneZ = stone.body.position.y / PHYSICS_SCALE;
+
+  // Get velocity direction to position sweeper in front
+  const vx = stone.body.velocity.x;
+  const vy = stone.body.velocity.y;
+  const speed = Math.sqrt(vx * vx + vy * vy);
+
+  // Dynamic scaling: reduce size as stone travels down the ice (camera zooms in)
+  // Stone starts near z=0 and travels to z~40 (far house)
+  // Scale from 1.8 at start to 1.2 at far end
+  const baseScale = 1.8;
+  const minScale = 1.2;
+  const progress = Math.min(1, stoneZ / 40); // 0 at start, 1 at far house
+  const dynamicScale = baseScale - (baseScale - minScale) * progress;
+  gameState.sweeperSprite.scale.set(dynamicScale, dynamicScale, 1);
+
+  // Scale the offset proportionally with sprite size
+  const scaleFactor = dynamicScale / baseScale;
+  const baseLeftOffset = 0.7;
+  const baseForwardOffset = 0.8;
+  const leftOffset = baseLeftOffset * scaleFactor;
+  const forwardOffset = baseForwardOffset * scaleFactor;
+
+  // Sweeping animation: side-to-side sway
+  const time = Date.now() / 1000;
+  const swaySpeed = 8; // Oscillations per second
+  const swayAmount = 0.08 * scaleFactor; // Side-to-side distance
+  const sway = Math.sin(time * swaySpeed * Math.PI * 2) * swayAmount;
+
+  if (speed > 0.1) {
+    // Normalize velocity and position sweeper in front of stone
+    const dirX = vx / speed;
+    const dirZ = vy / speed;
+
+    gameState.sweeperSprite.position.set(
+      stoneX + dirX * forwardOffset + leftOffset + sway, // Left offset + sway animation
+      0.5, // Height above ice
+      stoneZ + dirZ * forwardOffset
+    );
+  } else {
+    // If barely moving, just put in front (positive Z)
+    gameState.sweeperSprite.position.set(stoneX + leftOffset + sway, 0.5, stoneZ + forwardOffset);
+  }
+}
+
+// Remove sweeper sprite from the scene
+function removeSweeperSprite() {
+  if (!gameState.sweeperSprite) return;
+  scene.remove(gameState.sweeperSprite);
+  gameState.sweeperSprite.material.dispose();
+  gameState.sweeperSprite = null;
 }
 
 // Decay sweep effectiveness when not actively sweeping
@@ -9765,6 +9851,7 @@ function decaySweepEffectiveness() {
       if (gameState.isSweeping) {
         gameState.isSweeping = false;
         soundManager.stopSweeping();
+        removeSweeperSprite();
       }
     }
   }
@@ -9876,6 +9963,7 @@ function updateSweeping() {
       gameState.isSweeping = false;
       gameState.sweepEffectiveness = 0;
       soundManager.stopSweeping();
+      removeSweeperSprite();
     }
     gameState._computerSweepSoundStarted = false;
     return;
@@ -10966,6 +11054,7 @@ function updatePhysics() {
 
       gameState.phase = 'waiting';
       updateFastForwardButton();  // Hide fast-forward button when stone stops
+      removeSweeperSprite();
       gameState.activeStone = null;
       gameState.isSweeping = false;
       gameState.sweepEffectiveness = 0;
@@ -11055,6 +11144,7 @@ function updatePhysics() {
   }
 
   updateSweeping();
+  updateSweeperPosition(); // Keep sweeper in front of stone
   } catch (err) {
     // Send diagnostic info to analytics but DON'T crash - just skip this frame
     const stoneData = gameState.activeStone ? {
