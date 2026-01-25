@@ -396,11 +396,11 @@ let lastPhysicsTime = 0;
 
 // Shot type thresholds (effort 0-100)
 const SHOT_TYPES = {
-  ULTRA_LIGHT: { min: 0, max: 29, name: 'Ultra Light Guard', color: '#60a5fa' },
-  GUARD: { min: 30, max: 49, name: 'Guard', color: '#34d399' },
-  DRAW: { min: 50, max: 69, name: 'Draw', color: '#fbbf24' },
-  TAKEOUT: { min: 70, max: 84, name: 'Takeout', color: '#f97316' },
-  PEEL: { min: 85, max: 100, name: 'Peel / Big Weight', color: '#ef4444' }
+  TOO_LIGHT: { min: 0, max: 39, name: '', color: '#64748b' },
+  GUARD: { min: 40, max: 64, name: 'Guard', color: '#34d399' },
+  DRAW: { min: 65, max: 74, name: 'Draw', color: '#fbbf24' },
+  TAKEOUT: { min: 75, max: 89, name: 'Takeout', color: '#f97316' },
+  PEEL: { min: 90, max: 100, name: 'Peel / Big Weight', color: '#ef4444' }
 };
 
 // Curl/Rotation Physics Constants
@@ -430,11 +430,67 @@ const CURL_PHYSICS = {
 };
 
 function getShotType(effort) {
-  if (effort <= 29) return SHOT_TYPES.ULTRA_LIGHT;
-  if (effort <= 49) return SHOT_TYPES.GUARD;
-  if (effort <= 69) return SHOT_TYPES.DRAW;
-  if (effort <= 84) return SHOT_TYPES.TAKEOUT;
+  if (effort <= 39) return SHOT_TYPES.TOO_LIGHT;
+  if (effort <= 64) return SHOT_TYPES.GUARD;
+  if (effort <= 74) return SHOT_TYPES.DRAW;
+  if (effort <= 89) return SHOT_TYPES.TAKEOUT;
   return SHOT_TYPES.PEEL;
+}
+
+// Helper to parse hex color to RGB
+function hexToRgb(hex) {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? {
+    r: parseInt(result[1], 16),
+    g: parseInt(result[2], 16),
+    b: parseInt(result[3], 16)
+  } : null;
+}
+
+// Helper to convert RGB to hex
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map(x => {
+    const hex = Math.round(x).toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  }).join('');
+}
+
+// Get gradient color based on effort (smooth transition across entire 0-100 range)
+function getEffortGradientColor(effort) {
+  // Define color stops - each color at a single point for smooth continuous gradient
+  const colorStops = [
+    { effort: 0, color: hexToRgb(SHOT_TYPES.TOO_LIGHT.color) },    // Gray
+    { effort: 40, color: hexToRgb(SHOT_TYPES.GUARD.color) },        // Green
+    { effort: 65, color: hexToRgb(SHOT_TYPES.DRAW.color) },         // Yellow
+    { effort: 75, color: hexToRgb(SHOT_TYPES.TAKEOUT.color) },      // Orange
+    { effort: 90, color: hexToRgb(SHOT_TYPES.PEEL.color) }          // Red
+  ];
+
+  // Clamp effort to valid range
+  effort = Math.max(0, Math.min(100, effort));
+
+  // Find the two color stops to interpolate between
+  let lower = colorStops[0];
+  let upper = colorStops[colorStops.length - 1];
+
+  for (let i = 0; i < colorStops.length - 1; i++) {
+    if (effort >= colorStops[i].effort && effort <= colorStops[i + 1].effort) {
+      lower = colorStops[i];
+      upper = colorStops[i + 1];
+      break;
+    }
+  }
+
+  // Calculate interpolation factor
+  const range = upper.effort - lower.effort;
+  const t = range > 0 ? (effort - lower.effort) / range : 0;
+
+  // Interpolate RGB values
+  const r = lower.color.r + (upper.color.r - lower.color.r) * t;
+  const g = lower.color.g + (upper.color.g - lower.color.g) * t;
+  const b = lower.color.b + (upper.color.b - lower.color.b) * t;
+
+  return rgbToHex(r, g, b);
 }
 
 // ============================================
@@ -7691,10 +7747,10 @@ function startPull(x, y) {
 
   // Hide shot type and effort text on hard difficulty
   const isHard = gameState.settings.difficulty === 'hard';
-  document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+  document.getElementById('shot-type').style.display = isHard ? 'none' : 'inline';
   document.getElementById('effort-text').style.display = isHard ? 'none' : 'block';
-  document.getElementById('shot-type').textContent = 'Ultra Light Guard';
-  document.getElementById('shot-type').style.color = '#60a5fa';
+  document.getElementById('shot-type').textContent = '';
+  document.getElementById('shot-type').style.color = '#64748b';
 }
 
 // Update aim and power during drag
@@ -7718,13 +7774,14 @@ function updatePull(x, y) {
 
   // Get shot type based on effort
   const shotType = getShotType(gameState.currentPower);
+  const gradientColor = getEffortGradientColor(gameState.currentPower);
 
   // Update UI
   document.getElementById('power-value').textContent = Math.round(gameState.currentPower);
   document.getElementById('power-fill').style.width = gameState.currentPower + '%';
-  document.getElementById('power-fill').style.background = shotType.color;
+  document.getElementById('power-fill').style.background = gradientColor;
   document.getElementById('shot-type').textContent = shotType.name;
-  document.getElementById('shot-type').style.color = shotType.color;
+  document.getElementById('shot-type').style.color = gradientColor;
 
   // Show aiming line
   updateAimLine(gameState.aimAngle);
@@ -7843,12 +7900,13 @@ function pushOff() {
 
   // Get shot type for display
   const shotType = getShotType(gameState.maxPower);
+  const gradientColor = getEffortGradientColor(gameState.maxPower);
 
   // Show release prompt with shot type
   document.getElementById('power-display').style.display = 'block';
   document.getElementById('power-bar').style.display = 'none';
   document.getElementById('phase-text').textContent = `${shotType.name} - CLICK to release!`;
-  document.getElementById('phase-text').style.color = shotType.color;
+  document.getElementById('phase-text').style.color = gradientColor;
   // Only show release warning for human players, not computer
   if (!isComputer) {
     document.getElementById('hold-warning').style.display = 'block';
@@ -10607,15 +10665,17 @@ function executeComputerShot() {
 
     // Show power display briefly
     const shotTypeInfo = getShotType(shot.effort);
+    const gradientColor = getEffortGradientColor(shot.effort);
     const isHard = gameState.settings.difficulty === 'hard';
     document.getElementById('power-display').style.display = 'block';
     document.getElementById('power-bar').style.display = 'block';
     document.getElementById('power-value').textContent = Math.round(shot.effort);
     document.getElementById('power-fill').style.width = shot.effort + '%';
-    document.getElementById('shot-type').style.display = isHard ? 'none' : 'block';
+    document.getElementById('power-fill').style.background = gradientColor;
+    document.getElementById('shot-type').style.display = isHard ? 'none' : 'inline';
     document.getElementById('effort-text').style.display = isHard ? 'none' : 'block';
     document.getElementById('shot-type').textContent = shotTypeInfo.name;
-    document.getElementById('shot-type').style.color = shotTypeInfo.color;
+    document.getElementById('shot-type').style.color = gradientColor;
 
     updateAimLine(shot.aimAngle);
 
@@ -11319,6 +11379,16 @@ function nextTurn() {
   updateCrowdAtmosphere();
 }
 
+// Ensure endScores arrays are large enough for extra ends
+function ensureEndScoresCapacity(endNumber) {
+  while (gameState.endScores.red.length < endNumber) {
+    gameState.endScores.red.push(null);
+  }
+  while (gameState.endScores.yellow.length < endNumber) {
+    gameState.endScores.yellow.push(null);
+  }
+}
+
 function calculateScore() {
   const buttonPos = { x: 0, z: TEE_LINE_FAR };
 
@@ -11336,6 +11406,8 @@ function calculateScore() {
 
   if (distances.length === 0) {
     // No stones in house - blank end (team with hammer keeps it)
+    // Ensure array is large enough for extra ends
+    ensureEndScoresCapacity(gameState.end);
     gameState.endScores.red[gameState.end - 1] = 0;
     gameState.endScores.yellow[gameState.end - 1] = 0;
     updateScoreDisplay();
@@ -11363,7 +11435,8 @@ function calculateScore() {
     }
   }
 
-  // Record end scores
+  // Record end scores - ensure array is large enough for extra ends
+  ensureEndScoresCapacity(gameState.end);
   gameState.endScores[scoringTeam][gameState.end - 1] = points;
   gameState.endScores[nonScoringTeam][gameState.end - 1] = 0;
 
@@ -15146,13 +15219,15 @@ function executeOpponentShot(data) {
 
   // Show power display briefly
   const shotTypeInfo = getShotType(power);
+  const gradientColor = getEffortGradientColor(power);
   document.getElementById('power-display').style.display = 'block';
   document.getElementById('power-bar').style.display = 'block';
   document.getElementById('power-value').textContent = Math.round(power);
   document.getElementById('power-fill').style.width = power + '%';
-  document.getElementById('shot-type').style.display = 'block';
+  document.getElementById('power-fill').style.background = gradientColor;
+  document.getElementById('shot-type').style.display = 'inline';
   document.getElementById('shot-type').textContent = shotTypeInfo.name;
-  document.getElementById('shot-type').style.color = shotTypeInfo.color;
+  document.getElementById('shot-type').style.color = gradientColor;
 
   // Simulate the throw sequence
   setTimeout(() => {
@@ -16451,22 +16526,32 @@ function renderMatchupCard(matchup, roundIndex) {
       padding: 12px;
       ${isCurrent ? 'animation: pulse 2s infinite;' : ''}
     ">
-      ${renderTeamRow(matchup.team1, matchup.winner, matchup.games)}
+      ${renderTeamRow(matchup.team1, matchup.winner, matchup.games, matchup)}
       <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 8px 0;"></div>
-      ${renderTeamRow(matchup.team2, matchup.winner, matchup.games)}
+      ${renderTeamRow(matchup.team2, matchup.winner, matchup.games, matchup)}
     </div>
   `;
 }
 
 // Render team row in matchup card
-function renderTeamRow(team, winner, games) {
+function renderTeamRow(team, winner, games, matchup) {
   if (!team) {
     return `<div style="color: #4b5563; font-size: 12px; padding: 4px 0;">TBD</div>`;
   }
 
-  const isWinner = winner && winner.id === team.id;
-  const isLoser = winner && winner.id !== team.id;
-  const teamScore = games ? games.filter(g => g.winner === team.id).length : 0;
+  const isTeam1 = matchup && matchup.team1 && matchup.team1.id === team.id;
+  const isWinner = winner && ((isTeam1 && winner === 'team1') || (!isTeam1 && winner === 'team2'));
+  const isLoser = winner && !isWinner;
+
+  // Get the actual match score from the matchup's scores object
+  let teamScore = 0;
+  if (matchup && matchup.scores) {
+    teamScore = isTeam1 ? matchup.scores.team1 : matchup.scores.team2;
+  } else if (games && games.length > 0) {
+    // Fallback: get score from most recent game
+    const lastGame = games[games.length - 1];
+    teamScore = isTeam1 ? lastGame.team1Score : lastGame.team2Score;
+  }
 
   // Determine team icon: player uses club crest, opponents use country flag
   let teamIcon = '';
@@ -16502,7 +16587,7 @@ function renderTeamRow(team, winner, games) {
         ${teamIcon ? `<span style="font-size: 14px; display: flex; align-items: center;">${iconHtml}</span>` : ''}
         <span>${team.name}</span>
       </div>
-      ${games && games.length > 0 ? `
+      ${matchup && matchup.status === 'complete' && teamScore !== null && teamScore !== undefined ? `
         <div style="
           color: ${isWinner ? '#4ade80' : '#64748b'};
           font-size: 12px;
@@ -17444,11 +17529,15 @@ function startGame() {
     } else {
       turnText = `End ${gameState.end}/${totalEnds} - ${remoteName}'s Turn`;
     }
-  } else {
+  } else if (gameState.playerCountry && gameState.opponentCountry) {
     const teamName = gameState.currentTeam === 'red' ? gameState.playerCountry.name : gameState.opponentCountry.name;
     const teamFlag = gameState.currentTeam === 'red' ? gameState.playerCountry.flag : gameState.opponentCountry.flag;
     // Use non-breaking spaces to keep team name and "'s Turn" together
     turnText = `End ${gameState.end}/${totalEnds} - ${teamFlag}\u00A0${teamName}'s\u00A0Turn${isComputer ? ' (CPU)' : ''}`;
+  } else {
+    // Fallback when country info not set
+    const teamLabel = gameState.currentTeam === 'red' ? 'Red' : 'Yellow';
+    turnText = `End ${gameState.end}/${totalEnds} - ${teamLabel}'s\u00A0Turn${isComputer ? ' (CPU)' : ''}`;
   }
   document.getElementById('turn').textContent = turnText;
 
@@ -18436,9 +18525,7 @@ async function initializeRevenueCat() {
   if (window.Capacitor?.isNativePlatform?.()) {
     try {
       const { Purchases } = await import('@revenuecat/purchases-capacitor');
-      await Purchases.configure({
-        apiKey: 'test_WyJHOUhmHkZnrQFcsCybzGjUUpU'
-      });
+      await Purchases.configure({ apiKey: 'appl_wJZEQgSWdaWhWPWyxTEmRDaMuCJ' });
       console.log('[IAP] RevenueCat initialized');
     } catch (error) {
       console.error('[IAP] Failed to initialize RevenueCat:', error);
