@@ -28,3 +28,8 @@ dist-ssr
 *.sw?
 .worktrees/
 .vercel
+
+# Certificates and provisioning profiles
+*.cer
+*.certSigningRequest
+*.mobileprovision
