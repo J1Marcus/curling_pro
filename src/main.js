@@ -4967,6 +4967,19 @@ renderer.setSize(initVP.width, initVP.height);
 renderer.shadowMap.enabled = true;
 document.body.appendChild(renderer.domElement);
 
+// Handle WebGL context loss (happens on iOS when app is backgrounded)
+let webglContextLost = false;
+renderer.domElement.addEventListener('webglcontextlost', (event) => {
+  event.preventDefault();
+  webglContextLost = true;
+  console.warn('[WebGL] Context lost - pausing rendering');
+});
+
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  webglContextLost = false;
+  console.log('[WebGL] Context restored - resuming rendering');
+});
+
 // Lighting - simulating indoor arena lighting
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
 scene.add(ambientLight);
@@ -12748,6 +12761,8 @@ window.restartGame = function() {
       gameState.selectedMode = null;  // Reset mode selection
       gameState.careerLevel = null;  // Reset career level
       gameState.inTournamentMatch = false;  // Clear tournament match flag
+      gameState.interactiveTutorialMode = false;  // Safety reset
+      gameState.welcomeTutorialActive = false;
 
       // Clear any remaining stones
       for (const stone of gameState.stones) {
@@ -12883,6 +12898,8 @@ window.startQuickPlayRematch = function() {
       gameState.previewLocked = true;
       gameState.curlDirection = null;
       gameState.playerCurlDirection = null;
+      gameState.interactiveTutorialMode = false;  // Safety reset
+      gameState.welcomeTutorialActive = false;
 
       // Clear any remaining stones
       for (const stone of gameState.stones) {
@@ -16879,6 +16896,10 @@ window.startTournamentMatch = function() {
   }
   gameState._computerShotInProgress = false;
 
+  // Safety: ensure tutorial mode is disabled (prevents nextTurn from returning early)
+  gameState.interactiveTutorialMode = false;
+  gameState.welcomeTutorialActive = false;
+
   // Reset out-of-play stones counter
   resetOutOfPlayStones();
 
@@ -17526,6 +17547,10 @@ function startGame() {
   gameState.setupComplete = true;
   gameState.phase = 'aiming';  // Ensure phase is reset for new game
 
+  // Safety: ensure tutorial mode is disabled (prevents nextTurn from returning early)
+  gameState.interactiveTutorialMode = false;
+  gameState.welcomeTutorialActive = false;
+
   // Update arena for current level (Career uses career.level, Quick Play uses quickPlayLevel)
   updateArenaForLevel();
 
@@ -18151,6 +18176,11 @@ function onTutorialActionComplete(action) {
   // Move to next step
   interactiveTutorialStep++;
 
+  // Reset the guard for the new step (so actions for the new step aren't blocked)
+  // This is needed because if a stone goes out of bounds quickly, the next step's
+  // action might trigger before showInteractiveTutorialStep() resets the flag
+  tutorialActionCompleted = false;
+
   // For 'ready' action, show throw tutorial immediately after entering throw view
   if (action === 'ready') {
     setTimeout(() => {
@@ -18175,6 +18205,10 @@ function onTutorialActionComplete(action) {
 
 // Show a continue button after user completes an action
 function showTutorialContinueButton() {
+  // Hide the tutorial overlay if it's visible (it can block the continue button)
+  const overlay = document.getElementById('tutorial-overlay');
+  if (overlay) overlay.style.display = 'none';
+
   // Create or get the standalone continue button
   let continueBtn = document.getElementById('tutorial-continue-btn');
   if (!continueBtn) {
@@ -20221,6 +20255,9 @@ window.addEventListener('focus', () => {
 // ============================================
 function animate() {
   requestAnimationFrame(animate);
+
+  // Skip rendering if WebGL context is lost (iOS backgrounding, memory pressure)
+  if (webglContextLost) return;
 
   try {
   // Frame-rate independent physics timing
