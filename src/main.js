@@ -8714,9 +8714,15 @@ function showPostShotFeedback() {
   const opponentStonesOutOfPlay = gameState.stones.filter(s => s.team === 'yellow' && s.outOfPlay);
 
   // The thrown stone is the most recently added player stone
-  const thrownStone = gameState.stones.filter(s => s.team === 'red')[gameState.stonesThrown['red'] - 1];
-  const thrownStoneOut = thrownStone?.outOfPlay;
-  const thrownStoneReason = thrownStone?.outOfPlayReason;
+  const redStones = gameState.stones.filter(s => s.team === 'red');
+  const thrownStone = redStones[redStones.length - 1];
+  if (!thrownStone) {
+    // Stone was removed from array (e.g., hog violation) - skip feedback
+    setTimeout(() => nextTurn(), 1500);
+    return;
+  }
+  const thrownStoneOut = thrownStone.outOfPlay;
+  const thrownStoneReason = thrownStone.outOfPlayReason;
 
   // Count what happened
   let opponentStonesRemoved = 0;
@@ -16721,7 +16727,7 @@ window.playNextMatch = function() {
 // Go back from pre-match screen to bracket view
 window.backFromPreMatch = function() {
   document.getElementById('pre-match-screen').style.display = 'none';
-  document.getElementById('bracket-view').style.display = 'block';
+  document.getElementById('bracket-screen').style.display = 'block';
 };
 
 // Show pre-match screen
@@ -20313,8 +20319,17 @@ function animate() {
     updateScoringIndicators();
   }
 
+  // Double-check context before rendering (event can lag behind actual loss)
+  if (renderer.getContext().isContextLost()) {
+    webglContextLost = true;
+    return;
+  }
   renderer.render(scene, camera);
   } catch (err) {
+    // If error is WebGL-related, flag context as lost to skip future frames
+    if (err.message && err.message.includes('WebGL')) {
+      webglContextLost = true;
+    }
     // Send diagnostic info to analytics but DON'T crash - just skip this frame
     analytics.trackError('animate_error', `${err.name}: ${err.message}`, {
       phase: gameState.phase,
