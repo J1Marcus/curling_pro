@@ -283,14 +283,6 @@
             <div class="label">Quick Play Completed</div>
             <div class="value" id="local-quickplay-completed" style="color: #4ade80;">-</div>
           </div>
-          <div class="stat-card">
-            <div class="label">2-Player Started</div>
-            <div class="value" id="local-2player-started" style="color: #4ade80;">-</div>
-          </div>
-          <div class="stat-card">
-            <div class="label">2-Player Completed</div>
-            <div class="value" id="local-2player-completed" style="color: #4ade80;">-</div>
-          </div>
         </div>
       </div>
 
@@ -505,6 +497,13 @@
       location.reload();
     };
 
+    // Supabase returns timestamps without timezone suffix — ensure UTC parsing
+    function parseUTC(ts) {
+      if (!ts) return new Date();
+      if (!ts.endsWith('Z') && !ts.includes('+')) return new Date(ts + 'Z');
+      return new Date(ts);
+    }
+
     window.loadData = async function() {
       if (!supabase) return;
 
@@ -596,9 +595,9 @@
         sessionsForDuration.forEach(s => {
           let duration = s.duration_seconds;
           if (!duration && s.started_at) {
-            // Calculate from timestamps - use last_activity or ended_at, fallback to now
-            const start = new Date(s.started_at);
-            const end = s.ended_at ? new Date(s.ended_at) : (s.last_activity ? new Date(s.last_activity) : new Date());
+            // Calculate from timestamps - ended sessions use ended_at, active sessions use now
+            const start = parseUTC(s.started_at);
+            const end = s.ended_at ? parseUTC(s.ended_at) : new Date();
             duration = Math.floor((end - start) / 1000);
           }
           if (duration && duration > 0) {
@@ -623,15 +622,10 @@
         const careerCompletes = gameCompletes.filter(e => e.event_name === 'career').length;
         const quickplayStarts = gameStarts.filter(e => e.event_name === 'quickplay').length;
         const quickplayCompletes = gameCompletes.filter(e => e.event_name === 'quickplay').length;
-        const twoPlayerStarts = gameStarts.filter(e => e.event_name === '2player').length;
-        const twoPlayerCompletes = gameCompletes.filter(e => e.event_name === '2player').length;
-
         document.getElementById('local-career-started').textContent = careerStarts;
         document.getElementById('local-career-completed').textContent = careerCompletes;
         document.getElementById('local-quickplay-started').textContent = quickplayStarts;
         document.getElementById('local-quickplay-completed').textContent = quickplayCompletes;
-        document.getElementById('local-2player-started').textContent = twoPlayerStarts;
-        document.getElementById('local-2player-completed').textContent = twoPlayerCompletes;
 
         // Online games
         const onlineStarts = gameStarts.filter(e => e.event_name === 'online').length;
@@ -709,7 +703,7 @@
 
         // Errors table
         const errorRows = recentErrors.data?.map(e => {
-          const time = new Date(e.created_at).toLocaleString();
+          const time = parseUTC(e.created_at).toLocaleString();
           const data = e.event_data || {};
           const location = data.source ? `${data.source}:${data.line || '?'}` : '-';
           const message = (data.message || e.event_name || 'Unknown error').slice(0, 100);
@@ -732,7 +726,7 @@
           feedbackRows = `<tr><td colspan="5" style="color: #ef4444;">Error: ${recentFeedback.error.message}</td></tr>`;
         } else {
           feedbackRows = recentFeedback.data?.map(f => {
-            const time = new Date(f.created_at).toLocaleString();
+            const time = parseUTC(f.created_at).toLocaleString();
             const typeColor = f.type === 'bug' ? '#ef4444' : '#3b82f6';
             const typeLabel = f.type === 'bug' ? '🐛 Bug' : '✨ Feature';
             const from = f.name || f.email || 'Anonymous';
@@ -751,8 +745,8 @@
 
         // Recent events table
         const eventRows = recentEvents.data?.map(e => {
-          const time = new Date(e.created_at).toLocaleTimeString();
-          const fullTime = new Date(e.created_at).toLocaleString();
+          const time = parseUTC(e.created_at).toLocaleTimeString();
+          const fullTime = parseUTC(e.created_at).toLocaleString();
           const dataStr = e.event_data ? JSON.stringify(e.event_data).slice(0, 50) : '-';
           const fullDataStr = e.event_data ? JSON.stringify(e.event_data) : '-';
           const copyText = fullTime + '    ' + e.event_type + '    ' + e.event_name + '    ' + fullDataStr;
@@ -769,8 +763,8 @@
 
         // Active sessions table
         const activeRows = activeSessions.data?.map(s => {
-          const started = new Date(s.started_at).toLocaleTimeString();
-          const lastActive = new Date(s.last_activity).toLocaleTimeString();
+          const started = parseUTC(s.started_at).toLocaleTimeString();
+          const lastActive = parseUTC(s.last_activity).toLocaleTimeString();
           return `<tr>
             <td style="font-size: 12px;">${s.session_id.slice(0, 20)}...</td>
             <td>${s.device_type || 'unknown'}</td>
