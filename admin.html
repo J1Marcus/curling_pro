@@ -438,9 +438,50 @@
   </div>
 
   <script type="module">
-    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { createClient } from '@supabase/supabase-js';
 
     let supabase = null;
+    let currentUrl = null;
+
+    // Proxy fetch through our serverless function to avoid browser cross-origin issues
+    function createProxyFetch(supabaseKey) {
+      return async function proxyFetch(input, init) {
+        const url = typeof input === 'string' ? input : input.url;
+        const method = init?.method || 'GET';
+
+        // Pass through whatever headers the Supabase client sets
+        const reqHeaders = init?.headers instanceof Headers
+          ? Object.fromEntries(init.headers.entries())
+          : init?.headers || {};
+
+        const proxyRes = await fetch('/api/supabase-proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url,
+            method,
+            headers: reqHeaders,
+            body: init?.body
+          })
+        });
+
+        // Reconstruct a Response-like object for the Supabase client
+        const responseText = await proxyRes.text();
+        const headers = new Headers();
+        headers.set('content-type', proxyRes.headers.get('content-type') || 'application/json');
+        // Forward content-range for count queries
+        const contentRange = proxyRes.headers.get('x-content-range');
+        if (contentRange) {
+          headers.set('content-range', contentRange);
+        }
+
+        return new Response(responseText, {
+          status: proxyRes.status,
+          statusText: proxyRes.statusText,
+          headers
+        });
+      };
+    }
 
     // Check for saved credentials
     window.onload = function() {
@@ -463,8 +504,23 @@
         return;
       }
 
+      errorEl.textContent = 'Connecting...';
+
       try {
-        supabase = createClient(url, key);
+        // Reuse existing client if same URL, otherwise create new one
+        if (!supabase || currentUrl !== url) {
+          supabase = createClient(url, key, {
+            auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+              storageKey: 'admin-dashboard-auth'
+            },
+            global: {
+              fetch: createProxyFetch(key)
+            }
+          });
+          currentUrl = url;
+        }
 
         // Test connection by querying analytics_sessions
         const { data, error } = await supabase
@@ -477,6 +533,7 @@
         }
 
         // Save credentials
+        errorEl.textContent = '';
         localStorage.setItem('admin_supabase_url', url);
         localStorage.setItem('admin_service_key', key);
 
@@ -719,10 +776,8 @@
         document.getElementById('error-log').innerHTML = errorRows;
 
         // Feedback table
-        console.log('Feedback query result:', recentFeedback);
         let feedbackRows;
         if (recentFeedback.error) {
-          console.error('Feedback error:', recentFeedback.error);
           feedbackRows = `<tr><td colspan="5" style="color: #ef4444;">Error: ${recentFeedback.error.message}</td></tr>`;
         } else {
           feedbackRows = recentFeedback.data?.map(f => {
