@@ -1000,10 +1000,14 @@ function processNextBadgeToast() {
 function updateBadgeButtonCount() {
   const badgeData = loadBadges();
   const count = Object.keys(badgeData.unlocked).length;
+  const lastSeen = badgeData.lastSeenCount || 0;
   const label = document.getElementById('badge-count-label');
   if (label) label.textContent = count + '/20';
   const counterEl = document.getElementById('badge-gallery-counter');
   if (counterEl) counterEl.textContent = count + '/20 Unlocked';
+  // Show/hide new-badge dot
+  const dot = document.getElementById('badge-new-dot');
+  if (dot) dot.style.display = count > lastSeen ? 'block' : 'none';
 }
 
 window.showBadgeGallery = function() {
@@ -1011,7 +1015,10 @@ window.showBadgeGallery = function() {
   const grid = document.getElementById('badge-gallery-grid');
   if (!screen || !grid) return;
 
+  // Mark all badges as seen
   const badgeData = loadBadges();
+  badgeData.lastSeenCount = Object.keys(badgeData.unlocked).length;
+  saveBadges(badgeData);
   updateBadgeButtonCount();
 
   // Group badges by category
