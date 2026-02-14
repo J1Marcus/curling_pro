@@ -4,6 +4,8 @@ import { Howler } from 'howler';
 import { soundManager } from './sounds.js';
 import * as multiplayer from './multiplayer.js';
 import * as analytics from './analytics.js';
+import { AppReview } from '@capawesome/capacitor-app-review';
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 // ============================================
 // SPLASH SCREEN / LOADING
@@ -650,6 +652,16 @@ const gameState = {
     currentStreak: 0,        // Current success streak
     showHints: true,         // Show hint panel
     lastOutcome: null        // 'success' | 'fail' | null
+  },
+
+  // Daily challenge mode state
+  dailyChallengeMode: {
+    active: false,
+    currentChallenge: null,   // Full challenge object from DAILY_CHALLENGE_POOL
+    dateString: null,         // YYYY-MM-DD locked at start
+    attempts: 0,
+    bestScore: 0,
+    lastScore: null
   }
 };
 
@@ -665,6 +677,703 @@ const CAREER_LEVELS = [
   { id: 7, name: 'Olympic Trials', difficulty: 0.03, winsToAdvance: 4, color: '#ec4899', difficultyLabel: 'Expert' },
   { id: 8, name: 'Olympics', difficulty: 0.02, winsToAdvance: null, color: '#ffd700', difficultyLabel: 'Elite' }  // Final level
 ];
+
+// ============================================
+// ACHIEVEMENT BADGE SYSTEM
+// ============================================
+
+const BADGES = [
+  // Career
+  { id: 'first_win', name: 'First Victory', description: 'Win any match', icon: '🥇', category: 'Career' },
+  { id: 'career_starter', name: 'Career Starter', description: 'Start Career Mode', icon: '🏟️', category: 'Career' },
+  { id: 'tournament_champion', name: 'Tournament Champion', description: 'Win a career tournament', icon: '🏆', category: 'Career' },
+  { id: 'reach_national', name: 'National Contender', description: 'Reach National tier in Career', icon: '🇺🇳', category: 'Career' },
+  { id: 'olympian', name: 'Olympian', description: 'Reach Olympics tier in Career', icon: '🥇', category: 'Career' },
+  // Quick Play
+  { id: 'qp_regional', name: 'Rising Star', description: 'Reach Regional in Quick Play', icon: '⭐', category: 'Quick Play' },
+  { id: 'qp_national', name: 'National Treasure', description: 'Reach National in Quick Play', icon: '💎', category: 'Quick Play' },
+  { id: 'qp_olympics', name: 'Olympic Dream', description: 'Reach Olympics in Quick Play', icon: '🏅', category: 'Quick Play' },
+  // Match
+  { id: 'win_streak_5', name: 'Iron Broom', description: '5-match winning streak', icon: '🧹', category: 'Match' },
+  { id: 'win_streak_10', name: 'Unstoppable', description: '10-match winning streak', icon: '💪', category: 'Match' },
+  { id: 'shutout', name: 'Clean Sheet', description: 'Win with opponent scoring 0', icon: '🚫', category: 'Match' },
+  { id: 'blowout', name: 'Dominant Force', description: 'Win by 5+ points', icon: '💥', category: 'Match' },
+  { id: 'play_25', name: 'Dedicated Player', description: 'Play 25 matches', icon: '🎮', category: 'Match' },
+  { id: 'play_100', name: 'Veteran', description: 'Play 100 matches', icon: '🎖️', category: 'Match' },
+  // Practice
+  { id: 'practice_50', name: 'Practice Makes Perfect', description: 'Complete 50 practice attempts', icon: '🎯', category: 'Practice' },
+  { id: 'drill_master', name: 'Drill Master', description: 'Unlock difficulty 5 on any drill', icon: '🔓', category: 'Practice' },
+  { id: 'all_drills', name: 'All-Rounder', description: 'Attempt all 7 drill types', icon: '🔄', category: 'Practice' },
+  // Daily
+  { id: 'daily_streak_7', name: 'Daily Devotee', description: 'Achieve a 7-day streak', icon: '📅', category: 'Daily' },
+  { id: 'daily_score_90', name: 'Challenge Champion', description: 'Score 90+ on a daily challenge', icon: '🌟', category: 'Daily' },
+  { id: 'daily_streak_30', name: 'Consistency King', description: 'Achieve a 30-day streak', icon: '👑', category: 'Daily' },
+];
+
+const BADGE_STORAGE_KEY = 'curlingpro_badges';
+
+function loadBadges() {
+  try {
+    const saved = localStorage.getItem(BADGE_STORAGE_KEY);
+    if (saved) return JSON.parse(saved);
+  } catch (e) {
+    console.warn('[Badges] Could not load badges:', e);
+  }
+  return { unlocked: {} };
+}
+
+function saveBadges(badgeData) {
+  try {
+    localStorage.setItem(BADGE_STORAGE_KEY, JSON.stringify(badgeData));
+  } catch (e) {
+    console.warn('[Badges] Could not save badges:', e);
+  }
+}
+
+function checkBadgeCondition(badge) {
+  try {
+    switch (badge.id) {
+      // Career badges
+      case 'first_win': {
+        const matches = getLocalMatchHistory();
+        return matches.some(m => m.won);
+      }
+      case 'career_starter': {
+        return localStorage.getItem('curlingpro_season') !== null;
+      }
+      case 'tournament_champion': {
+        const saved = localStorage.getItem('curlingpro_season');
+        if (!saved) return false;
+        const data = JSON.parse(saved);
+        return (data.stats?.tournamentsWon || 0) >= 1;
+      }
+      case 'reach_national': {
+        const saved = localStorage.getItem('curlingpro_season');
+        if (!saved) return false;
+        const data = JSON.parse(saved);
+        const tier = data.careerTier || 'club';
+        const tierIdx = CAREER_TIERS.indexOf(tier);
+        return tierIdx >= CAREER_TIERS.indexOf('national');
+      }
+      case 'olympian': {
+        const saved = localStorage.getItem('curlingpro_season');
+        if (!saved) return false;
+        const data = JSON.parse(saved);
+        return data.careerTier === 'olympic';
+      }
+      // Quick Play badges
+      case 'qp_regional': {
+        return gameState.career.level >= 2;
+      }
+      case 'qp_national': {
+        return gameState.career.level >= 4;
+      }
+      case 'qp_olympics': {
+        return gameState.career.level >= 8;
+      }
+      // Match badges
+      case 'win_streak_5':
+      case 'win_streak_10': {
+        const target = badge.id === 'win_streak_5' ? 5 : 10;
+        const matches = getLocalMatchHistory();
+        let maxStreak = 0, currentStreak = 0;
+        // Matches are stored newest-first, iterate in chronological order
+        for (let i = matches.length - 1; i >= 0; i--) {
+          if (matches[i].won) {
+            currentStreak++;
+            if (currentStreak > maxStreak) maxStreak = currentStreak;
+          } else {
+            currentStreak = 0;
+          }
+        }
+        return maxStreak >= target;
+      }
+      case 'shutout': {
+        const matches = getLocalMatchHistory();
+        return matches.some(m => m.won && m.opponentScore === 0);
+      }
+      case 'blowout': {
+        const matches = getLocalMatchHistory();
+        return matches.some(m => m.won && (m.playerScore - m.opponentScore) >= 5);
+      }
+      case 'play_25': {
+        return getLocalMatchHistory().length >= 25;
+      }
+      case 'play_100': {
+        return getLocalMatchHistory().length >= 100;
+      }
+      // Practice badges
+      case 'practice_50': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        let total = 0;
+        for (const drill of Object.values(stats)) {
+          total += drill.attempts || 0;
+        }
+        return total >= 50;
+      }
+      case 'drill_master': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        return Object.values(stats).some(d => (d.unlocked || 1) >= 5);
+      }
+      case 'all_drills': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        const drillTypes = ['takeout', 'bump', 'draw', 'guard', 'freeze', 'hitroll', 'skip'];
+        return drillTypes.every(dt => stats[dt] && stats[dt].attempts > 0);
+      }
+      // Daily badges
+      case 'daily_streak_7': {
+        const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0');
+        return streak >= 7;
+      }
+      case 'daily_streak_30': {
+        const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0');
+        return streak >= 30;
+      }
+      case 'daily_score_90': {
+        const history = JSON.parse(localStorage.getItem(LS_DAILY_HISTORY) || '[]');
+        return history.some(h => h.bestScore >= 90);
+      }
+      default:
+        return false;
+    }
+  } catch (e) {
+    console.warn('[Badges] Error checking condition for', badge.id, e);
+    return false;
+  }
+}
+
+// Returns { current, target, label? } for badges with trackable progress, or null for binary badges
+function getBadgeProgress(badge) {
+  try {
+    switch (badge.id) {
+      case 'first_win': {
+        const wins = getLocalMatchHistory().filter(m => m.won).length;
+        return { current: Math.min(wins, 1), target: 1 };
+      }
+      case 'career_starter':
+        return localStorage.getItem('curlingpro_season') ? { current: 1, target: 1 } : { current: 0, target: 1 };
+      case 'tournament_champion': {
+        const saved = localStorage.getItem('curlingpro_season');
+        const won = saved ? (JSON.parse(saved).stats?.tournamentsWon || 0) : 0;
+        return { current: Math.min(won, 1), target: 1 };
+      }
+      case 'reach_national': {
+        const saved = localStorage.getItem('curlingpro_season');
+        const tier = saved ? (JSON.parse(saved).careerTier || 'club') : 'club';
+        const tierIdx = CAREER_TIERS.indexOf(tier);
+        const targetIdx = CAREER_TIERS.indexOf('national');
+        return { current: Math.min(tierIdx, targetIdx), target: targetIdx, label: tier.charAt(0).toUpperCase() + tier.slice(1) };
+      }
+      case 'olympian': {
+        const saved = localStorage.getItem('curlingpro_season');
+        const tier = saved ? (JSON.parse(saved).careerTier || 'club') : 'club';
+        const tierIdx = CAREER_TIERS.indexOf(tier);
+        const targetIdx = CAREER_TIERS.indexOf('olympic');
+        return { current: Math.min(tierIdx, targetIdx), target: targetIdx, label: tier.charAt(0).toUpperCase() + tier.slice(1) };
+      }
+      case 'qp_regional':
+        return { current: Math.min(gameState.career.level, 2), target: 2 };
+      case 'qp_national':
+        return { current: Math.min(gameState.career.level, 4), target: 4 };
+      case 'qp_olympics':
+        return { current: Math.min(gameState.career.level, 8), target: 8 };
+      case 'win_streak_5':
+      case 'win_streak_10': {
+        const target = badge.id === 'win_streak_5' ? 5 : 10;
+        const matches = getLocalMatchHistory();
+        let maxStreak = 0, cur = 0;
+        for (let i = matches.length - 1; i >= 0; i--) {
+          if (matches[i].won) { cur++; if (cur > maxStreak) maxStreak = cur; } else { cur = 0; }
+        }
+        return { current: Math.min(maxStreak, target), target };
+      }
+      case 'shutout': {
+        const has = getLocalMatchHistory().some(m => m.won && m.opponentScore === 0);
+        return has ? { current: 1, target: 1 } : null; // Binary — no partial progress
+      }
+      case 'blowout': {
+        const has = getLocalMatchHistory().some(m => m.won && (m.playerScore - m.opponentScore) >= 5);
+        return has ? { current: 1, target: 1 } : null; // Binary
+      }
+      case 'play_25':
+        return { current: Math.min(getLocalMatchHistory().length, 25), target: 25 };
+      case 'play_100':
+        return { current: Math.min(getLocalMatchHistory().length, 100), target: 100 };
+      case 'practice_50': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        let total = 0;
+        for (const drill of Object.values(stats)) total += drill.attempts || 0;
+        return { current: Math.min(total, 50), target: 50 };
+      }
+      case 'drill_master': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        let maxUnlocked = 1;
+        for (const d of Object.values(stats)) { if ((d.unlocked || 1) > maxUnlocked) maxUnlocked = d.unlocked; }
+        return { current: Math.min(maxUnlocked, 5), target: 5 };
+      }
+      case 'all_drills': {
+        const stats = JSON.parse(localStorage.getItem('curlingpro_practice') || '{}');
+        const drillTypes = ['takeout', 'bump', 'draw', 'guard', 'freeze', 'hitroll', 'skip'];
+        const attempted = drillTypes.filter(dt => stats[dt] && stats[dt].attempts > 0).length;
+        return { current: attempted, target: 7 };
+      }
+      case 'daily_streak_7':
+        return { current: Math.min(parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0'), 7), target: 7 };
+      case 'daily_streak_30':
+        return { current: Math.min(parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0'), 30), target: 30 };
+      case 'daily_score_90': {
+        const history = JSON.parse(localStorage.getItem(LS_DAILY_HISTORY) || '[]');
+        const best = history.reduce((max, h) => Math.max(max, h.bestScore || 0), 0);
+        return { current: Math.min(best, 90), target: 90 };
+      }
+      default:
+        return null;
+    }
+  } catch (e) {
+    return null;
+  }
+}
+
+let badgeToastQueue = [];
+let badgeToastShowing = false;
+
+function checkBadgeUnlocks() {
+  const badgeData = loadBadges();
+  const newlyUnlocked = [];
+
+  for (const badge of BADGES) {
+    if (badgeData.unlocked[badge.id]) continue; // Already unlocked
+    if (checkBadgeCondition(badge)) {
+      badgeData.unlocked[badge.id] = Date.now();
+      newlyUnlocked.push(badge);
+    }
+  }
+
+  if (newlyUnlocked.length > 0) {
+    saveBadges(badgeData);
+    for (const badge of newlyUnlocked) {
+      showBadgeUnlockToast(badge);
+    }
+    updateBadgeButtonCount();
+  }
+
+  return newlyUnlocked.map(b => b.id);
+}
+
+function showBadgeUnlockToast(badge) {
+  badgeToastQueue.push(badge);
+  if (!badgeToastShowing) {
+    processNextBadgeToast();
+  }
+}
+
+function processNextBadgeToast() {
+  if (badgeToastQueue.length === 0) {
+    badgeToastShowing = false;
+    return;
+  }
+  badgeToastShowing = true;
+  const badge = badgeToastQueue.shift();
+
+  const toast = document.getElementById('badge-unlock-toast');
+  const iconEl = document.getElementById('badge-toast-icon');
+  const nameEl = document.getElementById('badge-toast-name');
+  if (!toast || !iconEl || !nameEl) { badgeToastShowing = false; return; }
+
+  iconEl.textContent = badge.icon;
+  nameEl.textContent = badge.name;
+
+  toast.style.display = 'block';
+  // Force reflow, then animate in
+  toast.offsetHeight;
+  toast.style.top = '40px';
+
+  setTimeout(() => {
+    toast.style.top = '-80px';
+    setTimeout(() => {
+      toast.style.display = 'none';
+      processNextBadgeToast();
+    }, 500);
+  }, 3500);
+}
+
+function updateBadgeButtonCount() {
+  const badgeData = loadBadges();
+  const count = Object.keys(badgeData.unlocked).length;
+  const label = document.getElementById('badge-count-label');
+  if (label) label.textContent = count + '/20';
+  const counterEl = document.getElementById('badge-gallery-counter');
+  if (counterEl) counterEl.textContent = count + '/20 Unlocked';
+}
+
+window.showBadgeGallery = function() {
+  const screen = document.getElementById('badge-gallery-screen');
+  const grid = document.getElementById('badge-gallery-grid');
+  if (!screen || !grid) return;
+
+  const badgeData = loadBadges();
+  updateBadgeButtonCount();
+
+  // Group badges by category
+  const categories = ['Career', 'Quick Play', 'Match', 'Practice', 'Daily'];
+  let html = '';
+
+  for (const category of categories) {
+    const categoryBadges = BADGES.filter(b => b.category === category);
+    html += '<div style="margin-bottom: 24px;">';
+    html += '<h3 style="color: #94a3b8; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; margin: 0 0 12px 4px;">' + category + '</h3>';
+    html += '<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">';
+
+    for (const badge of categoryBadges) {
+      const isUnlocked = !!badgeData.unlocked[badge.id];
+      if (isUnlocked) {
+        html += '<div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(245, 158, 11, 0.22) 100%); border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 12px; padding: 14px 8px; text-align: center;">';
+        html += '<div style="font-size: 30px; margin-bottom: 6px;">' + badge.icon + '</div>';
+        html += '<div style="color: white; font-size: 12px; font-weight: 600; margin-bottom: 3px;">' + badge.name + '</div>';
+        html += '<div style="color: #94a3b8; font-size: 10px;">' + badge.description + '</div>';
+        html += '</div>';
+      } else {
+        const progress = getBadgeProgress(badge);
+        html += '<div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 8px; text-align: center; opacity: 0.5;">';
+        html += '<div style="font-size: 30px; margin-bottom: 6px; filter: grayscale(1);">❓</div>';
+        html += '<div style="color: #64748b; font-size: 12px; font-weight: 600; margin-bottom: 3px;">???</div>';
+        html += '<div style="color: #475569; font-size: 10px;">' + badge.description + '</div>';
+        if (progress && progress.target > 1) {
+          const pct = Math.round((progress.current / progress.target) * 100);
+          html += '<div style="margin-top: 6px;">';
+          html += '<div style="background: rgba(255,255,255,0.08); border-radius: 4px; height: 6px; overflow: hidden;">';
+          html += '<div style="background: #f59e0b; height: 100%; width: ' + pct + '%; border-radius: 4px; transition: width 0.3s;"></div>';
+          html += '</div>';
+          html += '<div style="color: #64748b; font-size: 9px; margin-top: 3px;">' + (progress.label || progress.current + '/' + progress.target) + '</div>';
+          html += '</div>';
+        }
+        html += '</div>';
+      }
+    }
+
+    html += '</div></div>';
+  }
+
+  grid.innerHTML = html;
+  screen.style.display = 'block';
+};
+
+window.closeBadgeGallery = function() {
+  const screen = document.getElementById('badge-gallery-screen');
+  if (screen) screen.style.display = 'none';
+};
+
+// ============================================
+// LOCAL NOTIFICATIONS
+// ============================================
+const NOTIF_ID_DAILY_REMINDER = 1001;
+const NOTIF_ID_CAREER_NUDGE = 1002;
+const NOTIF_ID_STREAK_REMINDER = 1003;
+
+const NOTIF_DAILY_MESSAGES = [
+  "Your curling stones are waiting! Come back and play",
+  "The ice is fresh — time for another match!",
+  "Your team misses you! Throw a few stones today",
+  "Ready for another end? The house is calling!",
+];
+
+const NOTIF_STREAK_MESSAGES = [
+  "Keep your {streak}-day streak going!",
+  "Don't break your {streak}-day streak! Play today",
+  "{streak} days strong — keep the momentum!",
+];
+
+const LS_NOTIF_ENABLED = 'curlingpro_notifications_enabled';
+const LS_NOTIF_PERMISSION = 'curlingpro_notifications_permission';
+const LS_LAST_SESSION = 'curlingpro_last_session';
+const LS_DAILY_STREAK = 'curlingpro_daily_streak';
+const LS_STREAK_LAST_DATE = 'curlingpro_streak_last_date';
+const LS_DAILY_PREFIX = 'curlingpro_daily_';        // + YYYY-MM-DD for per-day data
+const LS_DAILY_HISTORY = 'curlingpro_daily_history'; // Array of recent daily challenge results
+
+async function requestNotificationPermission() {
+  if (!window.Capacitor?.isNativePlatform?.()) return false;
+  try {
+    let permStatus = await LocalNotifications.checkPermissions();
+    if (permStatus.display === 'prompt') {
+      permStatus = await LocalNotifications.requestPermissions();
+    }
+    const granted = permStatus.display === 'granted';
+    localStorage.setItem(LS_NOTIF_PERMISSION, granted ? 'granted' : 'denied');
+    if (granted) {
+      localStorage.setItem(LS_NOTIF_ENABLED, 'true');
+    }
+    return granted;
+  } catch (e) {
+    console.warn('[Notifications] Permission request failed:', e);
+    return false;
+  }
+}
+
+async function cancelAllNotifications() {
+  if (!window.Capacitor?.isNativePlatform?.()) return;
+  try {
+    const pending = await LocalNotifications.getPending();
+    if (pending.notifications.length > 0) {
+      await LocalNotifications.cancel({ notifications: pending.notifications });
+    }
+  } catch (e) {
+    console.warn('[Notifications] Cancel failed:', e);
+  }
+}
+
+async function scheduleNotifications() {
+  if (!window.Capacitor?.isNativePlatform?.()) return;
+  if (localStorage.getItem(LS_NOTIF_ENABLED) !== 'true') return;
+  if (localStorage.getItem(LS_NOTIF_PERMISSION) !== 'granted') return;
+
+  await cancelAllNotifications();
+
+  const now = Date.now();
+  const notifs = [];
+
+  // 1) Daily reminder — 26 hours after last session
+  const dailyMsg = NOTIF_DAILY_MESSAGES[Math.floor(Math.random() * NOTIF_DAILY_MESSAGES.length)];
+  notifs.push({
+    id: NOTIF_ID_DAILY_REMINDER,
+    title: 'Curling Pro',
+    body: dailyMsg,
+    schedule: { at: new Date(now + 26 * 60 * 60 * 1000) },
+    sound: 'default',
+  });
+
+  // 2) Career nudge — 48 hours after last session
+  try {
+    const currentLevel = parseInt(localStorage.getItem('curlingpro_career_level') || '1');
+    const currentWins = parseInt(localStorage.getItem('curlingpro_career_wins') || '0');
+    const levelData = CAREER_LEVELS[currentLevel - 1];
+    if (levelData && levelData.winsToAdvance) {
+      const winsNeeded = levelData.winsToAdvance - currentWins;
+      const nextLevel = CAREER_LEVELS[currentLevel];
+      if (winsNeeded > 0 && nextLevel) {
+        notifs.push({
+          id: NOTIF_ID_CAREER_NUDGE,
+          title: 'Curling Pro',
+          body: `${winsNeeded} win${winsNeeded === 1 ? '' : 's'} away from ${nextLevel.name}. Keep climbing!`,
+          schedule: { at: new Date(now + 48 * 60 * 60 * 1000) },
+          sound: 'default',
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('[Notifications] Career nudge error:', e);
+  }
+
+  // 3) Streak reminder — next day at 6 PM local
+  const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0');
+  if (streak > 0) {
+    const tomorrow6pm = new Date();
+    tomorrow6pm.setDate(tomorrow6pm.getDate() + 1);
+    tomorrow6pm.setHours(18, 0, 0, 0);
+    const streakTemplate = NOTIF_STREAK_MESSAGES[Math.floor(Math.random() * NOTIF_STREAK_MESSAGES.length)];
+    const streakMsg = streakTemplate.replace('{streak}', String(streak));
+    notifs.push({
+      id: NOTIF_ID_STREAK_REMINDER,
+      title: 'Curling Pro',
+      body: streakMsg,
+      schedule: { at: tomorrow6pm },
+      sound: 'default',
+    });
+  }
+
+  if (notifs.length > 0) {
+    try {
+      await LocalNotifications.schedule({ notifications: notifs });
+      console.log('[Notifications] Scheduled', notifs.length, 'notifications');
+    } catch (e) {
+      console.warn('[Notifications] Schedule failed:', e);
+    }
+  }
+}
+
+function updateDailyStreak() {
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const lastDate = localStorage.getItem(LS_STREAK_LAST_DATE);
+  if (lastDate === today) return; // Already counted today
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  if (lastDate === yesterdayStr) {
+    // Consecutive day — increment streak
+    const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0') + 1;
+    localStorage.setItem(LS_DAILY_STREAK, String(streak));
+  } else {
+    // Streak broken or first day — reset to 1
+    localStorage.setItem(LS_DAILY_STREAK, '1');
+  }
+  localStorage.setItem(LS_STREAK_LAST_DATE, today);
+}
+
+// Update streak banner on home screen
+function updateHomeStreakBanner() {
+  const banner = document.getElementById('home-streak-banner');
+  const countEl = document.getElementById('home-streak-count');
+  if (!banner || !countEl) return;
+
+  const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0');
+  const lastDate = localStorage.getItem(LS_STREAK_LAST_DATE);
+  const fireEl = banner.querySelector('span:first-child');
+  const labelEl = banner.querySelector('span:last-child');
+
+  // Check if streak is still active (played today or yesterday)
+  let activeStreak = 0;
+  if (streak > 0 && lastDate) {
+    const today = new Date();
+    const todayStr = today.toISOString().slice(0, 10);
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+    if (lastDate === todayStr || lastDate === yesterdayStr) {
+      activeStreak = streak;
+    }
+  }
+
+  // Always show the banner
+  if (activeStreak > 0) {
+    countEl.textContent = activeStreak;
+    labelEl.textContent = activeStreak === 1 ? 'day streak' : 'day streak';
+    fireEl.textContent = '🔥';
+  } else {
+    countEl.textContent = '0';
+    labelEl.textContent = 'Play today to start a streak!';
+    fireEl.textContent = '🔥';
+  }
+  banner.style.display = 'flex';
+}
+
+// Progress nudge on home screen — returns { icon, text } or null
+function getProgressNudge() {
+  // 1. Active tournament in progress
+  if (seasonState.activeTournament) {
+    return { icon: '🏆', text: 'You have a tournament in progress — keep going!' };
+  }
+
+  // 2. Career season: close to advancing tier (within 1 win)
+  const seasonSaved = localStorage.getItem('curlingpro_season');
+  if (seasonSaved) {
+    try {
+      const season = JSON.parse(seasonSaved);
+      const tierIndex = CAREER_TIERS.indexOf(season.careerTier || 'club');
+      if (tierIndex >= 0 && tierIndex < CAREER_LEVELS.length - 1) {
+        const levelData = CAREER_LEVELS[tierIndex];
+        const totalWins = (season.stats && season.stats.totalWins) || 0;
+        if (levelData.winsToAdvance && totalWins >= levelData.winsToAdvance - 1 && totalWins < levelData.winsToAdvance) {
+          const nextTierName = CAREER_LEVELS[tierIndex + 1].name;
+          return { icon: '🏆', text: `1 win away from ${nextTierName}!` };
+        }
+      }
+
+      // 3. Career: new qualification earned but unused
+      const quals = season.qualifications || {};
+      const qualMap = [
+        { key: 'regionalQualified', tier: 'Regional' },
+        { key: 'provincialQualified', tier: 'Provincial' },
+        { key: 'nationalQualified', tier: 'National' },
+        { key: 'worldsQualified', tier: 'World Championship' },
+        { key: 'olympicTrialsQualified', tier: 'Olympic Trials' },
+        { key: 'olympicsQualified', tier: 'Olympics' }
+      ];
+      for (const q of qualMap) {
+        if (quals[q.key]) {
+          return { icon: '🎯', text: `You've qualified for ${q.tier} — enter from Season Overview!` };
+        }
+      }
+    } catch (e) { /* ignore parse errors */ }
+  }
+
+  // 4. Quick Play: close to advancing (within 1 win)
+  try {
+    const qpSaved = localStorage.getItem('curlingpro_career');
+    if (qpSaved) {
+      const qp = JSON.parse(qpSaved);
+      const level = qp.level || 1;
+      const wins = qp.wins || 0;
+      if (level <= CAREER_LEVELS.length) {
+        const levelData = CAREER_LEVELS[level - 1];
+        if (levelData && levelData.winsToAdvance && wins === levelData.winsToAdvance - 1) {
+          const nextLevel = CAREER_LEVELS[level];
+          if (nextLevel) {
+            return { icon: '🎮', text: `1 win from ${nextLevel.name} in Quick Play!` };
+          }
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // 5. Daily challenge: not attempted today
+  try {
+    const today = getTodayDateString();
+    const dailyData = loadDailyChallengeData(today);
+    const challenge = getDailyChallengeForDate(today);
+    if (dailyData.attempts === 0 && challenge) {
+      return { icon: '📅', text: `Today's challenge: ${challenge.name} — give it a try!` };
+    }
+
+    // 6. Daily challenge: attempted but can improve
+    if (dailyData.attempts > 0 && dailyData.bestScore < 80) {
+      return { icon: '📅', text: `Today's best: ${dailyData.bestScore} — can you beat it?` };
+    }
+  } catch (e) { /* ignore */ }
+
+  // 7. Win streak in recent matches
+  try {
+    const matches = getLocalMatchHistory();
+    if (matches.length >= 3) {
+      let streak = 0;
+      for (let i = matches.length - 1; i >= 0; i--) {
+        if (matches[i].won) streak++;
+        else break;
+      }
+      if (streak >= 3) {
+        return { icon: '🔥', text: `You're on a ${streak}-match winning streak!` };
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // 8. New player: no career started
+  if (!seasonSaved) {
+    return { icon: '🏆', text: 'Start Career Mode and climb to the Olympics!' };
+  }
+
+  // 9. New player: no matches played
+  try {
+    const matches = getLocalMatchHistory();
+    if (!matches || matches.length === 0) {
+      return { icon: '🎮', text: 'Jump into Quick Play for your first match!' };
+    }
+  } catch (e) { /* ignore */ }
+
+  return null;
+}
+
+function updateProgressNudge() {
+  const container = document.getElementById('home-progress-nudge');
+  if (!container) return;
+
+  const nudge = getProgressNudge();
+  if (nudge) {
+    document.getElementById('nudge-icon').textContent = nudge.icon;
+    document.getElementById('nudge-text').textContent = nudge.text;
+    container.style.display = 'flex';
+  } else {
+    container.style.display = 'none';
+  }
+}
+
+async function updateNotificationsAfterSession() {
+  if (!window.Capacitor?.isNativePlatform?.()) return;
+  localStorage.setItem(LS_LAST_SESSION, String(Date.now()));
+  updateDailyStreak();
+  await scheduleNotifications();
+}
 
 // Curling nations with flag emojis
 const CURLING_COUNTRIES = [
@@ -1795,6 +2504,308 @@ const PRACTICE_SCENARIOS = {
     }
   ]
 };
+
+// ============================================
+// DAILY CHALLENGE - Challenge Pool (30 scenarios)
+// ============================================
+
+const DAILY_CHALLENGE_POOL = [
+  // --- DRAW SCENARIOS (8) ---
+  {
+    id: 'dc_draw_1', name: 'Open Draw to Button', shotType: 'draw', difficulty: 1,
+    description: 'Draw to the button with no obstacles in the way.',
+    stones: [],
+    target: { x: 0, z: 41.07 },
+    hint: 'Aim for the center of the house with draw weight'
+  },
+  {
+    id: 'dc_draw_2', name: 'Draw to 4-Foot', shotType: 'draw', difficulty: 1,
+    description: 'Place your stone in the 4-foot ring.',
+    stones: [
+      { team: 'yellow', x: 0, z: 41.07 }  // Opponent on button
+    ],
+    target: { x: 0.4, z: 40.8 },
+    hint: 'Draw beside the opponent stone into the 4-foot ring'
+  },
+  {
+    id: 'dc_draw_3', name: 'Draw Around Guard', shotType: 'draw', difficulty: 2,
+    description: 'Curl around the center guard to reach the house.',
+    stones: [
+      { team: 'yellow', x: 0, z: 38.5 }  // Center guard
+    ],
+    target: { x: -0.5, z: 41.07 },
+    hint: 'Use curl to navigate around the guard into the house'
+  },
+  {
+    id: 'dc_draw_4', name: 'Come-Around Draw', shotType: 'draw', difficulty: 3,
+    description: 'Draw behind your guard for protection.',
+    stones: [
+      { team: 'red', x: -0.4, z: 38.0 }  // Your guard
+    ],
+    target: { x: -0.5, z: 41.0 },
+    hint: 'Curl behind your guard so the opponent cannot see your stone'
+  },
+  {
+    id: 'dc_draw_5', name: 'Tight Port Draw', shotType: 'draw', difficulty: 4,
+    description: 'Thread your stone through a narrow gap between two guards.',
+    stones: [
+      { team: 'yellow', x: -0.45, z: 38.5 },
+      { team: 'yellow', x: 0.45, z: 38.8 }
+    ],
+    target: { x: 0, z: 41.07 },
+    hint: 'Split the gap between the two guards with minimal curl'
+  },
+  {
+    id: 'dc_draw_6', name: 'Draw to Back 4-Foot', shotType: 'draw', difficulty: 2,
+    description: 'Place your stone at the back of the 4-foot ring.',
+    stones: [
+      { team: 'yellow', x: 0.3, z: 40.6 }
+    ],
+    target: { x: -0.3, z: 41.5 },
+    hint: 'A bit more weight than a button draw — land behind their stone'
+  },
+  {
+    id: 'dc_draw_7', name: 'Draw to 8-Foot', shotType: 'draw', difficulty: 1,
+    description: 'A simple draw to the 8-foot ring, offset from center.',
+    stones: [],
+    target: { x: 0.8, z: 40.8 },
+    hint: 'Aim wide of the button with gentle curl'
+  },
+  {
+    id: 'dc_draw_8', name: 'Draw Through Traffic', shotType: 'draw', difficulty: 4,
+    description: 'Navigate through multiple stones to reach your target.',
+    stones: [
+      { team: 'yellow', x: -0.3, z: 39.0 },
+      { team: 'red', x: 0.5, z: 40.0 },
+      { team: 'yellow', x: -0.2, z: 41.07 }
+    ],
+    target: { x: 0.4, z: 41.2 },
+    hint: 'Find the path through the congestion to the open side of the house'
+  },
+
+  // --- TAKEOUT SCENARIOS (8) ---
+  {
+    id: 'dc_takeout_1', name: 'Clean Takeout', shotType: 'takeout', difficulty: 1,
+    description: 'Remove the opponent stone from the button.',
+    stones: [
+      { team: 'yellow', x: 0, z: 41.07 }
+    ],
+    target: { x: 0, z: 41.07 },
+    takeoutTargets: [0],
+    hint: 'Aim directly at the stone with takeout weight'
+  },
+  {
+    id: 'dc_takeout_2', name: 'Offset Takeout', shotType: 'takeout', difficulty: 1,
+    description: 'Remove a stone sitting off-center in the house.',
+    stones: [
+      { team: 'yellow', x: 0.6, z: 40.6 }
+    ],
+    target: { x: 0.6, z: 40.6 },
+    takeoutTargets: [0],
+    hint: 'Line up your shot to hit the stone squarely'
+  },
+  {
+    id: 'dc_takeout_3', name: 'Angled Takeout', shotType: 'takeout', difficulty: 2,
+    description: 'Take out a stone at a steep angle on the edge of the house.',
+    stones: [
+      { team: 'yellow', x: 1.2, z: 40.3 }
+    ],
+    target: { x: 1.2, z: 40.3 },
+    takeoutTargets: [0],
+    hint: 'Use curl to approach from the right angle'
+  },
+  {
+    id: 'dc_takeout_4', name: 'Guarded Takeout', shotType: 'takeout', difficulty: 3,
+    description: 'Navigate around a guard to take out the shot stone.',
+    stones: [
+      { team: 'yellow', x: 0, z: 41.07 },
+      { team: 'yellow', x: 0.3, z: 38.5 }
+    ],
+    target: { x: 0, z: 41.07 },
+    takeoutTargets: [0],
+    hint: 'Curl around the guard to find the target behind it'
+  },
+  {
+    id: 'dc_takeout_5', name: 'Double Takeout', shotType: 'takeout', difficulty: 4,
+    description: 'Remove two opponent stones with one shot.',
+    stones: [
+      { team: 'yellow', x: -0.3, z: 41.0 },
+      { team: 'yellow', x: 0.3, z: 40.8 }
+    ],
+    target: { x: -0.3, z: 41.0 },
+    takeoutTargets: [0, 1],
+    hint: 'Hit the first stone to drive it into the second'
+  },
+  {
+    id: 'dc_takeout_6', name: 'Raise Takeout', shotType: 'takeout', difficulty: 4,
+    description: 'Hit your guard to promote it into an opponent stone.',
+    stones: [
+      { team: 'red', x: 0, z: 38.5 },
+      { team: 'yellow', x: 0, z: 41.07 }
+    ],
+    target: { x: 0, z: 41.07 },
+    takeoutTargets: [1],
+    hint: 'Hit your own stone to drive it back into the opponent'
+  },
+  {
+    id: 'dc_takeout_7', name: 'Peel', shotType: 'takeout', difficulty: 2,
+    description: 'Remove the opponent guard from play.',
+    stones: [
+      { team: 'yellow', x: 0, z: 37.5 }
+    ],
+    target: { x: 0, z: 37.5 },
+    takeoutTargets: [0],
+    hint: 'Hit the guard with enough weight to clear it out'
+  },
+  {
+    id: 'dc_takeout_8', name: 'Run-Back Takeout', shotType: 'takeout', difficulty: 5,
+    description: 'Hit a front stone to knock it into a back stone.',
+    stones: [
+      { team: 'yellow', x: 0.2, z: 39.5 },
+      { team: 'yellow', x: 0.1, z: 41.07 }
+    ],
+    target: { x: 0.1, z: 41.07 },
+    takeoutTargets: [1],
+    hint: 'Hit the front stone at the right angle to send it into the back stone'
+  },
+
+  // --- GUARD SCENARIOS (5) ---
+  {
+    id: 'dc_guard_1', name: 'Center Guard', shotType: 'guard', difficulty: 1,
+    description: 'Place a guard on the center line in front of the house.',
+    stones: [],
+    target: { x: 0, z: 38.0 },
+    hint: 'Use draw weight — stop the stone before it reaches the house'
+  },
+  {
+    id: 'dc_guard_2', name: 'Corner Guard', shotType: 'guard', difficulty: 2,
+    description: 'Place a guard off-center to protect an angle.',
+    stones: [],
+    target: { x: 0.6, z: 38.0 },
+    hint: 'Aim wide with gentle weight to stop in the guard zone'
+  },
+  {
+    id: 'dc_guard_3', name: 'Tight Guard', shotType: 'guard', difficulty: 3,
+    description: 'Place a guard just in front of the house, barely outside the rings.',
+    stones: [],
+    target: { x: 0, z: 39.0 },
+    hint: 'Careful with weight — too much and you are in the house'
+  },
+  {
+    id: 'dc_guard_4', name: 'Cover Guard', shotType: 'guard', difficulty: 3,
+    description: 'Place a guard directly in front of your stone in the house.',
+    stones: [
+      { team: 'red', x: 0.3, z: 41.07 }
+    ],
+    target: { x: 0.3, z: 38.5 },
+    hint: 'Line up your guard to protect the stone behind it'
+  },
+  {
+    id: 'dc_guard_5', name: 'Long Guard', shotType: 'guard', difficulty: 2,
+    description: 'Place a guard further out to control the center.',
+    stones: [],
+    target: { x: 0, z: 36.5 },
+    hint: 'Less weight needed — stop well short of the house'
+  },
+
+  // --- FREEZE SCENARIOS (5) ---
+  {
+    id: 'dc_freeze_1', name: 'Open Freeze', shotType: 'freeze', difficulty: 2,
+    description: 'Come to rest touching the opponent stone on the button.',
+    stones: [
+      { team: 'yellow', x: 0, z: 41.07 }
+    ],
+    target: { x: 0, z: 41.07 },
+    hint: 'Just enough weight to reach the stone and stop — a perfect freeze'
+  },
+  {
+    id: 'dc_freeze_2', name: 'Side Freeze', shotType: 'freeze', difficulty: 3,
+    description: 'Freeze to the side of an opponent stone.',
+    stones: [
+      { team: 'yellow', x: 0.3, z: 40.8 }
+    ],
+    target: { x: 0.3, z: 40.8 },
+    hint: 'Come alongside the opponent stone — gentle weight is key'
+  },
+  {
+    id: 'dc_freeze_3', name: 'Freeze to Shot Stone', shotType: 'freeze', difficulty: 3,
+    description: 'Freeze to the opponent shot stone while your stone sits second.',
+    stones: [
+      { team: 'yellow', x: -0.2, z: 41.07 },
+      { team: 'red', x: 0.8, z: 40.5 }
+    ],
+    target: { x: -0.2, z: 41.07 },
+    hint: 'Freeze to their shot stone — makes it very hard for them to remove you'
+  },
+  {
+    id: 'dc_freeze_4', name: 'Freeze Behind Guard', shotType: 'freeze', difficulty: 4,
+    description: 'Curl behind a guard and freeze to the target stone.',
+    stones: [
+      { team: 'red', x: -0.3, z: 38.0 },
+      { team: 'yellow', x: -0.4, z: 41.0 }
+    ],
+    target: { x: -0.4, z: 41.0 },
+    hint: 'Use the guard for cover — curl around and freeze gently'
+  },
+  {
+    id: 'dc_freeze_5', name: 'Double Freeze', shotType: 'freeze', difficulty: 5,
+    description: 'Freeze between two opponent stones.',
+    stones: [
+      { team: 'yellow', x: -0.3, z: 41.2 },
+      { team: 'yellow', x: 0.3, z: 41.0 }
+    ],
+    target: { x: 0, z: 41.1 },
+    hint: 'Split the difference — land between both stones with perfect weight'
+  },
+
+  // --- HIT & ROLL SCENARIOS (4) ---
+  {
+    id: 'dc_hitroll_1', name: 'Basic Hit & Roll', shotType: 'hitroll', difficulty: 2,
+    description: 'Take out the opponent stone and roll to the button.',
+    stones: [
+      { team: 'yellow', x: 0.5, z: 40.5 }
+    ],
+    target: { x: 0.5, z: 40.5 },
+    takeoutTargets: [0],
+    idealRollPosition: { x: 0, z: 41.07 },
+    hint: 'Hit the stone on the outside edge to roll toward the button'
+  },
+  {
+    id: 'dc_hitroll_2', name: 'Roll to Button', shotType: 'hitroll', difficulty: 3,
+    description: 'Take out a guard and roll into scoring position.',
+    stones: [
+      { team: 'yellow', x: -0.4, z: 39.5 }
+    ],
+    target: { x: -0.4, z: 39.5 },
+    takeoutTargets: [0],
+    idealRollPosition: { x: 0, z: 41.07 },
+    hint: 'Hit the inside edge of the stone to redirect toward the button'
+  },
+  {
+    id: 'dc_hitroll_3', name: 'Roll Behind Cover', shotType: 'hitroll', difficulty: 4,
+    description: 'Take out an opponent stone and roll behind your guard for cover.',
+    stones: [
+      { team: 'yellow', x: 0.4, z: 40.5 },
+      { team: 'red', x: -0.5, z: 38.5 }
+    ],
+    target: { x: 0.4, z: 40.5 },
+    takeoutTargets: [0],
+    idealRollPosition: { x: -0.5, z: 41.0 },
+    hint: 'Hit and roll behind your guard — angle of contact is everything'
+  },
+  {
+    id: 'dc_hitroll_4', name: 'Tight Roll', shotType: 'hitroll', difficulty: 5,
+    description: 'Precision hit and roll to a specific spot in the 4-foot.',
+    stones: [
+      { team: 'yellow', x: 0.6, z: 40.8 },
+      { team: 'yellow', x: -0.3, z: 41.07 }
+    ],
+    target: { x: 0.6, z: 40.8 },
+    takeoutTargets: [0],
+    idealRollPosition: { x: 0.2, z: 41.2 },
+    hint: 'Remove their stone and roll to a safe spot — avoid the other opponent stone'
+  }
+];
 
 // Practice stats persistence
 let practiceStats = {
@@ -3575,6 +4586,9 @@ function processPracticeOutcome() {
 
   // Save stats
   savePracticeStats();
+
+  // Check for badge unlocks after practice
+  checkBadgeUnlocks();
 
   // Update UI
   document.getElementById('practice-attempts').textContent = gameState.practiceMode.attempts;
@@ -8196,6 +9210,18 @@ function hogViolation() {
       return;
     }
 
+    // Daily challenge: hog line violation = score 0
+    if (gameState.dailyChallengeMode.active) {
+      gameState.dailyChallengeMode.attempts++;
+      saveDailyChallengeData(gameState.dailyChallengeMode.dateString, {
+        bestScore: gameState.dailyChallengeMode.bestScore,
+        attempts: gameState.dailyChallengeMode.attempts,
+        challengeId: gameState.dailyChallengeMode.currentChallenge?.id
+      });
+      showDailyChallengeResult(0, false);
+      return;
+    }
+
     nextTurn();
   }, 2000);
 }
@@ -11324,6 +12350,12 @@ function updatePhysics() {
         return;  // Don't proceed to next turn in practice mode
       }
 
+      // Daily challenge mode: score and show result
+      if (gameState.dailyChallengeMode.active) {
+        processDailyChallengeOutcome();
+        return;
+      }
+
       // Check for mathematical elimination mid-end (mercy rule)
       if (checkMathematicalElimination()) {
         console.log(`[MERCY] Triggering mid-end concession`);
@@ -12692,6 +13724,24 @@ function showGameOverOverlay() {
   console.log('[GameOver] Tracking game_complete:', { gameMode, selectedMode: gameState.selectedMode, won, playerScore, opponentScore, ends: gameState.end });
   analytics.trackGameComplete(gameMode, won, playerScore, opponentScore, gameState.end, gameState.learnMode?.enabled || false);
 
+  // Request app review after a win (Apple controls actual display frequency)
+  if (won === true) {
+    const gamesWon = parseInt(localStorage.getItem('curlingpro_games_won') || '0') + 1;
+    localStorage.setItem('curlingpro_games_won', String(gamesWon));
+    // Request notification permission after 1st win — before app review prompt
+    if (gamesWon === 1) {
+      setTimeout(() => {
+        requestNotificationPermission();
+      }, 3000);
+    }
+    // Prompt after 3rd win — player has enough experience to rate meaningfully
+    if (gamesWon >= 3) {
+      setTimeout(() => {
+        AppReview.requestReview().catch(() => {});
+      }, 2000);  // Delay so it doesn't compete with the victory animation
+    }
+  }
+
   if (winnerClass !== 'tie') {
     if (gameState.gameMode === '2player') {
       // 2-player: confetti for winner
@@ -12890,6 +13940,12 @@ function showGameOverOverlay() {
       nextLevelBtn.style.display = 'none';
     }
   }
+
+  // Update notifications after game ends
+  updateNotificationsAfterSession();
+
+  // Check for badge unlocks after match
+  checkBadgeUnlocks();
 
   // Show overlay
   overlay.style.display = 'flex';
@@ -13131,6 +14187,14 @@ window.openSettings = function() {
     updateDifficultyButtons(gameState.settings.difficulty);
     updateEndsButtons(gameState.settings.gameLength);
 
+    // Show notification toggle on native iOS only
+    const notifSection = document.getElementById('notification-settings-section');
+    if (notifSection) {
+      notifSection.style.display = window.Capacitor?.isNativePlatform?.() ? 'block' : 'none';
+      const notifToggle = document.getElementById('notification-toggle');
+      if (notifToggle) notifToggle.checked = localStorage.getItem(LS_NOTIF_ENABLED) === 'true';
+    }
+
     // Update country settings button state
     updateCountrySettingsButton();
   }
@@ -13301,6 +14365,9 @@ window.selectMode = function(mode) {
     // Practice mode: show drill selection
     loadPracticeStats();
     showPracticeDrills();
+  } else if (mode === 'daily') {
+    // Daily Challenge: show info screen
+    showDailyChallengeScreen();
   } else if (mode === 'online') {
     // Online multiplayer: show lobby
     if (!multiplayer.isMultiplayerAvailable()) {
@@ -14546,6 +15613,641 @@ window.exitPractice = function() {
 };
 
 // ============================================
+// DAILY CHALLENGE MODE
+// ============================================
+
+// Get today's date as YYYY-MM-DD in local timezone
+function getTodayDateString() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Deterministic challenge selection based on date string
+function getDailyChallengeForDate(dateString) {
+  // Simple hash: sum char codes and multiply for spread
+  let hash = 0;
+  for (let i = 0; i < dateString.length; i++) {
+    hash = ((hash << 5) - hash + dateString.charCodeAt(i)) | 0;
+  }
+  const index = Math.abs(hash) % DAILY_CHALLENGE_POOL.length;
+  return DAILY_CHALLENGE_POOL[index];
+}
+
+// Load per-day challenge data from localStorage
+function loadDailyChallengeData(dateString) {
+  try {
+    const key = LS_DAILY_PREFIX + dateString;
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : { bestScore: 0, attempts: 0, challengeId: null };
+  } catch (e) {
+    return { bestScore: 0, attempts: 0, challengeId: null };
+  }
+}
+
+// Save per-day challenge data to localStorage
+function saveDailyChallengeData(dateString, data) {
+  try {
+    const key = LS_DAILY_PREFIX + dateString;
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn('[DailyChallenge] Save failed:', e);
+  }
+}
+
+// Append to daily challenge history (capped at 90 entries)
+function saveDailyHistory(dateString, challengeId, challengeName, bestScore) {
+  try {
+    let history = JSON.parse(localStorage.getItem(LS_DAILY_HISTORY) || '[]');
+    // Update existing entry for today or add new
+    const existingIdx = history.findIndex(h => h.date === dateString);
+    if (existingIdx >= 0) {
+      history[existingIdx].bestScore = bestScore;
+      history[existingIdx].challengeName = challengeName;
+    } else {
+      history.unshift({ date: dateString, challengeId, challengeName, bestScore });
+    }
+    // Cap at 90 entries
+    if (history.length > 90) history = history.slice(0, 90);
+    localStorage.setItem(LS_DAILY_HISTORY, JSON.stringify(history));
+  } catch (e) {
+    console.warn('[DailyChallenge] History save failed:', e);
+  }
+}
+
+// Populate history list in the info screen
+function populateDailyHistory() {
+  const container = document.getElementById('daily-history-list');
+  if (!container) return;
+
+  let history = [];
+  try {
+    history = JSON.parse(localStorage.getItem(LS_DAILY_HISTORY) || '[]');
+  } catch (e) {}
+
+  if (history.length === 0) {
+    container.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">No challenge history yet</div>';
+    return;
+  }
+
+  container.innerHTML = history.slice(0, 14).map(entry => {
+    const scoreColor = entry.bestScore >= 80 ? '#4ade80' : entry.bestScore >= 50 ? '#fbbf24' : '#f87171';
+    return `
+      <div style="
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 8px;
+        margin-bottom: 6px;
+      ">
+        <div>
+          <div style="color: white; font-size: 14px;">${entry.challengeName}</div>
+          <div style="color: #64748b; font-size: 12px;">${entry.date}</div>
+        </div>
+        <div style="color: ${scoreColor}; font-size: 18px; font-weight: bold;">${entry.bestScore}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// --- Scoring Functions ---
+
+// Score placement shots (draw): exponential decay based on distance to target
+function scorePlacementShot(stone, target) {
+  if (!stone || stone.outOfPlay) return 0;
+  const dx = stone.mesh.position.x - target.x;
+  const dz = stone.mesh.position.z - target.z;
+  const distance = Math.sqrt(dx * dx + dz * dz);
+  return Math.round(100 * Math.exp(-1.1 * distance));
+}
+
+// Score takeout shots: 60pts for removal + 40pts bonus for shooter position
+function scoreTakeoutShot(thrownStone, scenario, preThrowState) {
+  if (!preThrowState) return 0;
+  const targets = scenario.takeoutTargets || [0];
+  let removedCount = 0;
+
+  // Compare actual positions - check if target stones at pre-throw positions are gone
+  let targetsRemoved = 0;
+  for (const targetIdx of targets) {
+    const preStone = preThrowState.stones[targetIdx];
+    if (!preStone) continue;
+    // Check if any stone of same team remains near the pre-throw position
+    const stillThere = gameState.stones.some(s => {
+      if (s.team !== preStone.team || s.outOfPlay) return false;
+      const dx = s.mesh.position.x - preStone.x;
+      const dz = s.mesh.position.z - preStone.z;
+      return Math.sqrt(dx * dx + dz * dz) < STONE_RADIUS * 3;
+    });
+    if (!stillThere) targetsRemoved++;
+  }
+
+  const removalScore = targets.length > 0 ? (targetsRemoved / targets.length) * 60 : 0;
+
+  // Bonus for shooter position (closer to button = better)
+  let positionBonus = 0;
+  if (thrownStone && !thrownStone.outOfPlay) {
+    const dx = thrownStone.mesh.position.x - 0;
+    const dz = thrownStone.mesh.position.z - TEE_LINE_FAR;
+    const distToButton = Math.sqrt(dx * dx + dz * dz);
+    if (distToButton <= RING_12FT) {
+      positionBonus = Math.round(40 * Math.exp(-1.1 * distToButton));
+    }
+  }
+
+  return Math.min(100, Math.round(removalScore + positionBonus));
+}
+
+// Score hit & roll: 40pts for removal + 60pts for roll accuracy
+function scoreHitRollShot(thrownStone, scenario, preThrowState) {
+  if (!preThrowState) return 0;
+  const targets = scenario.takeoutTargets || [0];
+  const idealPos = scenario.idealRollPosition || { x: 0, z: TEE_LINE_FAR };
+
+  // Check if targets were removed (same logic as takeout)
+  let targetsRemoved = 0;
+  for (const targetIdx of targets) {
+    const preStone = preThrowState.stones[targetIdx];
+    if (!preStone) continue;
+    const stillThere = gameState.stones.some(s => {
+      if (s.team !== preStone.team || s.outOfPlay) return false;
+      const dx = s.mesh.position.x - preStone.x;
+      const dz = s.mesh.position.z - preStone.z;
+      return Math.sqrt(dx * dx + dz * dz) < STONE_RADIUS * 3;
+    });
+    if (!stillThere) targetsRemoved++;
+  }
+
+  const removalScore = targets.length > 0 ? (targetsRemoved / targets.length) * 40 : 0;
+
+  // Roll accuracy: how close shooter ended up to ideal position
+  let rollScore = 0;
+  if (thrownStone && !thrownStone.outOfPlay) {
+    const dx = thrownStone.mesh.position.x - idealPos.x;
+    const dz = thrownStone.mesh.position.z - idealPos.z;
+    const distance = Math.sqrt(dx * dx + dz * dz);
+    rollScore = Math.round(60 * Math.exp(-1.1 * distance));
+  }
+
+  return Math.min(100, Math.round(removalScore + rollScore));
+}
+
+// Score guard shots: must be in front of house, penalties for being in house or short
+function scoreGuardShot(stone, target) {
+  if (!stone || stone.outOfPlay) return 0;
+  const z = stone.mesh.position.z;
+
+  // Penalty: stone is in the house (past the front of 12-foot ring)
+  if (z >= TEE_LINE_FAR - RING_12FT) return Math.max(0, 15 - Math.round((z - (TEE_LINE_FAR - RING_12FT)) * 10));
+
+  // Penalty: stone is short of hog line
+  if (z < HOG_LINE_FAR) return 0;
+
+  // Good guard position — score based on proximity to target
+  return scorePlacementShot(stone, target);
+}
+
+// Score freeze shots: distance to target stone, bonus for touching
+function scoreFreezeShot(stone, challenge) {
+  if (!stone || stone.outOfPlay) return 0;
+  const target = challenge.target;
+
+  // Find the target stone (closest opponent stone to target position)
+  let targetStone = null;
+  let minDist = Infinity;
+  for (const s of gameState.stones) {
+    if (s === stone || s.outOfPlay) continue;
+    const dx = s.mesh.position.x - target.x;
+    const dz = s.mesh.position.z - target.z;
+    const d = Math.sqrt(dx * dx + dz * dz);
+    if (d < minDist) {
+      minDist = d;
+      targetStone = s;
+    }
+  }
+
+  if (!targetStone) return scorePlacementShot(stone, target);
+
+  // Distance between thrown stone and target stone (center to center)
+  const dx = stone.mesh.position.x - targetStone.mesh.position.x;
+  const dz = stone.mesh.position.z - targetStone.mesh.position.z;
+  const distance = Math.sqrt(dx * dx + dz * dz);
+
+  // Perfect freeze = touching (distance ~= 2 * STONE_RADIUS = 0.29)
+  const touchDistance = STONE_RADIUS * 2;
+  const gap = Math.max(0, distance - touchDistance);
+
+  if (gap < 0.02) return 100;  // Touching or nearly touching = perfect
+  return Math.round(100 * Math.exp(-2.5 * gap));  // Steeper decay for freeze precision
+}
+
+// Master scoring router
+function scoreDailyChallenge() {
+  // Find the thrown stone: it's the red stone that was NOT in the pre-throw state
+  // Since scenario stones are placed first and player throws after, it's the last red stone
+  const preState = lastShotInfo.preThrowState;
+  const preStoneCount = preState ? preState.stones.length : 0;
+  // The thrown stone is the one added after the pre-throw snapshot
+  const thrownStone = gameState.stones[preStoneCount] ||
+    gameState.stones.filter(s => s.team === 'red').pop();
+
+  const challenge = gameState.dailyChallengeMode.currentChallenge;
+
+  if (!thrownStone || thrownStone.outOfPlay) {
+    // For takeout/hitroll, target removal still counts even if shooter is out
+    if (challenge.shotType === 'takeout' || challenge.shotType === 'hitroll') {
+      if (challenge.shotType === 'takeout') {
+        return scoreTakeoutShot(thrownStone, challenge, preState);
+      } else {
+        return scoreHitRollShot(thrownStone, challenge, preState);
+      }
+    }
+    return 0;
+  }
+
+  switch (challenge.shotType) {
+    case 'draw':
+      return scorePlacementShot(thrownStone, challenge.target);
+    case 'takeout':
+      return scoreTakeoutShot(thrownStone, challenge, preState);
+    case 'hitroll':
+      return scoreHitRollShot(thrownStone, challenge, preState);
+    case 'guard':
+      return scoreGuardShot(thrownStone, challenge.target);
+    case 'freeze':
+      return scoreFreezeShot(thrownStone, challenge);
+    default:
+      return scorePlacementShot(thrownStone, challenge.target);
+  }
+}
+
+// --- UI Functions ---
+
+// Show daily challenge info screen
+function showDailyChallengeScreen() {
+  const screen = document.getElementById('daily-challenge-screen');
+  if (!screen) return;
+
+  const dateString = getTodayDateString();
+  const challenge = getDailyChallengeForDate(dateString);
+  const dayData = loadDailyChallengeData(dateString);
+
+  // Format today's date for display
+  const today = new Date();
+  const dateDisplay = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Difficulty stars
+  const stars = '★'.repeat(challenge.difficulty) + '☆'.repeat(5 - challenge.difficulty);
+
+  // Shot type display
+  const shotTypeLabels = { draw: 'Draw', takeout: 'Takeout', guard: 'Guard', freeze: 'Freeze', hitroll: 'Hit & Roll' };
+  const shotTypeIcons = { draw: '🎯', takeout: '⚡', guard: '🛡️', freeze: '❄️', hitroll: '🎱' };
+
+  // Streak
+  const streak = parseInt(localStorage.getItem(LS_DAILY_STREAK) || '0');
+
+  // Update screen content
+  document.getElementById('daily-date-display').textContent = dateDisplay;
+  document.getElementById('daily-challenge-name').textContent = challenge.name;
+  document.getElementById('daily-shot-type').textContent = shotTypeIcons[challenge.shotType] + ' ' + shotTypeLabels[challenge.shotType];
+  document.getElementById('daily-challenge-desc').textContent = challenge.description;
+  document.getElementById('daily-difficulty-stars').textContent = stars;
+  document.getElementById('daily-best-score').textContent = dayData.bestScore;
+  document.getElementById('daily-attempts-count').textContent = dayData.attempts;
+  document.getElementById('daily-streak-count').textContent = streak;
+
+  // Color the best score
+  const bestEl = document.getElementById('daily-best-score');
+  if (dayData.bestScore >= 80) bestEl.style.color = '#4ade80';
+  else if (dayData.bestScore >= 50) bestEl.style.color = '#fbbf24';
+  else if (dayData.bestScore > 0) bestEl.style.color = '#f87171';
+  else bestEl.style.color = 'white';
+
+  // Populate history
+  populateDailyHistory();
+
+  // Hide other screens, show this one
+  document.getElementById('mode-select-screen').style.display = 'none';
+  hideModeSelectFooter();
+  screen.style.display = 'block';
+}
+
+// Start the daily challenge (enter the game)
+window.startDailyChallenge = function() {
+  const dateString = getTodayDateString();
+  const challenge = getDailyChallengeForDate(dateString);
+  const dayData = loadDailyChallengeData(dateString);
+
+  // Set up daily challenge state
+  gameState.dailyChallengeMode.active = true;
+  gameState.dailyChallengeMode.currentChallenge = challenge;
+  gameState.dailyChallengeMode.dateString = dateString;
+  gameState.dailyChallengeMode.attempts = dayData.attempts;
+  gameState.dailyChallengeMode.bestScore = dayData.bestScore;
+  gameState.dailyChallengeMode.lastScore = null;
+
+  // Hide info screen
+  document.getElementById('daily-challenge-screen').style.display = 'none';
+
+  // Set up game state (same pattern as practice mode)
+  gameState.setupComplete = true;
+  gameState.gameMode = 'practice';  // Reuse practice mode engine (no computer opponent)
+  gameState.computerTeam = null;
+  gameState.currentTeam = 'red';
+  gameState.end = 1;
+  gameState.scores = { red: 0, yellow: 0 };
+  gameState.stonesThrown = { red: 0, yellow: 0 };
+
+  // Load the scenario stones
+  loadPracticeScenario(challenge);
+
+  // Show daily challenge overlay
+  showDailyChallengeOverlay(challenge);
+
+  // Start quiet ambience
+  soundManager.startAmbientCrowd('club');
+
+  // Start aiming
+  gameState.phase = 'aiming';
+  updatePreviewStoneForTeam();
+};
+
+// Show in-game daily challenge overlay
+function showDailyChallengeOverlay(challenge) {
+  let overlay = document.getElementById('daily-challenge-overlay');
+
+  const shotTypeIcons = { draw: '🎯', takeout: '⚡', guard: '🛡️', freeze: '❄️', hitroll: '🎱' };
+  const icon = shotTypeIcons[challenge.shotType] || '🎯';
+
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'daily-challenge-overlay';
+    overlay.innerHTML = `
+      <div id="daily-header" style="
+        position: fixed;
+        top: max(20px, env(safe-area-inset-top));
+        left: 0;
+        right: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        padding: 0 20px;
+        z-index: 150;
+        pointer-events: none;
+      ">
+        <div style="display: flex; gap: 8px; pointer-events: auto;">
+          <button onclick="window.exitDailyChallenge()" style="
+            background: rgba(100, 116, 139, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 12px;
+            cursor: pointer;
+          ">←</button>
+          <button id="daily-reset-btn" onclick="window.dailyChallengeQuickReset()" style="
+            background: rgba(180, 83, 9, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          ">↺ RETRY</button>
+          <button onclick="window.openSettings()" style="
+            background: rgba(100, 116, 139, 0.9);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 12px;
+            cursor: pointer;
+          ">⚙️</button>
+        </div>
+
+        <div style="
+          background: rgba(0, 0, 0, 0.7);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 12px;
+          padding: 12px 16px;
+          text-align: right;
+          pointer-events: auto;
+        ">
+          <div id="daily-overlay-name" style="color: #fbbf24; font-size: 16px; font-weight: bold;"></div>
+          <div style="display: flex; gap: 16px; margin-top: 6px;">
+            <div style="color: #94a3b8; font-size: 13px;">
+              Best: <span id="daily-overlay-best" style="color: #4ade80;">0</span>
+            </div>
+            <div style="color: #94a3b8; font-size: 13px;">
+              Tries: <span id="daily-overlay-attempts" style="color: white;">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="daily-hint" style="
+        position: fixed;
+        bottom: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(251, 191, 36, 0.4);
+        border-radius: 10px;
+        padding: 12px 20px;
+        color: #fde68a;
+        font-size: 14px;
+        z-index: 150;
+        max-width: 300px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      ">
+        <span>💡</span>
+        <span id="daily-hint-text"></span>
+      </div>
+
+      <div id="daily-result" style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.92);
+        border: 2px solid rgba(251, 191, 36, 0.4);
+        border-radius: 20px;
+        padding: 32px 36px;
+        text-align: center;
+        z-index: 200;
+        min-width: 280px;
+      ">
+        <div id="daily-result-score" style="font-size: 56px; font-weight: bold; margin-bottom: 8px;">0</div>
+        <div id="daily-result-label" style="color: #94a3b8; font-size: 14px; margin-bottom: 4px;">SCORE</div>
+        <div id="daily-result-rating" style="color: #fbbf24; font-size: 18px; font-weight: 600; margin-bottom: 4px;"></div>
+        <div id="daily-result-best-badge" style="display: none; color: #4ade80; font-size: 14px; margin-bottom: 16px;">New Personal Best!</div>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+          <button onclick="window.dailyChallengeQuickReset()" style="
+            background: rgba(180, 83, 9, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+          ">Try Again</button>
+          <button onclick="window.exitDailyChallenge()" style="
+            background: rgba(100, 116, 139, 0.8);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 10px 20px;
+            cursor: pointer;
+          ">Done</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+  }
+
+  overlay.style.display = 'block';
+
+  // Update overlay info
+  document.getElementById('daily-overlay-name').textContent = icon + ' ' + challenge.name;
+  document.getElementById('daily-overlay-best').textContent = gameState.dailyChallengeMode.bestScore;
+  document.getElementById('daily-overlay-attempts').textContent = gameState.dailyChallengeMode.attempts;
+  document.getElementById('daily-hint-text').textContent = challenge.hint || '';
+
+  // Hide result popup
+  document.getElementById('daily-result').style.display = 'none';
+}
+
+// Show result popup after scoring
+function showDailyChallengeResult(score, isNewBest) {
+  const resultDiv = document.getElementById('daily-result');
+  if (!resultDiv) return;
+
+  const scoreEl = document.getElementById('daily-result-score');
+  const ratingEl = document.getElementById('daily-result-rating');
+  const bestBadge = document.getElementById('daily-result-best-badge');
+
+  // Score coloring
+  let color, rating;
+  if (score >= 90) { color = '#4ade80'; rating = 'Perfect!'; }
+  else if (score >= 75) { color = '#22d3ee'; rating = 'Excellent!'; }
+  else if (score >= 60) { color = '#fbbf24'; rating = 'Great Shot!'; }
+  else if (score >= 40) { color = '#fb923c'; rating = 'Good Effort'; }
+  else if (score >= 20) { color = '#f87171'; rating = 'Keep Trying'; }
+  else { color = '#94a3b8'; rating = 'Missed'; }
+
+  scoreEl.textContent = score;
+  scoreEl.style.color = color;
+  ratingEl.textContent = rating;
+  ratingEl.style.color = color;
+
+  bestBadge.style.display = isNewBest ? 'block' : 'none';
+
+  // Update overlay stats
+  document.getElementById('daily-overlay-best').textContent = gameState.dailyChallengeMode.bestScore;
+  document.getElementById('daily-overlay-attempts').textContent = gameState.dailyChallengeMode.attempts;
+
+  resultDiv.style.display = 'block';
+}
+
+// Process outcome when stones stop moving
+function processDailyChallengeOutcome() {
+  const challenge = gameState.dailyChallengeMode.currentChallenge;
+  if (!challenge) return;
+
+  // Score the shot
+  const score = scoreDailyChallenge();
+  const dateString = gameState.dailyChallengeMode.dateString;
+
+  // Update attempts
+  gameState.dailyChallengeMode.attempts++;
+  gameState.dailyChallengeMode.lastScore = score;
+
+  // Check for new best
+  const isNewBest = score > gameState.dailyChallengeMode.bestScore;
+  if (isNewBest) {
+    gameState.dailyChallengeMode.bestScore = score;
+  }
+
+  // Save to localStorage
+  saveDailyChallengeData(dateString, {
+    bestScore: gameState.dailyChallengeMode.bestScore,
+    attempts: gameState.dailyChallengeMode.attempts,
+    challengeId: challenge.id
+  });
+
+  // Save to history
+  saveDailyHistory(dateString, challenge.id, challenge.name, gameState.dailyChallengeMode.bestScore);
+
+  // Update daily streak (counts toward app-wide streak)
+  updateDailyStreak();
+
+  // Show result
+  showDailyChallengeResult(score, isNewBest);
+
+  // Check for badge unlocks after daily challenge
+  checkBadgeUnlocks();
+}
+
+// Quick reset for retry
+window.dailyChallengeQuickReset = function() {
+  if (!gameState.dailyChallengeMode.active) return;
+
+  const challenge = gameState.dailyChallengeMode.currentChallenge;
+  if (!challenge) return;
+
+  // Hide result popup
+  const resultDiv = document.getElementById('daily-result');
+  if (resultDiv) resultDiv.style.display = 'none';
+
+  // Reload the scenario
+  loadPracticeScenario(challenge);
+
+  // Reset game phase
+  gameState.phase = 'aiming';
+  updatePreviewStoneForTeam();
+};
+
+// Exit daily challenge mode
+window.exitDailyChallenge = function() {
+  gameState.dailyChallengeMode.active = false;
+  gameState.dailyChallengeMode.currentChallenge = null;
+
+  // Hide overlay
+  const overlay = document.getElementById('daily-challenge-overlay');
+  if (overlay) overlay.style.display = 'none';
+
+  // Reset curl slider position
+  const curlDisplay = document.getElementById('curl-display');
+  if (curlDisplay) {
+    curlDisplay.style.top = 'max(20px, env(safe-area-inset-top))';
+  }
+
+  // Clear stones
+  for (const stone of gameState.stones) {
+    if (stone.mesh) scene.remove(stone.mesh);
+    if (stone.body) Matter.Composite.remove(engine.world, stone.body);
+  }
+  gameState.stones = [];
+
+  // Return to info screen
+  showDailyChallengeScreen();
+};
+
+// ============================================
 // ONLINE MULTIPLAYER - UI Functions
 // ============================================
 
@@ -15717,14 +17419,25 @@ window.showModeSelect = function() {
   // Hide all other screens
   document.getElementById('practice-drill-screen').style.display = 'none';
   document.getElementById('practice-scenario-screen').style.display = 'none';
+  document.getElementById('daily-challenge-screen').style.display = 'none';
   document.getElementById('difficulty-select-screen').style.display = 'none';
   document.getElementById('multiplayer-lobby-screen').style.display = 'none';
   document.getElementById('multiplayer-waiting-screen').style.display = 'none';
+  const badgeScreen = document.getElementById('badge-gallery-screen');
+  if (badgeScreen) badgeScreen.style.display = 'none';
 
   // Show mode select
   document.getElementById('mode-select-screen').style.display = 'block';
   const footer = document.getElementById('mode-select-footer');
   if (footer) footer.style.display = 'flex';
+
+  // Update streak banner and progress nudge
+  updateHomeStreakBanner();
+  updateProgressNudge();
+
+  // Check badges and update button count
+  checkBadgeUnlocks();
+  updateBadgeButtonCount();
 };
 
 // Show difficulty selection screen
@@ -15804,6 +17517,7 @@ window.goBackToModeSelect = function() {
     'country-select-screen',
     'settings-summary-screen',
     'practice-drill-screen',
+    'daily-challenge-screen',
     'level-select-screen'
   ];
   screensToHide.forEach(id => {
@@ -18744,6 +20458,27 @@ window.toggleSound = function(enabled) {
   soundManager.setEnabled(enabled);
 };
 
+window.toggleNotifications = async function(enabled) {
+  if (enabled) {
+    const granted = await requestNotificationPermission();
+    if (granted) {
+      localStorage.setItem(LS_NOTIF_ENABLED, 'true');
+      await scheduleNotifications();
+    } else {
+      // Permission denied — revert toggle and show guidance
+      const toggle = document.getElementById('notification-toggle');
+      if (toggle) toggle.checked = false;
+      const hint = document.getElementById('notification-denied-hint');
+      if (hint) hint.style.display = 'block';
+    }
+  } else {
+    localStorage.setItem(LS_NOTIF_ENABLED, 'false');
+    await cancelAllNotifications();
+    const hint = document.getElementById('notification-denied-hint');
+    if (hint) hint.style.display = 'none';
+  }
+};
+
 window.setGameLength = function(ends) {
   gameState.settings.gameLength = ends;
   updateEndsButtons(ends);
@@ -19984,6 +21719,12 @@ document.addEventListener('keydown', (e) => {
     window.practiceQuickReset();
     return;
   }
+  // Daily challenge mode: R key for quick reset
+  if (e.code === 'KeyR' && gameState.dailyChallengeMode.active) {
+    e.preventDefault();
+    window.dailyChallengeQuickReset();
+    return;
+  }
 
   // Curl direction - A/Left for out-turn, D/Right for in-turn
   if (gameState.phase === 'aiming' || gameState.phase === 'charging') {
@@ -20395,6 +22136,9 @@ function resumeGameInternal() {
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     pauseGame();
+    // Schedule notifications when app goes to background
+    localStorage.setItem(LS_LAST_SESSION, String(Date.now()));
+    scheduleNotifications();
   }
   // On visible: don't auto-resume, wait for user tap on overlay
 });
@@ -20931,6 +22675,18 @@ setTimeout(() => {
   // Initialize RevenueCat for in-app purchases
   initializeRevenueCat();
 
+  // Initialize local notifications
+  if (window.Capacitor?.isNativePlatform?.()) {
+    // Cancel pending notifications — user is active now
+    cancelAllNotifications();
+    // Update last session timestamp
+    localStorage.setItem(LS_LAST_SESSION, String(Date.now()));
+    // Listen for notification taps to bring user back to the app
+    LocalNotifications.addListener('localNotificationActionPerformed', () => {
+      console.log('[Notifications] User tapped notification');
+    });
+  }
+
   // Initialize sound on first user interaction (browser autoplay policy)
   // Howler handles iOS audio unlocking automatically
   const enableSoundOnInteraction = () => {
@@ -21352,3 +23108,8 @@ window.debugOlympicsFinal = function() {
 
   window.debugTournamentFinal('olympics', true);
 };
+
+// Update streak banner, progress nudge, and badge count on initial load
+updateHomeStreakBanner();
+updateProgressNudge();
+updateBadgeButtonCount();

@@ -755,8 +755,41 @@
 <h1 style="
           color: white;
           font-size: 32px;
-          margin-bottom: 40px;
+          margin-bottom: 20px;
         ">Select Game Mode</h1>
+
+        <!-- Daily Streak Counter -->
+        <div id="home-streak-banner" style="
+          display: none;
+          margin: 0 auto 24px auto;
+          padding: 10px 20px;
+          background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 146, 60, 0.15) 100%);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 12px;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+        ">
+          <span style="font-size: 22px;">🔥</span>
+          <span style="color: #fbbf24; font-size: 18px; font-weight: bold;" id="home-streak-count">0</span>
+          <span style="color: #94a3b8; font-size: 14px;">day streak</span>
+        </div>
+
+        <!-- Progress Nudge -->
+        <div id="home-progress-nudge" style="
+          display: none;
+          margin: 0 auto 16px auto;
+          padding: 8px 16px;
+          background: rgba(255, 255, 255, 0.06);
+          border-radius: 10px;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          max-width: 340px;
+        ">
+          <span id="nudge-icon" style="font-size: 16px;"></span>
+          <span id="nudge-text" style="color: #cbd5e1; font-size: 13px;"></span>
+        </div>
 
         <button onclick="window.selectMode('career')" style="
           width: 100%;
@@ -803,6 +836,21 @@
           <div style="color: #c4b5fd; font-size: 13px; margin-top: 4px;">Master shot types with focused drills</div>
         </button>
 
+        <button onclick="window.selectMode('daily')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #78350f 0%, #b45309 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">📅 Daily Challenge</div>
+          <div style="color: #fde68a; font-size: 13px; margin-top: 4px;">New shot challenge every day</div>
+        </button>
+
         <button id="online-mode-btn" onclick="window.selectMode('online')" style="
           width: 100%;
           padding: 20px;
@@ -845,6 +893,19 @@
           ">
             <div style="color: #a78bfa; font-size: 22px; margin-bottom: 4px;">📊</div>
             <div style="color: white; font-size: 14px; font-weight: bold;">My Stats</div>
+          </button>
+          <button id="badge-gallery-btn" onclick="window.showBadgeGallery()" style="
+            flex: 1;
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.25) 100%);
+            border: 1px solid rgba(245, 158, 11, 0.5);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+          ">
+            <div style="color: #f59e0b; font-size: 22px; margin-bottom: 4px;">🏆</div>
+            <div style="color: white; font-size: 14px; font-weight: bold;">Badges <span id="badge-count-label" style="color: #f59e0b; font-size: 12px;">0/20</span></div>
           </button>
         </div>
 
@@ -984,6 +1045,139 @@
         <!-- Scenario List -->
         <div id="practice-scenario-list">
           <!-- Scenarios populated dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Daily Challenge Info Screen -->
+    <div id="daily-challenge-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9000;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 40px 20px max(100px, calc(40px + env(safe-area-inset-bottom)));
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Header -->
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <button onclick="window.showModeSelect()" style="
+              background: rgba(255, 255, 255, 0.1);
+              border: none;
+              border-radius: 8px;
+              color: white;
+              font-size: 20px;
+              padding: 8px 12px;
+              cursor: pointer;
+            ">←</button>
+            <h1 style="color: white; font-size: 28px; margin: 0;">Daily Challenge</h1>
+          </div>
+          <button onclick="window.openSettings()" style="
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            padding: 8px 12px;
+            cursor: pointer;
+          ">⚙️</button>
+        </div>
+
+        <!-- Today's Date -->
+        <div id="daily-date-display" style="
+          color: #fbbf24;
+          font-size: 16px;
+          margin-bottom: 20px;
+          text-align: center;
+        ">Today</div>
+
+        <!-- Challenge Card -->
+        <div style="
+          background: linear-gradient(135deg, rgba(120, 53, 15, 0.3) 0%, rgba(180, 83, 9, 0.2) 100%);
+          border: 1px solid rgba(251, 191, 36, 0.3);
+          border-radius: 16px;
+          padding: 24px;
+          margin-bottom: 20px;
+        ">
+          <div id="daily-challenge-name" style="
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 8px;
+          ">Challenge Name</div>
+          <div id="daily-shot-type" style="
+            color: #fbbf24;
+            font-size: 14px;
+            margin-bottom: 8px;
+          ">Shot Type</div>
+          <div id="daily-challenge-desc" style="
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+          ">Description</div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #64748b; font-size: 13px;">Difficulty:</span>
+            <span id="daily-difficulty-stars" style="color: #fbbf24; font-size: 16px; letter-spacing: 2px;">★★★☆☆</span>
+          </div>
+        </div>
+
+        <!-- Stats Row -->
+        <div style="
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 12px;
+          padding: 16px;
+          margin-bottom: 20px;
+          display: flex;
+          justify-content: space-around;
+          text-align: center;
+        ">
+          <div>
+            <div id="daily-best-score" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+            <div style="color: #64748b; font-size: 12px;">Best Score</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+          <div>
+            <div id="daily-attempts-count" style="color: white; font-size: 24px; font-weight: bold;">0</div>
+            <div style="color: #64748b; font-size: 12px;">Attempts</div>
+          </div>
+          <div style="width: 1px; background: rgba(255,255,255,0.1);"></div>
+          <div>
+            <div id="daily-streak-count" style="color: #fbbf24; font-size: 24px; font-weight: bold;">0</div>
+            <div style="color: #64748b; font-size: 12px;">Day Streak</div>
+          </div>
+        </div>
+
+        <!-- Play Button -->
+        <button onclick="window.startDailyChallenge()" style="
+          width: 100%;
+          padding: 18px;
+          margin-bottom: 24px;
+          background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+          border: 2px solid #fbbf24;
+          border-radius: 12px;
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+        ">Play Challenge</button>
+
+        <!-- Recent History -->
+        <div style="margin-top: 8px;">
+          <h3 style="color: #94a3b8; font-size: 14px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 1px;">Recent History</h3>
+          <div id="daily-history-list">
+            <!-- Populated dynamically -->
+          </div>
         </div>
       </div>
     </div>
@@ -2766,6 +2960,24 @@
           </label>
           <p style="margin: 8px 0 0 28px; font-size: 12px; color: #718096;">
             Stone sliding, collisions, sweeping, and more
+          </p>
+        </div>
+
+        <!-- Notification Setting (hidden on web, shown on native iOS) -->
+        <div id="notification-settings-section" style="margin-bottom: 25px; display: none;">
+          <label style="display: flex; align-items: center; gap: 12px; cursor: pointer;">
+            <input type="checkbox" id="notification-toggle" onchange="window.toggleNotifications(this.checked)" style="
+              width: 20px;
+              height: 20px;
+              cursor: pointer;
+            ">
+            <span style="font-weight: bold; color: #a0aec0;">Notifications</span>
+          </label>
+          <p style="margin: 8px 0 0 28px; font-size: 12px; color: #718096;">
+            Reminders to play, streak updates, and career milestones
+          </p>
+          <p id="notification-denied-hint" style="margin: 8px 0 0 28px; font-size: 12px; color: #f59e0b; display: none;">
+            Notifications are blocked. Enable them in iOS Settings > Curling Pro > Notifications.
           </p>
         </div>
 
@@ -5607,6 +5819,75 @@
       -webkit-user-select: none;
       touch-action: none;
     " title="Hold to Fast Forward">⏩</button>
+    <!-- Badge Unlock Toast -->
+    <div id="badge-unlock-toast" style="
+      display: none;
+      position: fixed;
+      top: -80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #78350f 0%, #92400e 50%, #78350f 100%);
+      border: 2px solid #f59e0b;
+      border-radius: 14px;
+      padding: 14px 24px;
+      z-index: 9500;
+      transition: top 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4), 0 0 40px rgba(245, 158, 11, 0.15);
+      min-width: 260px;
+      max-width: 340px;
+      text-align: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    ">
+      <div style="color: #fbbf24; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px;">Achievement Unlocked</div>
+      <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <span id="badge-toast-icon" style="font-size: 28px;"></span>
+        <span id="badge-toast-name" style="color: white; font-size: 16px; font-weight: bold;"></span>
+      </div>
+    </div>
+
+    <!-- Badge Gallery Screen -->
+    <div id="badge-gallery-screen" style="
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0d1117 0%, #1a1a2e 50%, #16213e 100%);
+      z-index: 9100;
+      overflow-y: auto;
+    ">
+      <div style="
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+      ">
+        <!-- Back button -->
+        <button onclick="window.closeBadgeGallery()" style="
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: none;
+          border: none;
+          color: #60a5fa;
+          font-size: 16px;
+          cursor: pointer;
+          padding: 10px 0;
+          margin-bottom: 20px;
+        ">← Back</button>
+
+        <!-- Header -->
+        <div style="text-align: center; margin-bottom: 28px;">
+          <h1 style="color: white; font-size: 28px; margin: 0 0 8px 0;">🏆 Achievements</h1>
+          <div id="badge-gallery-counter" style="color: #f59e0b; font-size: 16px; font-weight: 600;">0/20 Unlocked</div>
+        </div>
+
+        <!-- Badge grid container -->
+        <div id="badge-gallery-grid"></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.js"></script>
     <script>
       // Register Service Worker for PWA support
