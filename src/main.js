@@ -14389,6 +14389,7 @@ window.selectMode = function(mode) {
   document.getElementById('mode-select-screen').style.display = 'none';
   hideModeSelectFooter();
   gameState.gameMode = '1player';
+  gameState.computerTeam = 'yellow';  // Reset computer team (Daily Challenge / Practice set it to null)
   gameState.selectedMode = mode;  // Store for later (career vs quickplay vs practice vs online)
 
   // Track mode selection
