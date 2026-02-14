@@ -8380,9 +8380,11 @@ function updateSkipFade() {
 
   // Don't fade in target view - skip should always be visible from above
   if (gameState.previewHeight > 0.5) {
-    // Ensure skip is fully visible in target view
+    // Ensure skip is fully visible and beacon is hidden in target view
     gameState.targetMarker.traverse((child) => {
-      if ((child.isMesh || child.isSprite) && child.name !== 'beacon' && child.name !== 'curlArrow') {
+      if (child.name === 'beacon' || child.name === 'curlArrow') {
+        child.visible = false;
+      } else if ((child.isMesh || child.isSprite)) {
         if (child.material) {
           child.material.opacity = child.isSprite ? 0.7 : 1; // Sprite uses 0.7 base opacity
         }
@@ -17512,9 +17514,13 @@ window.selectDifficulty = function(difficulty) {
 
   document.getElementById('difficulty-select-screen').style.display = 'none';
 
-  // Quick Play: show level selection (Club, Nationals, etc.)
-  // Career mode: start at Club level (or resume from saved progress)
-  if (gameState.selectedMode === 'quickplay') {
+  // Learn mode: skip level selection, default to Club
+  if (difficulty === 'learn') {
+    gameState.careerLevel = 'club';
+    gameState.settings.quickPlayLevel = 1;
+    showCountrySelection();
+  } else if (gameState.selectedMode === 'quickplay') {
+    // Quick Play: show level selection (Club, Nationals, etc.)
     showLevelSelection();
   } else {
     // Career mode starts at club level (or saved progress)
