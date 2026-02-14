@@ -19858,14 +19858,28 @@ window.resetFirstRunTutorials = function() {
 
 const INTERACTIVE_TUTORIAL_STEPS = [
   {
+    id: 'greeting',
+    icon: '👋',
+    title: 'Welcome to CurlingPro!',
+    text: `Thanks for giving CurlingPro a try! This game was built by an individual with a love for curling, and I'm excited to have you here.
+
+I'm always improving the game, so if you have ideas, feedback, or run into anything odd, I'd genuinely love to hear from you. Your input shapes what I build next!
+
+Let's get you on the ice — here's a quick walkthrough to get started.`,
+    hint: 'You can replay this tutorial anytime from Settings.',
+    action: 'click',
+    step: 1,
+    total: 7
+  },
+  {
     id: 'welcome',
     icon: '🥌',
     title: 'Welcome to Curling!',
     text: `In curling, two teams take turns sliding stones toward a target called the "house". The goal is to get your stones closer to the center (the "button") than your opponent's stones.`,
     hint: 'The last stone thrown in an end is called the Hammer.',
     action: 'click',  // Just click to continue
-    step: 1,
-    total: 6
+    step: 2,
+    total: 7
   },
   {
     id: 'aim',
@@ -19874,8 +19888,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `First, choose where you want your stone to go. TAP on the house (the target area) to place your marker. The skip will stand where you tap to show your target.`,
     hint: 'Tap anywhere on the rings to set your target.',
     action: 'aim',  // Wait for user to place target marker
-    step: 2,
-    total: 6
+    step: 3,
+    total: 7
   },
   {
     id: 'curl',
@@ -19884,8 +19898,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `Curling stones curve as they slow down! Use the slider to set how much your stone will curl. Try different settings to see how it affects your shot.`,
     hint: 'The stone curls opposite to the direction shown on the slider.',
     action: 'curl',  // Wait for user to select curl
-    step: 3,
-    total: 6
+    step: 4,
+    total: 7
   },
   {
     id: 'ready',
@@ -19894,8 +19908,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `Now tap the READY button to go to the throwing view.`,
     hint: 'Tap READY when you\'re happy with your target and curl.',
     action: 'ready',  // Wait for user to click READY
-    step: 4,
-    total: 6
+    step: 5,
+    total: 7
   },
   {
     id: 'throw',
@@ -19904,8 +19918,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `TAP and DRAG DOWN to set your power. Release to push off, then TAP AGAIN to release the stone!`,
     hint: 'Drag down to set power, release, then tap to throw.',
     action: 'throw',  // Wait for user to throw
-    step: 5,
-    total: 6
+    step: 6,
+    total: 7
   },
   {
     id: 'sweep',
@@ -19914,8 +19928,8 @@ const INTERACTIVE_TUTORIAL_STEPS = [
     text: `While your stone is moving, SWIPE BACK AND FORTH on the screen to sweep! Sweeping makes your stone travel farther and straighter.`,
     hint: 'Swipe rapidly to sweep your stone toward the target!',
     action: 'sweep',  // Wait for user to sweep (or stone to stop)
-    step: 6,
-    total: 6
+    step: 7,
+    total: 7
   }
 ];
 
