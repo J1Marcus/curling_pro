@@ -870,6 +870,21 @@
           <div style="color: #fed7aa; font-size: 13px; margin-top: 4px;">Challenge a friend over the internet</div>
         </button>
 
+        <button onclick="window.selectMode('local2p')" style="
+          width: 100%;
+          padding: 20px;
+          margin-bottom: 12px;
+          background: linear-gradient(135deg, #134e4a 0%, #1e6e68 100%);
+          border: 2px solid #5eead4;
+          border-radius: 12px;
+          cursor: pointer;
+          transition: transform 0.2s, box-shadow 0.2s;
+          text-align: left;
+        ">
+          <div style="color: white; font-size: 18px; font-weight: bold;">👥 Two Player</div>
+          <div style="color: #99f6e4; font-size: 13px; margin-top: 4px;">Pass and play on the same device</div>
+        </button>
+
         <!-- Stats & Leaderboard buttons -->
         <div style="display: flex; gap: 12px; margin-top: 20px;">
           <button onclick="window.showLeaderboard()" style="
@@ -1918,7 +1933,7 @@
           <div style="color: #fca5a5; font-size: 13px; margin-top: 4px;">The ultimate test - compete for gold</div>
         </button>
 
-        <button onclick="window.goBackToDifficulty()" style="
+        <button onclick="window.goBackFromLevelSelect()" style="
           margin-top: 20px;
           padding: 12px 24px;
           background: transparent;
@@ -1957,13 +1972,13 @@
           cursor: pointer;
           margin-bottom: 16px;
         ">← Back</button>
-        <h1 style="
+        <h1 id="country-select-title" style="
           text-align: center;
           color: white;
           font-size: 28px;
           margin-bottom: 10px;
         ">Choose Your Country</h1>
-        <p style="
+        <p id="country-select-subtitle" style="
           text-align: center;
           color: #94a3b8;
           font-size: 14px;
@@ -4070,6 +4085,20 @@
               <div style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">Any level, any time</div>
               <div style="color: #64748b; font-size: 12px;">
                 <span id="stats-quickplay-wins" style="color: #4ade80;">0</span> wins / <span id="stats-quickplay-games">0</span> games
+              </div>
+            </div>
+            <!-- Two Player Card -->
+            <div style="
+              background: linear-gradient(135deg, rgba(94, 234, 212, 0.15) 0%, rgba(94, 234, 212, 0.05) 100%);
+              border: 1px solid rgba(94, 234, 212, 0.3);
+              border-radius: 12px;
+              padding: 16px;
+            ">
+              <div style="color: #5eead4; font-size: 12px; font-weight: bold; margin-bottom: 8px;">TWO PLAYER</div>
+              <div style="font-size: 18px; font-weight: bold; color: white; margin-bottom: 4px;">vs Human</div>
+              <div style="color: #94a3b8; font-size: 11px; margin-bottom: 8px;">Shared device</div>
+              <div style="color: #64748b; font-size: 12px;">
+                <span id="stats-local2p-wins" style="color: #4ade80;">0</span> wins / <span id="stats-local2p-games">0</span> games
               </div>
             </div>
           </div>

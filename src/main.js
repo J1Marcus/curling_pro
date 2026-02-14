@@ -705,7 +705,7 @@ const BADGES = [
   { id: 'drill_master', name: 'Drill Master', description: 'Unlock difficulty 5 on any drill', icon: '🔓', category: 'Practice' },
   { id: 'all_drills', name: 'All-Rounder', description: 'Attempt all 7 drill types', icon: '🔄', category: 'Practice' },
   // Daily
-  { id: 'daily_streak_7', name: 'Daily Devotee', description: 'Achieve a 7-day streak', icon: '📅', category: 'Daily' },
+  { id: 'daily_streak_7', name: 'Daily Devotee', description: 'Achieve a 7-day streak', icon: '🗓️', category: 'Daily' },
   { id: 'daily_score_90', name: 'Challenge Champion', description: 'Score 90+ on a daily challenge', icon: '🌟', category: 'Daily' },
   { id: 'daily_streak_30', name: 'Consistency King', description: 'Achieve a 30-day streak', icon: '👑', category: 'Daily' },
 ];
@@ -1321,12 +1321,12 @@ function getProgressNudge() {
     const dailyData = loadDailyChallengeData(today);
     const challenge = getDailyChallengeForDate(today);
     if (dailyData.attempts === 0 && challenge) {
-      return { icon: '📅', text: `Today's challenge: ${challenge.name} — give it a try!` };
+      return { icon: '🗓️', text: `Today's challenge: ${challenge.name} — give it a try!` };
     }
 
     // 6. Daily challenge: attempted but can improve
     if (dailyData.attempts > 0 && dailyData.bestScore < 80) {
-      return { icon: '📅', text: `Today's best: ${dailyData.bestScore} — can you beat it?` };
+      return { icon: '🗓️', text: `Today's best: ${dailyData.bestScore} — can you beat it?` };
     }
   } catch (e) { /* ignore */ }
 
@@ -1563,6 +1563,28 @@ const FAQ_DATA = [
       {
         q: 'How do I control shot power?',
         a: 'Hold longer before releasing for more power. The power indicator shows your current weight. For draws, use lighter weight; for takeouts, use heavier weight.'
+      }
+    ]
+  },
+  {
+    category: 'Two Player Mode',
+    icon: '👥',
+    questions: [
+      {
+        q: 'How does Two Player mode work?',
+        a: 'Two Player mode lets two people play on the same device. Players take turns throwing stones — after one player throws, hand the device to the other player for their turn. There is no AI; both teams are controlled manually.'
+      },
+      {
+        q: 'How do I start a Two Player game?',
+        a: 'From the main menu, tap "Two Player". Choose a level (arena), then each player picks a country to represent. You can also choose how many ends to play on the match setup screen.'
+      },
+      {
+        q: 'Does Two Player mode track stats?',
+        a: 'Yes! Two Player games are recorded in your match history and counted separately in your stats under the "Two Player" category.'
+      },
+      {
+        q: 'Can both players sweep?',
+        a: 'Yes. The current player can sweep their own stone offensively (to make it go farther and straighter). Both players can also defensively sweep the opponent\'s stone, but only after it crosses the tee line — just like real curling rules.'
       }
     ]
   },
@@ -4168,6 +4190,8 @@ function getLocalMatchStats() {
     careerWins: 0,
     quickplayGames: 0,
     quickplayWins: 0,
+    local2pGames: 0,
+    local2pWins: 0,
     avgPlayerScore: 0,
     avgOpponentScore: 0
   };
@@ -4185,6 +4209,9 @@ function getLocalMatchStats() {
     } else if (m.matchType === 'quickplay') {
       stats.quickplayGames++;
       if (m.won) stats.quickplayWins++;
+    } else if (m.matchType === 'local2p') {
+      stats.local2pGames++;
+      if (m.won) stats.local2pWins++;
     }
 
     totalPlayerScore += m.playerScore || 0;
@@ -10878,12 +10905,15 @@ function updateSweepFromMovement(x, y) {
   // Check if this is the opponent's stone (defensive sweeping)
   // In 1-player mode, opponent is the computer
   // In multiplayer mode, opponent is the remote player
+  // In local 2-player, opponent is whichever team isn't currently throwing
   let isOpponentStone = false;
   if (gameState.gameMode === '1player') {
     isOpponentStone = gameState.activeStone.team === gameState.computerTeam;
   } else if (gameState.selectedMode === 'online') {
     const localTeam = multiplayer.multiplayerState.localPlayer.team;
     isOpponentStone = gameState.activeStone.team !== localTeam;
+  } else if (gameState.selectedMode === 'local2p') {
+    isOpponentStone = gameState.activeStone.team !== gameState.currentTeam;
   }
 
   // Defensive sweeping only allowed after stone passes the T-line
@@ -11233,13 +11263,15 @@ function updateSweeping() {
     if (indicator) indicator.style.display = 'none';
   } else if (indicator && gameState.phase === 'sweeping') {
     const stoneZ = gameState.activeStone.body.position.y / PHYSICS_SCALE;
-    // Check stone ownership - works for both 1-player and multiplayer
+    // Check stone ownership - works for 1-player, multiplayer, and local 2-player
     let isOpponentStone = false;
     if (gameState.gameMode === '1player') {
       isOpponentStone = gameState.activeStone.team === gameState.computerTeam;
     } else if (gameState.selectedMode === 'online') {
       const localTeam = multiplayer.multiplayerState.localPlayer.team;
       isOpponentStone = gameState.activeStone.team !== localTeam;
+    } else if (gameState.selectedMode === 'local2p') {
+      isOpponentStone = gameState.activeStone.team !== gameState.currentTeam;
     }
     const isPlayerStone = !isOpponentStone;
     const canPlayerSweep = !isOpponentStone || stoneZ >= TEE_LINE_FAR;
@@ -13845,9 +13877,13 @@ function showGameOverOverlay() {
       const careerResult = isQuickPlay ? null : handleCareerResult(userWon);
 
       // Save to match history
-      const matchType = gameState.selectedMode === 'career' ? 'career' : 'quickplay';
+      const matchType = gameState.selectedMode === 'career' ? 'career' :
+                        gameState.selectedMode === 'local2p' ? 'local2p' : 'quickplay';
+      const opponentLabel = gameState.selectedMode === 'local2p'
+        ? (gameState.opponentCountry?.name || 'Player 2')
+        : level.name + ' AI';
       saveLocalMatchToHistory({
-        opponentName: level.name + ' AI',
+        opponentName: opponentLabel,
         matchType,
         won: userWon,
         playerScore,
@@ -13915,28 +13951,29 @@ function showGameOverOverlay() {
 
   // Show/hide rematch button based on game mode
   const rematchBtn = document.getElementById('gameover-rematch');
+  const isLocal2p = gameState.selectedMode === 'local2p';
   if (rematchBtn) {
-    // Show rematch for online multiplayer OR Quick Play losses
+    // Show rematch for online multiplayer, Quick Play losses, or local 2-player (always)
     const isMultiplayer = multiplayer.multiplayerState.connected && gameState.selectedMode === 'online';
     const isQuickPlay = gameState.selectedMode !== 'career' && gameState.gameMode === '1player';
     const userLost = winnerClass !== userTeam;
-    const showRematch = isMultiplayer || (isQuickPlay && userLost);
+    const showRematch = isMultiplayer || isLocal2p || (isQuickPlay && userLost);
 
     if (showRematch && !isMultiplayer) {
-      // Quick Play rematch - update button text
+      // Quick Play / Local 2P rematch - update button text
       rematchBtn.textContent = 'Rematch';
       rematchBtn.onclick = () => window.startQuickPlayRematch();
     }
     rematchBtn.style.display = showRematch ? 'block' : 'none';
   }
 
-  // Show/hide Next Level button for Quick Play wins
+  // Show/hide Next Level button for Quick Play wins (not local 2-player)
   const nextLevelBtn = document.getElementById('gameover-nextlevel');
   if (nextLevelBtn) {
     const isQuickPlay = gameState.selectedMode !== 'career' && gameState.gameMode === '1player';
     const userWon = winnerClass === userTeam;
     const hasNextLevel = gameState.settings.quickPlayLevel < 8;
-    const showNextLevel = isQuickPlay && userWon && hasNextLevel;
+    const showNextLevel = isQuickPlay && !isLocal2p && userWon && hasNextLevel;
 
     if (showNextLevel) {
       // Show the next level name on the button
@@ -14383,6 +14420,10 @@ window.selectMode = function(mode) {
       return;
     }
     showMultiplayerLobby();
+  } else if (mode === 'local2p') {
+    // Two Player (Shared Device): no AI, both teams manual
+    gameState.gameMode = '2player';
+    showLevelSelection();
   } else {
     // Quick Play: show difficulty selection first
     showDifficultySelection();
@@ -17504,14 +17545,25 @@ window.selectLevel = function(level) {
   gameState.settings.quickPlayLevel = levelMap[level] || 1;  // Set numeric for arena
 
   document.getElementById('level-select-screen').style.display = 'none';
-  showCountrySelection();
+
+  if (gameState.selectedMode === 'local2p') {
+    showLocal2pCountrySelection();
+  } else {
+    showCountrySelection();
+  }
 };
 
-// Go back to difficulty selection
-window.goBackToDifficulty = function() {
+// Go back from level selection
+window.goBackFromLevelSelect = function() {
   document.getElementById('level-select-screen').style.display = 'none';
-  showDifficultySelection();
+  if (gameState.selectedMode === 'local2p') {
+    showModeSelection();
+  } else {
+    showDifficultySelection();
+  }
 };
+// Legacy alias
+window.goBackToDifficulty = window.goBackFromLevelSelect;
 
 // Go back to mode selection
 window.goBackToModeSelect = function() {
@@ -17537,8 +17589,21 @@ window.goBackToModeSelect = function() {
 // Go back from country selection
 window.goBackFromCountrySelect = function() {
   document.getElementById('country-select-screen').style.display = 'none';
-  // Go back to level select for Quick Play, club select for Career
-  if (gameState.selectedMode === 'quickplay') {
+  // Reset title/subtitle in case we were in 2-player flow
+  const title = document.getElementById('country-select-title');
+  const subtitle = document.getElementById('country-select-subtitle');
+  if (title) title.textContent = 'Choose Your Country';
+  if (subtitle) subtitle.textContent = 'Select the nation you\'ll represent';
+
+  if (gameState.selectedMode === 'local2p') {
+    if (local2pStep === 2) {
+      // Player 2 back → restart at Player 1
+      showLocal2pCountrySelection();
+    } else {
+      // Player 1 back → level selection
+      showLevelSelection();
+    }
+  } else if (gameState.selectedMode === 'quickplay') {
     showLevelSelection();
   } else {
     showClubSelection();
@@ -17548,7 +17613,11 @@ window.goBackFromCountrySelect = function() {
 // Go back from settings summary (Match Setup)
 window.goBackFromSettingsSummary = function() {
   document.getElementById('settings-summary-screen').style.display = 'none';
-  showCountrySelection();
+  if (gameState.selectedMode === 'local2p') {
+    showLocal2pCountrySelection();
+  } else {
+    showCountrySelection();
+  }
 };
 
 // Show restart career confirmation
@@ -19239,6 +19308,72 @@ function selectCountry(country) {
   showSettingsSummary();
 }
 
+// Two-player country selection flow (Player 1 then Player 2)
+let local2pStep = 1; // 1 = choosing Player 1's country, 2 = choosing Player 2's country
+
+function showLocal2pCountrySelection() {
+  local2pStep = 1;
+  const screen = document.getElementById('country-select-screen');
+  const grid = document.getElementById('country-grid');
+  const title = document.getElementById('country-select-title');
+  const subtitle = document.getElementById('country-select-subtitle');
+
+  if (!screen || !grid) return;
+
+  title.textContent = 'Player 1 — Choose Your Country';
+  subtitle.textContent = 'Select the nation you\'ll represent';
+
+  grid.innerHTML = '';
+  CURLING_COUNTRIES.forEach(country => {
+    const btn = document.createElement('button');
+    btn.className = 'country-btn';
+    btn.innerHTML = `
+      <div style="font-size: 36px; margin-bottom: 8px;">${country.flag}</div>
+      <div style="color: white; font-size: 14px;">${country.name}</div>
+    `;
+    btn.onclick = () => selectLocal2pCountry(country);
+    grid.appendChild(btn);
+  });
+
+  screen.style.display = 'block';
+}
+
+function showLocal2pPlayer2Selection() {
+  local2pStep = 2;
+  const grid = document.getElementById('country-grid');
+  const title = document.getElementById('country-select-title');
+  const subtitle = document.getElementById('country-select-subtitle');
+
+  title.textContent = 'Player 2 — Choose Your Country';
+  subtitle.textContent = 'Select the nation you\'ll represent';
+
+  grid.innerHTML = '';
+  CURLING_COUNTRIES.filter(c => c.id !== gameState.playerCountry.id).forEach(country => {
+    const btn = document.createElement('button');
+    btn.className = 'country-btn';
+    btn.innerHTML = `
+      <div style="font-size: 36px; margin-bottom: 8px;">${country.flag}</div>
+      <div style="color: white; font-size: 14px;">${country.name}</div>
+    `;
+    btn.onclick = () => selectLocal2pCountry(country);
+    grid.appendChild(btn);
+  });
+}
+
+function selectLocal2pCountry(country) {
+  if (local2pStep === 1) {
+    gameState.playerCountry = country;
+    showLocal2pPlayer2Selection();
+  } else {
+    gameState.opponentCountry = country;
+    document.getElementById('country-select-screen').style.display = 'none';
+    // Reset title/subtitle for other modes
+    document.getElementById('country-select-title').textContent = 'Choose Your Country';
+    document.getElementById('country-select-subtitle').textContent = 'Select the nation you\'ll represent';
+    showSettingsSummary();
+  }
+}
+
 // Show settings summary screen
 function showSettingsSummary() {
   const screen = document.getElementById('settings-summary-screen');
@@ -19252,14 +19387,15 @@ function showSettingsSummary() {
   // Update mode and level info
   const level = getCurrentLevel();
   const modeText = gameState.learnMode.enabled ? 'Learn Mode' :
+                   gameState.selectedMode === 'local2p' ? 'Two Player' :
                    gameState.gameMode === '1player' ? 'Career Mode' : 'Quick Play';
   document.getElementById('summary-mode').textContent = modeText;
   document.getElementById('summary-level').textContent = level.name + ' Level';
 
-  // Show game length selector for Quick Play only
+  // Show game length selector for Quick Play and Two Player
   const endsSection = document.getElementById('summary-ends-section');
   if (endsSection) {
-    if (gameState.selectedMode === 'quickplay') {
+    if (gameState.selectedMode === 'quickplay' || gameState.selectedMode === 'local2p') {
       endsSection.style.display = 'block';
       // Update button states to match current setting
       updateSummaryEndsButtons(gameState.settings.gameLength);
@@ -20241,6 +20377,8 @@ function showTutorialCompletion() {
 
   // Replace button with two options
   nextBtn.style.display = 'none';
+  const exitBtn = document.getElementById('tutorial-exit-btn');
+  if (exitBtn) exitBtn.style.display = 'none';
 
   // Create button container if it doesn't exist
   let btnContainer = document.getElementById('tutorial-completion-btns');
@@ -20906,8 +21044,8 @@ function loadCareerStats() {
   const soloWinsEl = document.getElementById('stats-solo-wins');
   const soloWinrateEl = document.getElementById('stats-solo-winrate');
 
-  const totalGames = (localStats.careerGames || 0) + (localStats.quickplayGames || 0);
-  const totalWins = (localStats.careerWins || 0) + (localStats.quickplayWins || 0);
+  const totalGames = (localStats.careerGames || 0) + (localStats.quickplayGames || 0) + (localStats.local2pGames || 0);
+  const totalWins = (localStats.careerWins || 0) + (localStats.quickplayWins || 0) + (localStats.local2pWins || 0);
   const totalWinRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
 
   if (soloGamesEl) soloGamesEl.textContent = totalGames;
@@ -20942,6 +21080,13 @@ function loadCareerStats() {
 
   if (quickplayGamesEl) quickplayGamesEl.textContent = localStats.quickplayGames || 0;
   if (quickplayWinsEl) quickplayWinsEl.textContent = localStats.quickplayWins || 0;
+
+  // Two Player breakdown
+  const local2pGamesEl = document.getElementById('stats-local2p-games');
+  const local2pWinsEl = document.getElementById('stats-local2p-wins');
+
+  if (local2pGamesEl) local2pGamesEl.textContent = localStats.local2pGames || 0;
+  if (local2pWinsEl) local2pWinsEl.textContent = localStats.local2pWins || 0;
 }
 
 async function loadMatchHistoryDisplay() {
