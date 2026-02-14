@@ -756,11 +756,15 @@ const FAQ_DATA = [
       },
       {
         q: 'What are the basic controls?',
-        a: 'Tap to aim, hold for power, release to throw. Use the left/right curl buttons to add spin. Tap the broom icon to toggle sweeping while the stone is moving.'
+        a: 'Tap to aim, hold for power, release to throw. Use the curl slider to control spin direction and amount. Tap the broom icon to toggle sweeping while the stone is moving.'
       },
       {
         q: 'How do I switch between camera views?',
         a: 'Double-tap anywhere on the screen to toggle between the overhead view and the throwing view. You can also use the camera button in the corner.'
+      },
+      {
+        q: 'How does curl work?',
+        a: 'Use the curl slider at the bottom left to control curl direction and amount. Sliding left makes the stone curve left, sliding right makes it curve right. The further you slide from center, the more curl is applied. A curved line on the ice previews the stone\'s predicted path. In real curling, these are called "in-turn" (clockwise rotation, curls left) and "out-turn" (counter-clockwise, curls right) for a right-handed thrower.'
       }
     ]
   },
@@ -1094,7 +1098,7 @@ const PRACTICE_SCENARIOS = {
         { team: 'red', x: 0, z: 40.0 }  // Own stone in front of button
       ],
       target: { type: 'bump', stoneIndex: 0, zone: 'button' },
-      hint: 'Use light weight (40-50%) to gently push the stone'
+      hint: 'Use light weight (45-55%) to gently push the stone'
     },
     {
       id: 'bump_2',
@@ -1161,7 +1165,7 @@ const PRACTICE_SCENARIOS = {
       description: 'Draw to the button with an empty house',
       stones: [],  // Empty house
       target: { type: 'draw', ring: 'fourFoot' },
-      hint: 'Aim for the button, use 50-60% power'
+      hint: 'Aim for the button, use 48-55% power'
     },
     {
       id: 'draw_2',
@@ -2513,13 +2517,12 @@ Your Coach (the panel on the right) suggests where to aim based on the current g
     id: 'curl',
     icon: '🌀',
     title: 'Setting the Curl',
-    text: `Before you throw, you must select a curl direction. Curling stones rotate as they travel, causing them to curve near the end.
+    text: `Before you throw, set the curl using the slider at the bottom left. Curling stones rotate as they travel, causing them to curve near the end.
 
-Tap the IN or OUT button (bottom left):
-• IN-turn curls the stone LEFT
-• OUT-turn curls the stone RIGHT
+Slide left → stone curves LEFT
+Slide right → stone curves RIGHT
 
-Curl helps you navigate around guards and reach positions you couldn't hit straight-on.`,
+The further you slide from center, the more the stone will curl. Watch the curved line on the ice to see the predicted path. Curl helps you navigate around guards and reach positions you couldn't hit straight-on.`,
     hint: 'You must select curl before you can throw!',
     step: 6,
     total: 9
@@ -2531,9 +2534,9 @@ Curl helps you navigate around guards and reach positions you couldn't hit strai
     text: `After setting curl, tap and drag DOWN to set the throwing power (called "weight").
 
 Different weights for different shots:
-• Guard weight (30-50%): Stops before the house
-• Draw weight (50-70%): Stops in the house
-• Takeout weight (70-85%): Hits and removes stones`,
+• Guard weight (60-67%): Stops before the house
+• Draw weight (48-55%): Stops in the house
+• Takeout weight (73-85%): Hits and removes stones`,
     hint: 'Watch the weight indicator on the left side of the screen.',
     step: 7,
     total: 9
@@ -7439,6 +7442,7 @@ function placeTargetMarker(screenX, screenY) {
       updateReturnButton();  // Show the return button
       updateMarkerHint();    // Hide the marker hint
       setCurlDisplayVisible(true);  // Show curl selection
+      updateCurlPreviewArrow();      // Show curl preview on ice
 
       // Interactive tutorial: detect aim action
       onTutorialActionComplete('aim');
@@ -7457,6 +7461,7 @@ function clearTargetMarker() {
     gameState.targetPosition = null;
   }
   setCurlDisplayVisible(false);  // Hide curl selection
+  hideCurlPreviewArrow();        // Hide curl preview
 }
 
 // Drag existing target marker to new position
@@ -7578,6 +7583,182 @@ function updateAimLine(angle) {
 function hideAimLine() {
   if (gameState.aimLine) {
     gameState.aimLine.visible = false;
+  }
+}
+
+// ============================================
+// CURL PREVIEW ARROW (curved path on ice)
+// ============================================
+
+function buildCurveRibbon(points, width, color, opacity) {
+  // Build a flat ribbon mesh from an array of centerline points
+  const vertices = [];
+  const indices = [];
+
+  for (let i = 0; i < points.length; i++) {
+    // Calculate perpendicular direction in XZ plane
+    let dx, dz;
+    if (i === 0) {
+      dx = points[1].x - points[0].x;
+      dz = points[1].z - points[0].z;
+    } else if (i === points.length - 1) {
+      dx = points[i].x - points[i - 1].x;
+      dz = points[i].z - points[i - 1].z;
+    } else {
+      dx = points[i + 1].x - points[i - 1].x;
+      dz = points[i + 1].z - points[i - 1].z;
+    }
+
+    // Normalize and get perpendicular (rotate 90 degrees in XZ)
+    const len = Math.sqrt(dx * dx + dz * dz) || 1;
+    const nx = -dz / len;
+    const nz = dx / len;
+
+    const halfW = width / 2;
+    // Left vertex
+    vertices.push(points[i].x + nx * halfW, points[i].y, points[i].z + nz * halfW);
+    // Right vertex
+    vertices.push(points[i].x - nx * halfW, points[i].y, points[i].z - nz * halfW);
+  }
+
+  // Build triangle indices (two triangles per quad)
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = i * 2;
+    const b = i * 2 + 1;
+    const c = (i + 1) * 2;
+    const d = (i + 1) * 2 + 1;
+    indices.push(a, c, b);
+    indices.push(b, c, d);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setIndex(indices);
+
+  const material = new THREE.MeshBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: opacity,
+    side: THREE.DoubleSide,
+    depthWrite: false
+  });
+
+  return new THREE.Mesh(geometry, material);
+}
+
+function createCurlPreviewArrow() {
+  const group = new THREE.Group();
+  group.name = 'curlPreviewArrow';
+
+  // Create initial ribbon (will be rebuilt on update)
+  const dummyPoints = [
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, 1)
+  ];
+  const ribbon = buildCurveRibbon(dummyPoints, 0.08, 0x88ccff, 0.5);
+  ribbon.name = 'curlRibbon';
+  group.add(ribbon);
+
+  // Arrowhead cone
+  const headGeometry = new THREE.ConeGeometry(0.12, 0.25, 8);
+  headGeometry.rotateX(Math.PI / 2);  // Point forward (Z direction)
+  const headMaterial = new THREE.MeshBasicMaterial({
+    color: 0x88ccff,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false
+  });
+  const arrowhead = new THREE.Mesh(headGeometry, headMaterial);
+  arrowhead.name = 'curlArrowhead';
+  group.add(arrowhead);
+
+  group.position.y = 0.025;  // Just above ice, slightly below aim line
+  group.visible = false;
+
+  scene.add(group);
+  gameState.curlPreviewArrow = group;
+  return group;
+}
+
+function updateCurlPreviewArrow() {
+  // Don't show during computer turns
+  if (isComputerTurn()) return;
+
+  // Need a target position to draw the curve
+  if (!gameState.targetPosition) return;
+
+  // Need curl direction to be set
+  if (gameState.curlDirection === null || gameState.curlDirection === undefined) return;
+
+  if (!gameState.curlPreviewArrow) {
+    createCurlPreviewArrow();
+  }
+
+  const group = gameState.curlPreviewArrow;
+  const targetX = gameState.targetPosition.x;
+  const targetZ = gameState.targetPosition.z;
+  const handleAmount = gameState.handleAmount || 0;
+  const curlDir = gameState.curlDirection;  // -1 = left, 1 = right
+
+  // Calculate the lateral curl offset at the target
+  // Max lateral deviation ~2.5m at full handle
+  const lateralScale = 2.5;
+  const curlOffset = curlDir * (handleAmount / 100) * lateralScale;
+
+  // Build a quadratic bezier curve from hack to target
+  // Most curl happens in the last third (like real physics)
+  const startX = 0;
+  const startZ = HACK_Z;
+  const endX = targetX + curlOffset;
+  const endZ = targetZ;
+  const midZ = (startZ + endZ) * 0.5;
+  // Control point: mostly straight for first half, curl shifts toward end
+  const controlX = startX + curlOffset * 0.15;  // Slight early drift
+  const controlZ = midZ;
+
+  // Sample 30 points along the bezier
+  const numPoints = 30;
+  const points = [];
+  for (let i = 0; i <= numPoints; i++) {
+    const t = i / numPoints;
+    // Quadratic bezier: B(t) = (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
+    const mt = 1 - t;
+    const x = mt * mt * startX + 2 * mt * t * controlX + t * t * endX;
+    const z = mt * mt * startZ + 2 * mt * t * controlZ + t * t * endZ;
+    points.push(new THREE.Vector3(x, 0, z));
+  }
+
+  // Remove old ribbon and rebuild
+  const oldRibbon = group.getObjectByName('curlRibbon');
+  if (oldRibbon) {
+    oldRibbon.geometry.dispose();
+    group.remove(oldRibbon);
+  }
+
+  const newRibbon = buildCurveRibbon(points, 0.08, 0x88ccff, 0.5);
+  newRibbon.name = 'curlRibbon';
+  group.add(newRibbon);
+
+  // Position arrowhead at the end of the curve, oriented along tangent
+  const arrowhead = group.getObjectByName('curlArrowhead');
+  if (arrowhead) {
+    const lastPt = points[numPoints];
+    const prevPt = points[numPoints - 1];
+    arrowhead.position.set(lastPt.x, 0, lastPt.z);
+
+    // Orient arrowhead along tangent direction
+    const tangentX = lastPt.x - prevPt.x;
+    const tangentZ = lastPt.z - prevPt.z;
+    const angle = Math.atan2(tangentX, tangentZ);
+    arrowhead.rotation.set(0, angle, 0);
+  }
+
+  group.visible = true;
+}
+
+function hideCurlPreviewArrow() {
+  if (gameState.curlPreviewArrow) {
+    gameState.curlPreviewArrow.visible = false;
   }
 }
 
@@ -7822,6 +8003,7 @@ function pushOff() {
   }
 
   hideAimLine();  // Hide aiming line on push off
+  hideCurlPreviewArrow();  // Hide curl preview on push off
   gameState.phase = 'sliding';
   setCurlButtonsEnabled(false);  // Disable curl buttons during throw
   setCurlDisplayVisible(false);  // Hide curl slider during throw
@@ -8200,6 +8382,7 @@ window.updateCurlSlider = function(value) {
   updateCurlDisplay();
   updateSkipSignalArm();
   updatePreviewStoneRotation();
+  updateCurlPreviewArrow();  // Update curl preview curve on ice
 
   // Interactive tutorial: detect curl action
   onTutorialActionComplete('curl');
@@ -8228,6 +8411,7 @@ function setCurlDirection(direction) {
   updateCurlDisplay();
   updateSkipSignalArm();
   updatePreviewStoneRotation();
+  updateCurlPreviewArrow();  // Update curl preview curve on ice
 
   // Broadcast aim state to opponent in multiplayer
   broadcastAimStateThrottled();
@@ -8301,6 +8485,7 @@ function setCurlDisplayVisible(visible) {
       gameState.curlDirection = direction;
       gameState.handleAmount = handle;
       updateCurlDisplay();
+      updateCurlPreviewArrow();  // Update curl preview with restored values
     }
   }
 }
@@ -8495,7 +8680,7 @@ function generateCoachSuggestion() {
       // We have a guard - draw behind it to the house
       shotType = 'Draw Behind Guard';
       targetDesc = 'Behind your guard, into the house';
-      weight = 'Draw weight (55-62%)';
+      weight = 'Draw weight (48-55%)';
       reason = 'You have a guard set up! Now draw behind it into the house for a protected scoring position.';
       targetX = guardsPlayer[0].x * 0.8;  // Slightly toward center
       targetZ = TEE_LINE_FAR - 0.5;  // Top of house
@@ -8503,21 +8688,21 @@ function generateCoachSuggestion() {
     } else if (earlyEnd && hasHammer) {
       shotType = 'Guard';
       targetDesc = 'In front of the house';
-      weight = 'Guard weight (40-50%)';
+      weight = 'Guard weight (60-67%)';
       reason = 'With hammer early in the end, place a guard to set up scoring opportunities later.';
       targetZ = HOG_LINE_FAR + 2;  // Just past far hog line
       curl = 1;
     } else if (earlyEnd && !hasHammer) {
       shotType = 'Draw';
       targetDesc = 'Top of the house (8-foot)';
-      weight = 'Draw weight (50-60%)';
+      weight = 'Draw weight (50-55%)';
       reason = 'Without hammer, draw to the top of the house to establish position early.';
       targetZ = TEE_LINE_FAR - 0.8;
       curl = 1;
     } else {
       shotType = 'Draw to Button';
       targetDesc = 'Center of the house (button)';
-      weight = 'Draw weight (55-65%)';
+      weight = 'Draw weight (48-55%)';
       reason = 'Empty house - draw to the button to establish a scoring stone.';
       curl = 1;
     }
@@ -8535,7 +8720,7 @@ function generateCoachSuggestion() {
     } else if (earlyEnd && guardsPlayer.length < 2) {
       shotType = 'Guard';
       targetDesc = 'Center guard position';
-      weight = 'Guard weight (45-50%)';
+      weight = 'Guard weight (62-67%)';
       reason = 'Early in the end - consider a guard to protect future draws or make opponent\'s takeout harder.';
       targetZ = HOG_LINE_FAR - 2;
       curl = 1;
@@ -8553,7 +8738,7 @@ function generateCoachSuggestion() {
     if (guardsPlayer.length < 2 && houseStonesPlayer[0].distance < RING_8FT) {
       shotType = 'Guard';
       targetDesc = 'In front of your shot stone';
-      weight = 'Guard weight (45-52%)';
+      weight = 'Guard weight (62-67%)';
       reason = 'You have shot! Protect it with a guard to make it harder for opponent to remove.';
       targetX = houseStonesPlayer[0].x * 0.3;
       targetZ = HOG_LINE_FAR - 1.5;
@@ -8561,7 +8746,7 @@ function generateCoachSuggestion() {
     } else {
       shotType = 'Draw';
       targetDesc = 'Next to your shot stone (freeze)';
-      weight = 'Draw weight (52-58%)';
+      weight = 'Draw weight (45-50%)';
       reason = 'Add another stone close to your shot to increase potential score.';
       targetX = houseStonesPlayer[0].x + 0.3;
       targetZ = houseStonesPlayer[0].z;
@@ -8571,7 +8756,7 @@ function generateCoachSuggestion() {
     // Default - draw to button
     shotType = 'Draw to Button';
     targetDesc = 'Center of the house';
-    weight = 'Draw weight (55-65%)';
+    weight = 'Draw weight (48-55%)';
     reason = 'Draw to the button to establish scoring position.';
     curl = 1;
   }
@@ -10826,7 +11011,7 @@ function applyPerStepPhysics() {
       const curlDirection = omega < 0 ? 1 : -1;
       const omegaBase = Math.max(0.01, ADVANCED_PHYSICS.rotation.omegaRef / (absOmega + 0.15));
       const omegaFactor = Math.pow(omegaBase, ADVANCED_PHYSICS.rotation.curlOmegaExponent);
-      let curlForce = curlDirection * 0.000006 * lateCurlMultiplier * iceRandomness * omegaFactor;
+      let curlForce = curlDirection * 0.000005 * lateCurlMultiplier * iceRandomness * omegaFactor;
       curlForce = Math.max(-0.0002, Math.min(0.0002, curlForce));
 
       if (gameState.isSweeping && gameState.sweepEffectiveness > 0.1) {
@@ -17764,10 +17949,12 @@ The green arrow shows your aim direction. Drag left or right to fine-tune your a
     id: 'fr_curl',
     icon: '🌀',
     title: 'Choose Your Curl',
-    text: `Curling stones curve as they slow down! Tap IN or OUT (bottom left) to set the curl direction:
+    text: `Curling stones curve as they slow down! Use the curl slider (bottom left) to control the direction and amount of curl.
 
-• IN-turn → stone curves LEFT
-• OUT-turn → stone curves RIGHT`,
+Slide left → stone curves LEFT
+Slide right → stone curves RIGHT
+
+The curved line on the ice shows the predicted path of your stone.`,
     hint: 'Curl helps you navigate around other stones.',
     step: 3,
     total: 5
@@ -19360,14 +19547,14 @@ window.sendFeedback = async function(event) {
     const result = await analytics.submitFeedbackToSupabase(type, '', '', message);
 
     if (result.success) {
-      statusEl.textContent = 'Thank you! Your feedback has been sent.';
+      statusEl.innerHTML = 'Thank you for your feedback! Your submission is anonymous, so we\'re unable to respond directly. If you\'d like a reply, feel free to email <a href="mailto:jonathan@pksols.com" style="color: #60a5fa; text-decoration: underline;">jonathan@pksols.com</a>.';
       statusEl.style.color = '#4ade80';
       statusEl.style.display = 'block';
 
-      // Close after delay
+      // Close after delay (longer so user can read the message)
       setTimeout(() => {
         window.closeFeedback();
-      }, 2000);
+      }, 8000);
     } else {
       // Supabase failed - offer email fallback
       throw new Error('service_unavailable');
@@ -20329,6 +20516,8 @@ function animate() {
     // If error is WebGL-related, flag context as lost to skip future frames
     if (err.message && err.message.includes('WebGL')) {
       webglContextLost = true;
+      // Don't report WebGL context loss to analytics - expected on iOS backgrounding
+      return;
     }
     // Send diagnostic info to analytics but DON'T crash - just skip this frame
     analytics.trackError('animate_error', `${err.name}: ${err.message}`, {
